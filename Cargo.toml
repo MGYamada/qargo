@@ -10,7 +10,7 @@ publish = ["crates-io"]
 readme = "README.md"
 keywords = ["qleisli", "qrate", "lint", "format", "documentation"]
 categories = ["command-line-utilities", "development-tools"]
-include = ["/src/**", "/qrates/*/Qargo.toml", "/qrates/*/src/**", "/qrates/*/tests/**", "/qrates/*/docs/**", "/tests/**", "/docs/**", "/scripts/*.py", "/README.md", "/CHANGELOG.md", "/LICENSE", "/NOTICE", "/AGENTS.md"]
+include = ["/src/**", "/qrates/*/Qargo.toml", "/qrates/*/src/**", "/qrates/*/tests/**", "/qrates/*/docs/**", "/tests/**", "/docs/**", "/scripts/*.py", "/README.md", "/CHANGELOG.md", "/LICENSE", "/NOTICE", "/AGENTS.md", "!**/.DS_Store", "!**/__pycache__/**"]
 
 [lib]
 name = "qargo_tools"

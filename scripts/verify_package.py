@@ -28,7 +28,7 @@ def verify_package(source_root, archive_path, bin_dir):
     expected = {}
     for directory in ("src", "tests", "docs", "scripts"):
         for label, content in files_under(source_root / directory).items():
-            if "target" not in PurePosixPath(label).parts and "__pycache__" not in PurePosixPath(label).parts:
+            if not {"target", "__pycache__", ".DS_Store"}.intersection(PurePosixPath(label).parts):
                 expected[directory + "/" + label] = content
     for name in QRATES:
         inputs, _ = qrate_inputs(source_root / "qrates" / name)
