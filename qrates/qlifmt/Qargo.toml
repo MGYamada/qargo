@@ -1,7 +1,7 @@
 schema-version = 1
 
 [qrate]
-name = "qlippy"
+name = "qlifmt"
 version = "0.1.1"
 
 [source]

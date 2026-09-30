@@ -4,6 +4,7 @@ pub mod adapter;
 pub mod qlippy;
 pub mod report;
 pub mod snapshot;
+pub mod source;
 
 pub const QLEISLI_VERSION: &str = "0.2.1";
 pub const PROFILE: &str = "finite-v0";
