@@ -9,6 +9,7 @@
 - Reuse one descriptor-anchored publication kernel for build and documentation, including exact empty-directory inventories, race-resistant staging/cleanup, no-replace installation, and byte-identical concurrent reuse (#4).
 - Terminate selected-tool process groups on deadline or transport failure, and use cancellable nonblocking pipe reads to bound cleanup when descendants inherit output descriptors (#5).
 - Require `compiler_error` as the only failed nonempty-source qlippy check reason, retaining existing status/outcome/diagnostic consistency checks (#6).
+- Document the adopted tooling implementation order: local diagnostic explanations, pinned compatibility comparisons, explicit documentation-example checks, then scoped review records. Keep toolchain selection, structured repairs, and QLT execution dependent on separately specified upstream protocols; these remain future features.
 - Preserve independent result schema version 1, Rust 1.85, exact Qleisli 0.2.1, syntax-only formatting/documentation, empty-source behavior, and explicitly unavailable QLT execution. Publication remains a separate authorized action.
 
 ## 0.1.2 — 2026-09-30

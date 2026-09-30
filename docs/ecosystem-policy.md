@@ -35,3 +35,7 @@ Local workspace convenience may be added independently of a registry once multi-
 The familiar `check`, `build`, `test`, and `doc` names keep explicit Qleisli meanings. Build records and lint results remain metadata. QLT is explicitly unavailable until implemented; documentation and formatting remain syntax-only. No Cargo tests, Rustdoc, or host-language executable substitute for an unavailable Qleisli operation.
 
 Current unsupported dependency commands and tables must report their limits and point to supported local operations. Adding a registry or workspace later requires a separately reviewed specification and any necessary schema versions; the name Qargo does not itself authorize those features.
+
+## Tooling implementation order
+
+The adopted [tooling plan](adoption-plan.md) starts with Qargo-owned diagnostic explanations, then a pinned positive/negative compatibility corpus, explicit documentation-example checks, and scoped review records. These can use the current supported checker. Toolchain selection, structured repairs, and QLT execution follow their upstream protocol prerequisites; Qleisli's language-development work is tracked in [issue 97](https://github.com/MGYamada/Qleisli/issues/97) for 0.5.0. The plan changes no current command or schema contract.

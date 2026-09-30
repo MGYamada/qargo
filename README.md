@@ -1,6 +1,6 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share development version 0.1.3. Published version 0.1.2 is available on [crates.io](https://crates.io/crates/qargo/0.1.2) and as a [GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.2) for Linux and macOS. The manifest contract below describes 0.1.3; 0.1.2 uses manifest schema 1.
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.3. The standard bundle is distributed through [crates.io](https://crates.io/crates/qargo/0.1.3) and a [GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.3) for Linux and macOS. Version 0.1.3 requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
@@ -10,17 +10,19 @@ A qrate's semantic surface is its Qleisli modules and contracts; its raw input i
 
 The [ecosystem policy](docs/ecosystem-policy.md) puts a curated stdlib at the center. Future extensions require trusted sources, authenticated publisher namespaces, and fixed identities. Public registry and automatic semver resolution are deferred; arbitrary qrate build hooks, native procedural macros, dependency-install scripts, and global feature unification will not be introduced. Cargo's command structure does not determine Qleisli's governance.
 
+The [tooling adoption plan](docs/adoption-plan.md) sets the implementation order for local diagnostic explanations, compatibility comparisons, documentation examples, and scoped review records. Upstream toolchain, structured-repair, and QLT protocols determine their later integration.
+
 ## Install from crates.io
 
-Rust 1.85 or newer is required. Install all four executables from published version 0.1.2 together:
+Rust 1.85 or newer is required. Install all four executables from version 0.1.3 together:
 
 ```sh
-cargo install qargo --version=0.1.2 --locked --bins
+cargo install qargo --version=0.1.3 --locked --bins
 ```
 
 Cargo compiles the Rust tools during installation. The installed Qargo executable manages Qleisli qrates without invoking Cargo. The package includes all three engines and requires no private engine crates or repository checkout.
 
-## Build the development version
+## Build from source
 
 Rust 1.85 or newer is required. The implementation links exactly Qleisli 0.2.1. Clone the repository, or extract a complete source archive, and start in its top-level directory:
 
