@@ -1,6 +1,6 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.2. Version 0.1.2 is available on [crates.io](https://crates.io/crates/qargo/0.1.2) and as a [GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.2) for Linux and macOS.
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share development version 0.1.3. Published version 0.1.2 is available on [crates.io](https://crates.io/crates/qargo/0.1.2) and as a [GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.2) for Linux and macOS. The manifest contract below describes 0.1.3; 0.1.2 uses manifest schema 1.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
@@ -12,7 +12,7 @@ The [ecosystem policy](docs/ecosystem-policy.md) puts a curated stdlib at the ce
 
 ## Install from crates.io
 
-Rust 1.85 or newer is required. Install all four executables together:
+Rust 1.85 or newer is required. Install all four executables from published version 0.1.2 together:
 
 ```sh
 cargo install qargo --version=0.1.2 --locked --bins
@@ -36,6 +36,24 @@ This builds `target/release/qargo`, `qlippy`, `qlifmt`, and `qlidoc`. Keep the e
 Rebuilding requires the complete repository layout, root `Cargo.toml` and `Cargo.lock`, and the three `rust/<tool>/Cargo.toml` developer manifests. A Qargo snapshot preserves declared qrate inputs but omits this external Cargo configuration; it is not a standalone Rust build package.
 
 ## Manage a bundled qrate
+
+Qargo 0.1.3 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
+
+```toml
+schema-version = 2
+[qrate]
+name = "example"
+version = "0.1.3"
+edition = "2026"
+[source]
+root = "src"
+[tests]
+root = "tests"
+[docs]
+root = "docs"
+```
+
+All three root directories must exist, even when empty. Migrate older manifests by changing `schema-version` to 2 and adding `edition = "2026"` under `[qrate]`. Include the edition in every valid manifest, example, and fixture. Rust's `Cargo.toml` files independently retain edition `"2024"`.
 
 ```sh
 target/release/qargo check --manifest-path=qrates/qlippy/Qargo.toml
@@ -85,7 +103,7 @@ All four tools support `--help`, `--version`, and `--format=json`. Independent v
 
 Linux and macOS are validated with Rust 1.85 and stable. Windows and Android are outside the supported release platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package. Prebuilt executable assets are not provided; Cargo compiles the installed executables. All Rust packages forbid unsafe code.
 
-The public contract covers CLI commands, manifest schema 1, the independently versioned JSON result formats, and exit codes 0/1/2. Path options accept both equality and space-separated syntax, such as `--manifest-path=PATH` and `--manifest-path PATH`, including explicit tool paths and qlidoc's `--output`. Empty, missing, and repeated values are usage errors. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
+The public contract covers CLI commands, manifest schema 2, the independently versioned JSON result formats, and exit codes 0/1/2. Path options accept both equality and space-separated syntax, such as `--manifest-path=PATH` and `--manifest-path PATH`, including explicit tool paths and qlidoc's `--output`. Empty, missing, and repeated values are usage errors. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
 
 Cargo-style qrate dependency commands such as `qargo add` and manifest tables such as `[dependencies]` are still unsupported. Their diagnostics suggest supported local operations and keeping Rust dependencies in external developer Cargo configuration. Qargo does not resolve them through Cargo.
 

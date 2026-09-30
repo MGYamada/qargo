@@ -62,7 +62,7 @@ fn all_four_executables_bind_version_to_the_actual_engine() {
         assert_eq!(report["diagnostics"], json!([]));
         let tool = report["result"].get("tool").unwrap_or(&report["result"]);
         assert_eq!(tool["name"], name);
-        assert_eq!(tool["version"], "0.1.2");
+        assert_eq!(tool["version"], "0.1.3");
         assert_eq!(tool["qleisli_version"], "0.2.1");
         assert_eq!(tool["profile"], "finite-v0");
         assert_eq!(
@@ -79,9 +79,10 @@ fn standard_qrates_capture_all_declared_sources_and_keep_developer_config_outsid
         let files = qrate_files(name);
         let manifest: toml::Value =
             toml::from_str(std::str::from_utf8(&files["Qargo.toml"]).unwrap()).unwrap();
-        assert_eq!(manifest["schema-version"].as_integer(), Some(1));
+        assert_eq!(manifest["schema-version"].as_integer(), Some(2));
         assert_eq!(manifest["qrate"]["name"].as_str(), Some(name));
-        assert_eq!(manifest["qrate"]["version"].as_str(), Some("0.1.2"));
+        assert_eq!(manifest["qrate"]["version"].as_str(), Some("0.1.3"));
+        assert_eq!(manifest["qrate"]["edition"].as_str(), Some("2026"));
         assert!(files.contains_key("src/lib.rs"), "{name}");
         assert!(files.contains_key(&format!("src/bin/{name}.rs")), "{name}");
         assert!(

@@ -17,6 +17,8 @@ use crate::snapshot::{self, Files, FrozenSources};
 use crate::{PROFILE, QLEISLI_VERSION, VERSION};
 
 const FORMAT: &str = "qargo.result";
+const MANIFEST_SCHEMA_VERSION: u32 = 2;
+const QLEISLI_EDITION: &str = "2026";
 const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nPath options also accept --option PATH.\nUse qlippy --list-rules to inspect advisory rule policy.\nQargo manages Qleisli qrates. Cargo builds and installs Rust tools outside Qargo commands.";
 
 #[derive(Deserialize)]
@@ -35,6 +37,7 @@ struct Manifest {
 struct Qrate {
     name: String,
     version: String,
+    edition: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -266,12 +269,35 @@ fn root_path(value: &str) -> Result<PathBuf, Diagnostic> {
 }
 
 fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagnostic> {
-    if manifest.schema_version != 1 {
-        return Err(error(
+    if manifest.schema_version != MANIFEST_SCHEMA_VERSION {
+        let mut diagnostic = error(
             "unsupported_manifest_version",
             "qargo",
-            "Only manifest schema-version 1 is supported.",
-        ));
+            "Only manifest schema-version 2 is supported.",
+        );
+        diagnostic.suggestion = Some(
+            "Migrate Qargo.toml to schema-version = 2 and add edition = \"2026\" under [qrate]."
+                .into(),
+        );
+        return Err(diagnostic);
+    }
+    let Some(edition) = &manifest.qrate.edition else {
+        let mut diagnostic = error(
+            "invalid_manifest",
+            "qargo",
+            "[qrate].edition is required and must be an explicit string; there is no default edition.",
+        );
+        diagnostic.suggestion = Some("Add edition = \"2026\" under [qrate].".into());
+        return Err(diagnostic);
+    };
+    if edition != QLEISLI_EDITION {
+        let mut diagnostic = error(
+            "unsupported_edition",
+            "qargo",
+            format!("Unsupported Qleisli edition {edition:?}; only \"2026\" is supported."),
+        );
+        diagnostic.suggestion = Some("Set edition = \"2026\" under [qrate].".into());
+        return Err(diagnostic);
     }
     let name = &manifest.qrate.name;
     if !name.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
@@ -357,7 +383,7 @@ fn capture(explicit: Option<&Path>) -> Result<CapturedQrate, Diagnostic> {
         let mut diagnostic = error(
             "invalid_manifest",
             "qargo",
-            "Qargo manifest schema 1 does not support dependency tables.",
+            "Qargo manifest schema 2 does not support dependency tables.",
         );
         diagnostic.suggestion = Some(
             "Remove [dependencies] and [dev-dependencies] from Qargo.toml. Use local Qleisli source modules; keep Rust engine dependencies in developer Cargo.toml outside the qrate. Qrate dependency resolution is deferred.".into(),
@@ -1455,7 +1481,7 @@ mod tests {
         for root in ["src", "tests", "docs"] {
             fs::create_dir(directory.path().join(root)).unwrap();
         }
-        let manifest = "schema-version=1\n[qrate]\nname=\"example\"\nversion=\"0.1.0\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n";
+        let manifest = "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.0\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n";
         fs::write(directory.path().join("Qargo.toml"), manifest).unwrap();
         let source = "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
         fs::write(directory.path().join("src/module.qli"), source).unwrap();

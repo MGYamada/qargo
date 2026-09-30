@@ -13,7 +13,7 @@ import tempfile
 
 QRATES = ("qlippy", "qlifmt", "qlidoc")
 TOOLS = ("qargo", *QRATES)
-PRODUCT_VERSION = "0.1.2"
+PRODUCT_VERSION = "0.1.3"
 
 
 def require(condition, message):
@@ -79,8 +79,10 @@ def qrate_inputs(qrate):
             expected[root_name + "/" + label] = content
     name = qrate.name
     manifest = expected["Qargo.toml"].decode("utf-8")
+    require(re.search(r'^schema-version\s*=\s*2\s*$', manifest, re.MULTILINE), "Incorrect qrate manifest schema")
     require(re.search(r'^name\s*=\s*"' + name + r'"\s*$', manifest, re.MULTILINE), "Incorrect qrate name")
     require(re.search(r'^version\s*=\s*"' + re.escape(PRODUCT_VERSION) + r'"\s*$', manifest, re.MULTILINE), "Incorrect qrate version")
+    require(re.search(r'^edition\s*=\s*"2026"\s*$', manifest, re.MULTILINE), "Qleisli edition must be explicit: " + name)
     for label in ("src/lib.rs", "src/bin/" + name + ".rs", "src/smoke.qli"):
         require(label in expected, "Missing qrate input: " + name + "/" + label)
     require(any(label.startswith("tests/") and label.endswith(".rs") for label in expected), "Missing Rust tests: " + name)

@@ -8,7 +8,7 @@ use qargo_tools::report::Report;
 use qargo_tools::snapshot::FrozenSources;
 use serde_json::{Value, json};
 
-const MANIFEST: &str = "schema-version = 1\n[qrate]\nname = \"example\"\nversion = \"0.1.0\"\n[source]\nroot = \"src\"\n[tests]\nroot = \"tests\"\n[docs]\nroot = \"docs\"\n";
+const MANIFEST: &str = "schema-version = 2\n[qrate]\nname = \"example\"\nversion = \"0.1.0\"\nedition = \"2026\"\n[source]\nroot = \"src\"\n[tests]\nroot = \"tests\"\n[docs]\nroot = \"docs\"\n";
 
 fn qrate() -> tempfile::TempDir {
     let directory = tempfile::tempdir().unwrap();
@@ -164,7 +164,7 @@ fn manifest_roots_require_strings_even_when_date_named_directories_exist() {
 #[test]
 fn manifest_validation_is_closed_and_rejects_bad_roots_names_versions() {
     for manifest in [
-        MANIFEST.replace("schema-version = 1", "schema-version = 2"),
+        MANIFEST.replace("schema-version = 2", "schema-version = 3"),
         format!("unexpected = true\n{MANIFEST}"),
         MANIFEST.replace("name = \"example\"", "name = \"9example\""),
         MANIFEST.replace("version = \"0.1.0\"", "version = \"00.1.0\""),
@@ -177,6 +177,66 @@ fn manifest_validation_is_closed_and_rejects_bad_roots_names_versions() {
         let qrate = qrate();
         fs::write(qrate.path().join("Qargo.toml"), manifest).unwrap();
         assert_eq!(run(qrate.path(), "check", &[]).exit_code, 1);
+    }
+}
+
+#[test]
+fn manifest_edition_is_required_and_validated_before_every_qrate_operation() {
+    let field = "edition = \"2026\"\n";
+    let mut invalid = vec![(MANIFEST.replace(field, ""), "invalid_manifest")];
+    for literal in ["2026", "2026.0", "true", "2026-09-30", "[\"2026\"]"] {
+        invalid.push((
+            MANIFEST.replace(field, &format!("edition = {literal}\n")),
+            "invalid_manifest",
+        ));
+    }
+    for edition in ["", "2024", "2025", "2027", "02026", "2026 "] {
+        invalid.push((
+            MANIFEST.replace(field, &format!("edition = \"{edition}\"\n")),
+            "unsupported_edition",
+        ));
+    }
+    invalid.push((
+        MANIFEST.replace(field, "edition = \"2026\"\nedition = \"2026\"\n"),
+        "invalid_manifest",
+    ));
+    invalid.push((
+        MANIFEST
+            .replace(field, "")
+            .replace("[source]", "[source]\nedition = \"2026\""),
+        "invalid_manifest",
+    ));
+    for (manifest, expected_id) in invalid {
+        let qrate = qrate();
+        fs::write(qrate.path().join("Qargo.toml"), &manifest).unwrap();
+        for command in ["check", "build", "lint", "fmt", "doc", "test"] {
+            let rejected = run(qrate.path(), command, &[]);
+            assert_eq!(rejected.exit_code, 1, "{command}: {manifest}");
+            assert_eq!(rejected.envelope.version, 1);
+            assert_eq!(rejected.envelope.diagnostics[0].id, expected_id);
+            assert_eq!(rejected.envelope.diagnostics[0].category, "qargo");
+            assert!(rejected.envelope.result.is_none());
+        }
+        assert!(!qrate.path().join("target").exists());
+    }
+}
+
+#[test]
+fn legacy_manifest_schema_is_rejected_with_an_explicit_edition_migration() {
+    let qrate = qrate();
+    let legacy = MANIFEST
+        .replace("schema-version = 2", "schema-version = 1")
+        .replace("edition = \"2026\"\n", "");
+    fs::write(qrate.path().join("Qargo.toml"), legacy).unwrap();
+    for command in ["check", "build", "lint", "fmt", "doc", "test"] {
+        let report = run(qrate.path(), command, &[]);
+        assert_eq!(report.exit_code, 1);
+        let diagnostic = &report.envelope.diagnostics[0];
+        assert_eq!(diagnostic.id, "unsupported_manifest_version");
+        let suggestion = diagnostic.suggestion.as_ref().unwrap();
+        assert!(suggestion.contains("schema-version = 2"));
+        assert!(suggestion.contains("edition = \"2026\""));
+        assert!(report.envelope.result.is_none());
     }
 }
 

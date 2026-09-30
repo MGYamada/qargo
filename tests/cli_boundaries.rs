@@ -4,7 +4,7 @@ use std::process::{Command, Output};
 
 use serde_json::Value;
 
-const MANIFEST: &str = "schema-version = 1\n[qrate]\nname = \"sample\"\nversion = \"0.1.0\"\n[source]\nroot = \"src\"\n[tests]\nroot = \"tests\"\n[docs]\nroot = \"docs\"\n";
+const MANIFEST: &str = "schema-version = 2\n[qrate]\nname = \"sample\"\nversion = \"0.1.0\"\nedition = \"2026\"\n[source]\nroot = \"src\"\n[tests]\nroot = \"tests\"\n[docs]\nroot = \"docs\"\n";
 
 fn qrate() -> tempfile::TempDir {
     let root = tempfile::tempdir().unwrap();
@@ -114,7 +114,7 @@ fn cargo_style_dependency_requests_include_actionable_diagnostics() {
         let manifest = root.path().join("Qargo.toml");
         fs::write(
             &manifest,
-            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.2\"\n"),
+            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.3\"\n"),
         )
         .unwrap();
         let output = qargo(&["check", "--manifest-path", manifest.to_str().unwrap()]);
