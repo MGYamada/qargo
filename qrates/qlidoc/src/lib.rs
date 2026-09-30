@@ -4,7 +4,7 @@
 
 use std::ffi::OsString;
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use qleisli::frontend::ast::{Decl, FnBody};
 use qleisli::frontend::documentation::DocComment;
@@ -16,9 +16,6 @@ use qlippy_engine::source::{capture_source, parse_diagnostic, syntax_step};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-#[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
-mod publication;
-
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 const FORMAT: &str = "qlidoc.result";
 const HELP: &str = "qlidoc <file-or-source-root> [--output=PATH] [--document-private-items] [--format=json]\nqlidoc --help\nqlidoc --version\n--output also accepts --output PATH.\nGenerate syntax-only Markdown; documentation examples are never executed.";
@@ -26,14 +23,6 @@ const DISCLAIMER: &str = "Source documentation only; no type, ownership or contr
 
 fn output_error(message: impl Into<String>) -> Diagnostic {
     Diagnostic::error("doc_output", "tool", message)
-}
-
-fn mismatch() -> Diagnostic {
-    Diagnostic::error(
-        "artifact_mismatch",
-        "tool",
-        "Existing documentation artifacts are inconsistent; nothing was overwritten.",
-    )
 }
 
 fn usage(message: impl Into<String>) -> Report {
@@ -318,29 +307,8 @@ pub fn render_files(files: &Files, include_private: bool) -> Result<Files, Diagn
 }
 
 fn absolute_normalized(path: &Path) -> Result<PathBuf, Diagnostic> {
-    let absolute = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        std::env::current_dir()
-            .map_err(|error| output_error(format!("Cannot locate working directory: {error}")))?
-            .join(path)
-    };
-    let mut normalized = PathBuf::new();
-    for component in absolute.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                return Err(output_error(
-                    "Output paths cannot contain parent components.",
-                ));
-            }
-            _ => normalized.push(component.as_os_str()),
-        }
-    }
-    if normalized.file_name().is_none() {
-        return Err(output_error("Output must name a documentation directory."));
-    }
-    Ok(normalized)
+    qlippy_engine::publication::absolute_normalized(path)
+        .map_err(|error| output_error(error.to_string()))
 }
 
 fn display_path(path: &Path) -> Result<String, Diagnostic> {
@@ -408,15 +376,14 @@ fn reject_input_overlap(input: &Path, output: &Path) -> Result<(), Diagnostic> {
 
 /// Atomically publish a complete output directory, reusing only byte-identical artifacts.
 pub fn publish(output: &Path, files: &Files) -> Result<(), Diagnostic> {
-    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
-    {
-        publication::publish(output, files)
-    }
-    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
-    {
-        let _ = (output, files);
-        Err(output_error(
-            "Atomic directory publication without replacement is unavailable on this platform.",
-        ))
-    }
+    qlippy_engine::publication::publish(output, files, &std::collections::BTreeSet::new()).map_err(
+        |error| match error {
+            qlippy_engine::publication::PublicationError::Mismatch => Diagnostic::error(
+                "artifact_mismatch",
+                "tool",
+                "Existing documentation artifacts are inconsistent; nothing was overwritten.",
+            ),
+            error => output_error(error.to_string()),
+        },
+    )
 }

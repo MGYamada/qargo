@@ -3,10 +3,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::fs;
-use std::io::Read;
 use std::path::{Component, Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::time::{Duration, Instant};
+use std::process::Command;
+
+pub(crate) use crate::tool_process::bounded_output;
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -17,7 +17,9 @@ use crate::snapshot::{self, Files, FrozenSources};
 use crate::{PROFILE, QLEISLI_VERSION, VERSION};
 
 const FORMAT: &str = "qargo.result";
-const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nPath options also accept --option PATH.\nUse qlippy --list-rules to inspect advisory rule policy.\nQargo manages Qleisli qrates. Cargo builds and installs Rust tools outside Qargo commands.";
+const MANIFEST_SCHEMA_VERSION: u32 = 2;
+const QLEISLI_EDITION: &str = "2026";
+const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nPath options also accept --option PATH.\nStandalone source roots and --manifest-path are mutually exclusive.\nUse qlippy --list-rules to inspect advisory rule policy.\nQargo manages Qleisli qrates. Cargo builds and installs Rust tools outside Qargo commands.";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -35,6 +37,7 @@ struct Manifest {
 struct Qrate {
     name: String,
     version: String,
+    edition: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -192,6 +195,11 @@ fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
     if options.command.is_empty() {
         return Err(usage("A command is required. Use qargo --help."));
     }
+    if options.source.is_some() && options.manifest.is_some() {
+        return Err(usage(
+            "A standalone source root cannot be combined with --manifest-path; select either a source root or a qrate manifest.",
+        ));
+    }
     if options.command != "lint" && (options.qlippy.is_some() || options.deny_warnings) {
         return Err(usage("--qlippy and --deny-warnings apply only to lint."));
     }
@@ -266,12 +274,35 @@ fn root_path(value: &str) -> Result<PathBuf, Diagnostic> {
 }
 
 fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagnostic> {
-    if manifest.schema_version != 1 {
-        return Err(error(
+    if manifest.schema_version != MANIFEST_SCHEMA_VERSION {
+        let mut diagnostic = error(
             "unsupported_manifest_version",
             "qargo",
-            "Only manifest schema-version 1 is supported.",
-        ));
+            "Only manifest schema-version 2 is supported.",
+        );
+        diagnostic.suggestion = Some(
+            "Migrate Qargo.toml to schema-version = 2 and add edition = \"2026\" under [qrate]."
+                .into(),
+        );
+        return Err(diagnostic);
+    }
+    let Some(edition) = &manifest.qrate.edition else {
+        let mut diagnostic = error(
+            "invalid_manifest",
+            "qargo",
+            "[qrate].edition is required and must be an explicit string; there is no default edition.",
+        );
+        diagnostic.suggestion = Some("Add edition = \"2026\" under [qrate].".into());
+        return Err(diagnostic);
+    };
+    if edition != QLEISLI_EDITION {
+        let mut diagnostic = error(
+            "unsupported_edition",
+            "qargo",
+            format!("Unsupported Qleisli edition {edition:?}; only \"2026\" is supported."),
+        );
+        diagnostic.suggestion = Some("Set edition = \"2026\" under [qrate].".into());
+        return Err(diagnostic);
     }
     let name = &manifest.qrate.name;
     if !name.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
@@ -357,7 +388,7 @@ fn capture(explicit: Option<&Path>) -> Result<CapturedQrate, Diagnostic> {
         let mut diagnostic = error(
             "invalid_manifest",
             "qargo",
-            "Qargo manifest schema 1 does not support dependency tables.",
+            "Qargo manifest schema 2 does not support dependency tables.",
         );
         diagnostic.suggestion = Some(
             "Remove [dependencies] and [dev-dependencies] from Qargo.toml. Use local Qleisli source modules; keep Rust engine dependencies in developer Cargo.toml outside the qrate. Qrate dependency resolution is deferred.".into(),
@@ -444,34 +475,6 @@ fn failed(command: &str, diagnostic: Diagnostic, result: Option<Value>) -> Repor
     }
 }
 
-fn safe_output_directory(path: &Path) -> Result<(), Diagnostic> {
-    if let Err(e) = fs::create_dir(path) {
-        if e.kind() != std::io::ErrorKind::AlreadyExists {
-            return Err(error(
-                "build_output",
-                "qargo",
-                format!("Cannot create build directory: {e}"),
-            ));
-        }
-    }
-    let metadata = fs::symlink_metadata(path).map_err(|e| {
-        error(
-            "build_output",
-            "qargo",
-            format!("Cannot inspect build directory: {e}"),
-        )
-    })?;
-    if metadata.is_dir() && !metadata.file_type().is_symlink() {
-        Ok(())
-    } else {
-        Err(error(
-            "unsafe_output",
-            "qargo",
-            "Build output paths must be directories without symlinks.",
-        ))
-    }
-}
-
 fn json_bytes(value: &Value) -> Result<Vec<u8>, Diagnostic> {
     let mut bytes = serde_json::to_vec_pretty(value).map_err(|e| {
         error(
@@ -508,94 +511,21 @@ fn artifact_directories(qrate: &CapturedQrate, artifacts: &Files) -> BTreeSet<Pa
     directories
 }
 
+fn publication_error(error: crate::publication::PublicationError) -> Diagnostic {
+    let id = match &error {
+        crate::publication::PublicationError::Mismatch => "artifact_mismatch",
+        crate::publication::PublicationError::UnsafePath(_) => "unsafe_output",
+        crate::publication::PublicationError::Output(_) => "build_output",
+    };
+    Diagnostic::error(id, "qargo", error.to_string())
+}
+
 pub(crate) fn artifacts_match(
     base: &Path,
     artifacts: &Files,
     directories: &BTreeSet<PathBuf>,
 ) -> Result<bool, Diagnostic> {
-    let metadata = fs::symlink_metadata(base).map_err(|e| {
-        error(
-            "build_output",
-            "qargo",
-            format!("Cannot inspect stored artifacts: {e}"),
-        )
-    })?;
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
-        return Ok(false);
-    }
-    let mut pending = vec![PathBuf::new()];
-    let mut seen_files = BTreeSet::new();
-    let mut seen_directories = BTreeSet::new();
-    while let Some(relative) = pending.pop() {
-        let entries = fs::read_dir(base.join(&relative)).map_err(|e| {
-            error(
-                "build_output",
-                "qargo",
-                format!("Cannot read stored artifacts: {e}"),
-            )
-        })?;
-        for entry in entries {
-            let entry = entry.map_err(|e| {
-                error(
-                    "build_output",
-                    "qargo",
-                    format!("Cannot read stored artifact entry: {e}"),
-                )
-            })?;
-            let path = relative.join(entry.file_name());
-            let metadata = fs::symlink_metadata(entry.path()).map_err(|e| {
-                error(
-                    "build_output",
-                    "qargo",
-                    format!("Cannot inspect stored artifact entry: {e}"),
-                )
-            })?;
-            if metadata.file_type().is_symlink() {
-                return Ok(false);
-            }
-            if metadata.is_dir() {
-                if !directories.contains(&path) {
-                    return Ok(false);
-                }
-                seen_directories.insert(path.clone());
-                pending.push(path);
-            } else if metadata.is_file() {
-                let Some(key) = path.to_str().map(|path| path.replace('\\', "/")) else {
-                    return Ok(false);
-                };
-                let Some(expected) = artifacts.get(&key) else {
-                    return Ok(false);
-                };
-                if metadata.len() != expected.len() as u64 {
-                    return Ok(false);
-                }
-                let file = fs::File::open(entry.path()).map_err(|e| {
-                    error(
-                        "build_output",
-                        "qargo",
-                        format!("Cannot read stored artifact: {e}"),
-                    )
-                })?;
-                let mut bytes = Vec::with_capacity(expected.len());
-                file.take(expected.len() as u64 + 1)
-                    .read_to_end(&mut bytes)
-                    .map_err(|e| {
-                        error(
-                            "build_output",
-                            "qargo",
-                            format!("Cannot read stored artifact: {e}"),
-                        )
-                    })?;
-                if &bytes != expected {
-                    return Ok(false);
-                }
-                seen_files.insert(key);
-            } else {
-                return Ok(false);
-            }
-        }
-    }
-    Ok(seen_files.len() == artifacts.len() && &seen_directories == directories)
+    crate::publication::artifacts_match(base, artifacts, directories).map_err(publication_error)
 }
 
 fn build_artifacts(
@@ -627,9 +557,7 @@ fn build_artifacts(
     artifacts.insert("build-record.json".into(), json_bytes(&record)?);
     let directories = artifact_directories(qrate, &artifacts);
     let target = qrate.directory.join("target");
-    safe_output_directory(&target)?;
     let output = target.join("qargo");
-    safe_output_directory(&output)?;
     let hex = qrate
         .input_id
         .strip_prefix("sha256:")
@@ -640,90 +568,11 @@ fn build_artifacts(
         .filter(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
         .ok_or_else(|| error("tool_identity", "tool", "Invalid executable identity."))?;
     let base = output.join(hex);
-    safe_output_directory(&base)?;
     let destination = base.join(tool_hex);
     let relative = format!("target/qargo/{hex}/{tool_hex}");
-    match fs::symlink_metadata(&destination) {
-        Ok(metadata) => {
-            if !metadata.is_dir()
-                || metadata.file_type().is_symlink()
-                || !artifacts_match(&destination, &artifacts, &directories)?
-            {
-                return Err(error(
-                    "artifact_mismatch",
-                    "qargo",
-                    "Existing build artifacts are inconsistent with the captured inputs and record; nothing was overwritten.",
-                ));
-            }
-            return Ok(relative);
-        }
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-        Err(e) => {
-            return Err(error(
-                "build_output",
-                "qargo",
-                format!("Cannot inspect artifact directory: {e}"),
-            ));
-        }
-    }
-    let staging = tempfile::Builder::new()
-        .prefix(".qargo-stage-")
-        .tempdir_in(&base)
-        .map_err(|e| {
-            error(
-                "build_output",
-                "qargo",
-                format!("Cannot create staging directory: {e}"),
-            )
-        })?;
-    for directory in &directories {
-        fs::create_dir_all(staging.path().join(directory)).map_err(|e| {
-            error(
-                "build_output",
-                "qargo",
-                format!("Cannot create snapshot root: {e}"),
-            )
-        })?;
-    }
-    for (path, bytes) in &artifacts {
-        let output = staging.path().join(path);
-        if let Some(parent) = output.parent() {
-            fs::create_dir_all(parent).map_err(|e| {
-                error(
-                    "build_output",
-                    "qargo",
-                    format!("Cannot create artifact parent: {e}"),
-                )
-            })?;
-        }
-        fs::write(output, bytes).map_err(|e| {
-            error(
-                "build_output",
-                "qargo",
-                format!("Cannot write artifact: {e}"),
-            )
-        })?;
-    }
-    match crate::installation::rename_noreplace(staging.path(), &destination) {
-        Ok(()) => Ok(relative),
-        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
-            // Another builder won publication. Reuse only an identical complete result.
-            if artifacts_match(&destination, &artifacts, &directories)? {
-                Ok(relative)
-            } else {
-                Err(error(
-                    "artifact_mismatch",
-                    "qargo",
-                    "A conflicting artifact directory appeared during build; nothing was overwritten.",
-                ))
-            }
-        }
-        Err(e) => Err(error(
-            "build_output",
-            "qargo",
-            format!("Cannot atomically install artifacts: {e}"),
-        )),
-    }
+    crate::publication::publish(&destination, &artifacts, &directories)
+        .map_err(publication_error)?;
+    Ok(relative)
 }
 
 fn executable(path: &Path) -> bool {
@@ -808,8 +657,7 @@ fn step_valid(step: &Value, source_count: usize) -> bool {
             step["status"] == "not_run" && step["reason"] == "no_sources"
         } else {
             (step["status"] == "passed" && step["reason"].is_null())
-                || step["status"] == "failed"
-                    && (step["reason"].is_null() || step["reason"].is_string())
+                || (step["status"] == "failed" && step["reason"] == "compiler_error")
         }
 }
 
@@ -1048,110 +896,8 @@ fn child_response(
         .map_err(|_| transport("qlippy returned malformed typed diagnostics."))
 }
 
-pub(crate) fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
-    command
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .stdin(Stdio::null());
-    let mut child = command.spawn().map_err(|e| {
-        error(
-            "tool_execution",
-            "tool",
-            format!("Cannot execute selected tool: {e}"),
-        )
-    })?;
-    let stdout = child.stdout.take().expect("piped child stdout");
-    let stderr = child.stderr.take().expect("piped child stderr");
-    let (sender, receiver) = std::sync::mpsc::channel();
-    for (is_stdout, stream, limit) in [
-        (
-            true,
-            Box::new(stdout) as Box<dyn Read + Send>,
-            4 * 1024 * 1024,
-        ),
-        (false, Box::new(stderr) as Box<dyn Read + Send>, 64 * 1024),
-    ] {
-        let sender = sender.clone();
-        std::thread::spawn(move || {
-            let mut bytes = Vec::new();
-            let result = stream
-                .take(limit + 1)
-                .read_to_end(&mut bytes)
-                .map(|_| bytes)
-                .map_err(|e| format!("Cannot read selected tool output: {e}"));
-            let _ = sender.send((is_stdout, limit as usize, result));
-        });
-    }
-    drop(sender);
-    let deadline = Instant::now() + Duration::from_secs(30);
-    let mut stdout = Vec::new();
-    for _ in 0..2 {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        let received = receiver.recv_timeout(remaining);
-        let result = match received {
-            Ok((is_stdout, limit, Ok(bytes))) if bytes.len() <= limit => {
-                if !is_stdout && !bytes.is_empty() {
-                    Err(transport(
-                        "The selected tool wrote unexpected stderr output.",
-                    ))
-                } else {
-                    if is_stdout {
-                        stdout = bytes;
-                    }
-                    Ok(())
-                }
-            }
-            Ok((_, _, Ok(_))) => Err(transport(
-                "The selected tool output exceeds the transport size budget.",
-            )),
-            Ok((_, _, Err(message))) => Err(transport(message)),
-            Err(_) => Err(error(
-                "tool_execution",
-                "tool",
-                "The selected tool exceeded the 30-second execution limit.",
-            )),
-        };
-        if let Err(diagnostic) = result {
-            let _ = child.kill();
-            let _ = child.wait();
-            return Err(diagnostic);
-        }
-    }
-    // A tool can close its output streams and remain alive; polling retains the deadline.
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(10)),
-            Ok(None) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(error(
-                    "tool_execution",
-                    "tool",
-                    "The selected tool exceeded the 30-second execution limit.",
-                ));
-            }
-            Err(e) => {
-                return Err(error(
-                    "tool_execution",
-                    "tool",
-                    format!("Cannot wait for selected tool: {e}"),
-                ));
-            }
-        }
-    };
-    let code = status.code().ok_or_else(|| {
-        error(
-            "tool_execution",
-            "tool",
-            "The selected tool was terminated without an exit code.",
-        )
-    })?;
-    Ok((stdout, code))
-}
-
 fn lint(options: &Options) -> Result<Report, Diagnostic> {
-    let qrate = if options.source.is_none() || options.manifest.is_some() {
+    let qrate = if options.source.is_none() {
         Some(capture(options.manifest.as_deref())?)
     } else {
         None
@@ -1245,7 +991,7 @@ fn source_tool_report(
 }
 
 fn format_sources(options: &Options) -> Result<Report, Diagnostic> {
-    let qrate = if options.source.is_none() || options.manifest.is_some() {
+    let qrate = if options.source.is_none() {
         Some(capture(options.manifest.as_deref())?)
     } else {
         None
@@ -1416,6 +1162,20 @@ mod tests {
             )
             .is_ok()
         );
+        for reason in [Value::Null, json!("other"), json!("no_sources"), json!(42)] {
+            response["result"]["qleisli_check"]["reason"] = reason;
+            assert!(
+                child_response(
+                    &serde_json::to_vec(&response).unwrap(),
+                    1,
+                    &sources,
+                    "digest",
+                    true
+                )
+                .is_err()
+            );
+        }
+        response["result"]["qleisli_check"]["reason"] = json!("compiler_error");
         let repeated = serde_json::to_string(&response)
             .unwrap()
             .replace("\"version\":1", "\"version\":1,\"version\":1");
@@ -1455,7 +1215,7 @@ mod tests {
         for root in ["src", "tests", "docs"] {
             fs::create_dir(directory.path().join(root)).unwrap();
         }
-        let manifest = "schema-version=1\n[qrate]\nname=\"example\"\nversion=\"0.1.0\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n";
+        let manifest = "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.0\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n";
         fs::write(directory.path().join("Qargo.toml"), manifest).unwrap();
         let source = "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
         fs::write(directory.path().join("src/module.qli"), source).unwrap();

@@ -1,6 +1,6 @@
 # Ecosystem policy
 
-Status: adopted design policy as of 0.1.2. Future dependency, workspace, toolchain-selection, and registry mechanisms described here are not implemented in manifest schema 1.
+Status: adopted design policy as of 0.1.2, applied to 0.1.3. Future dependency, workspace, toolchain-selection, and registry mechanisms described here are not implemented in manifest schema 2.
 
 ## Curated standard library first
 
@@ -8,9 +8,9 @@ Qargo borrows Cargo's familiar command structure. This does not commit Qleisli t
 
 The ecosystem's center is a curated Qleisli standard library: one reviewed source history and explicit release snapshots, with modular Qleisli interfaces and contracts. Its governance and semantic acceptance belong to the Qleisli project. Logical modules or qrates can remain useful units within that shared history; they do not need independent publication, ownership, or versions merely because the tool resembles Cargo.
 
-Qargo consumes and records the selected Qleisli distribution and its stdlib identity. In 0.1.2 these are fixed by the linked Qleisli 0.2.1 library and bound to the host executable digest. Future selection must bind the checker, stdlib snapshot, profile, and any required proof environment without coupling their releases to Qargo's release cycle. The [toolchain design](toolchains.md) states the protocol prerequisites.
+Qargo consumes and records the selected Qleisli distribution and its stdlib identity. In 0.1.3 these are fixed by the linked Qleisli 0.2.1 library and bound to the host executable digest. Future selection must bind the checker, stdlib snapshot, profile, and any required proof environment without coupling their releases to Qargo's release cycle. The [toolchain design](toolchains.md) states the protocol prerequisites.
 
-External qrates may become useful, but a public registry and automatic semver dependency resolution are deferred until semantic interfaces, compatibility, provenance, and evidence scope have explicit contracts. Cargo-style version strings in schema 1 remain package metadata; they are not a dependency compatibility judgment.
+External qrates may become useful, but a public registry and automatic semver dependency resolution are deferred until semantic interfaces, compatibility, provenance, and evidence scope have explicit contracts. Cargo-style version strings in schema 2 remain package metadata; they are not a dependency compatibility judgment.
 
 ## No arbitrary qrate build code
 
@@ -28,7 +28,7 @@ Namespace authentication establishes publisher identity, not that the publisher 
 
 When dependencies are supported, a separately specified lockfile should record exact resolved source/publisher identities, package content identities, dependency edges, and the selected checker/stdlib/profile binding. Normal checking and building should consume those pinned resolutions; changes to resolution should be an explicit operation. A lockfile provides reproducibility and provenance, never proof. Automatic semver solving is not a prerequisite for that first dependency model.
 
-Local workspace convenience may be added independently of a registry once multi-qrate semantics are defined. A workspace must preserve each qrate's declared inputs, configuration, and check result; success for one member cannot certify the others. Qargo 0.1.2 still manages one local qrate per operation and has no Qargo.lock or dependency tables.
+Local workspace convenience may be added independently of a registry once multi-qrate semantics are defined. A workspace must preserve each qrate's declared inputs, configuration, and check result; success for one member cannot certify the others. Qargo 0.1.3 still manages one local qrate per operation and has no Qargo.lock or dependency tables.
 
 ## Honest command contracts
 

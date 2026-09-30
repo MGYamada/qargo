@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.3 — 2026-09-30
+
+- Update Qargo, all three standard tools, their qrate manifests, private development packages, CI, and package/release verifiers together to 0.1.3.
+- Introduce manifest schema 2 with mandatory `[qrate].edition = "2026"`. Require an explicit TOML string, reject omission and unsupported editions before any qrate operation, and provide a migration suggestion for schema-1 manifests. No edition default is provided.
+- Add the edition to every bundled manifest and valid example/fixture, and require explicit editions in the specification and working guidelines. Qleisli edition `"2026"` and the Rust implementation's Cargo edition `"2024"` are independent.
+- Reject standalone source roots combined with `--manifest-path` for lint and formatting, preventing unrelated qrate identities from being attached to standalone results (#3).
+- Reuse one descriptor-anchored publication kernel for build and documentation, including exact empty-directory inventories, race-resistant staging/cleanup, no-replace installation, and byte-identical concurrent reuse (#4).
+- Terminate selected-tool process groups on deadline or transport failure, and use cancellable nonblocking pipe reads to bound cleanup when descendants inherit output descriptors (#5).
+- Require `compiler_error` as the only failed nonempty-source qlippy check reason, retaining existing status/outcome/diagnostic consistency checks (#6).
+- Preserve independent result schema version 1, Rust 1.85, exact Qleisli 0.2.1, syntax-only formatting/documentation, empty-source behavior, and explicitly unavailable QLT execution. Publication remains a separate authorized action.
+
 ## 0.1.2 — 2026-09-30
 
 - Update Qargo, all three standard tools, their qrate manifests, private development packages, CI, and package/release verifiers together to 0.1.2.

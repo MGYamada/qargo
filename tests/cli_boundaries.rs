@@ -4,7 +4,7 @@ use std::process::{Command, Output};
 
 use serde_json::Value;
 
-const MANIFEST: &str = "schema-version = 1\n[qrate]\nname = \"sample\"\nversion = \"0.1.0\"\n[source]\nroot = \"src\"\n[tests]\nroot = \"tests\"\n[docs]\nroot = \"docs\"\n";
+const MANIFEST: &str = "schema-version = 2\n[qrate]\nname = \"sample\"\nversion = \"0.1.0\"\nedition = \"2026\"\n[source]\nroot = \"src\"\n[tests]\nroot = \"tests\"\n[docs]\nroot = \"docs\"\n";
 
 fn qrate() -> tempfile::TempDir {
     let root = tempfile::tempdir().unwrap();
@@ -98,6 +98,45 @@ fn path_options_reject_missing_empty_repeated_and_incompatible_values() {
 }
 
 #[test]
+fn standalone_sources_and_manifest_paths_are_mutually_exclusive() {
+    let root = qrate();
+    let sources = tempfile::tempdir().unwrap();
+    fs::write(sources.path().join("module.qli"), "invalid source").unwrap();
+    let manifest = root.path().join("Qargo.toml");
+    let equal = format!("--manifest-path={}", manifest.display());
+    for command in ["lint", "fmt"] {
+        for options in [
+            vec![command, sources.path().to_str().unwrap(), &equal],
+            vec![command, &equal, sources.path().to_str().unwrap()],
+            vec![
+                command,
+                sources.path().to_str().unwrap(),
+                "--manifest-path",
+                manifest.to_str().unwrap(),
+            ],
+            vec![
+                command,
+                "--manifest-path",
+                manifest.to_str().unwrap(),
+                sources.path().to_str().unwrap(),
+            ],
+        ] {
+            let output = qargo(&options);
+            assert_eq!(output.status.code(), Some(2), "{options:?}");
+            let report = json(&output);
+            assert_eq!(report["diagnostics"][0]["category"], "usage");
+            assert_eq!(report["diagnostics"][0]["id"], "invalid_arguments");
+            assert!(report["result"].is_null());
+        }
+    }
+    assert_eq!(
+        fs::read_to_string(sources.path().join("module.qli")).unwrap(),
+        "invalid source"
+    );
+    assert!(!root.path().join("target").exists());
+}
+
+#[test]
 fn cargo_style_dependency_requests_include_actionable_diagnostics() {
     let output = qargo(&["add", "example"]);
     assert_eq!(output.status.code(), Some(2));
@@ -114,7 +153,7 @@ fn cargo_style_dependency_requests_include_actionable_diagnostics() {
         let manifest = root.path().join("Qargo.toml");
         fs::write(
             &manifest,
-            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.2\"\n"),
+            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.3\"\n"),
         )
         .unwrap();
         let output = qargo(&["check", "--manifest-path", manifest.to_str().unwrap()]);
