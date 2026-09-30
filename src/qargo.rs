@@ -17,7 +17,7 @@ use crate::snapshot::{self, Files, FrozenSources};
 use crate::{PROFILE, QLEISLI_VERSION, VERSION};
 
 const FORMAT: &str = "qargo.result";
-const HELP: &str = "qargo check|build|test|doc [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo --help|--version [--format=json]\nQargo manages Qleisli qrates. Cargo is only a Rust development tool.";
+const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nQargo manages Qleisli qrates. Cargo builds and installs Rust tools outside Qargo commands.";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -57,7 +57,11 @@ struct Options {
     manifest: Option<PathBuf>,
     source: Option<PathBuf>,
     qlippy: Option<PathBuf>,
+    qlifmt: Option<PathBuf>,
+    qlidoc: Option<PathBuf>,
     deny_warnings: bool,
+    check: bool,
+    document_private_items: bool,
 }
 
 // Typed decoding rejects repeated fields as well as invalid field types, while
@@ -136,6 +140,26 @@ fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
                 return Err(usage("--qlippy requires one nonempty path."));
             }
             options.qlippy = Some(PathBuf::from(path));
+        } else if let Some(path) = arg.strip_prefix("--qlifmt=") {
+            if path.is_empty() || options.qlifmt.is_some() {
+                return Err(usage("--qlifmt requires one nonempty path."));
+            }
+            options.qlifmt = Some(PathBuf::from(path));
+        } else if let Some(path) = arg.strip_prefix("--qlidoc=") {
+            if path.is_empty() || options.qlidoc.is_some() {
+                return Err(usage("--qlidoc requires one nonempty path."));
+            }
+            options.qlidoc = Some(PathBuf::from(path));
+        } else if arg == "--check" {
+            if options.check {
+                return Err(usage("--check may only be supplied once."));
+            }
+            options.check = true;
+        } else if arg == "--document-private-items" {
+            if options.document_private_items {
+                return Err(usage("--document-private-items may only be supplied once."));
+            }
+            options.document_private_items = true;
         } else if arg == "--deny-warnings" {
             if options.deny_warnings {
                 return Err(usage("--deny-warnings may only be supplied once."));
@@ -144,11 +168,14 @@ fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
         } else if arg.starts_with('-') {
             return Err(usage(format!("Unknown option: {arg}")));
         } else if options.command.is_empty() {
-            if !["check", "build", "lint", "test", "doc"].contains(&arg) {
+            if !["check", "build", "lint", "fmt", "test", "doc"].contains(&arg) {
                 return Err(usage(format!("Unknown command: {arg}")));
             }
             options.command = arg.into();
-        } else if options.command == "lint" && options.source.is_none() && !arg.is_empty() {
+        } else if ["lint", "fmt"].contains(&options.command.as_str())
+            && options.source.is_none()
+            && !arg.is_empty()
+        {
             options.source = Some(PathBuf::from(arg));
         } else {
             return Err(usage(format!("Unexpected argument: {arg}")));
@@ -159,6 +186,14 @@ fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
     }
     if options.command != "lint" && (options.qlippy.is_some() || options.deny_warnings) {
         return Err(usage("--qlippy and --deny-warnings apply only to lint."));
+    }
+    if options.command != "fmt" && (options.qlifmt.is_some() || options.check) {
+        return Err(usage("--qlifmt and --check apply only to fmt."));
+    }
+    if options.command != "doc" && (options.qlidoc.is_some() || options.document_private_items) {
+        return Err(usage(
+            "--qlidoc and --document-private-items apply only to doc.",
+        ));
     }
     if ["help", "version"].contains(&options.command.as_str()) && options.manifest.is_some() {
         return Err(usage("--manifest-path requires a qrate command."));
@@ -446,7 +481,7 @@ fn artifact_directories(qrate: &CapturedQrate, artifacts: &Files) -> BTreeSet<Pa
     directories
 }
 
-fn artifacts_match(
+pub(crate) fn artifacts_match(
     base: &Path,
     artifacts: &Files,
     directories: &BTreeSet<PathBuf>,
@@ -550,7 +585,7 @@ fn build_artifacts(
                  {"name":"snapshot","status":"passed","reason":null},
                  {"name":"qleisli","status":checked.qleisli_check["status"],"reason":checked.qleisli_check["reason"]},
                  {"name":"QLT","status":"not_run","reason":"backend_unavailable"},
-                 {"name":"qlidoc","status":"not_run","reason":"backend_unavailable"},
+                 {"name":"qlidoc","status":"not_run","reason":"not_requested"},
                  {"name":"build","status":"passed","reason":null}]
     });
     let mut artifacts: Files = qrate
@@ -681,31 +716,31 @@ fn executable(path: &Path) -> bool {
     })
 }
 
-fn find_qlippy(explicit: Option<&Path>) -> Result<PathBuf, Diagnostic> {
+fn find_tool(tool_name: &str, explicit: Option<&Path>) -> Result<PathBuf, Diagnostic> {
     if let Some(path) = explicit {
         if executable(path) {
             return fs::canonicalize(path).map_err(|e| {
                 error(
                     "tool_missing",
                     "tool",
-                    format!("Cannot resolve selected qlippy: {e}"),
+                    format!("Cannot resolve selected {tool_name}: {e}"),
                 )
             });
         }
         return Err(error(
             "tool_missing",
             "tool",
-            "The explicit qlippy path is not an executable file.",
+            format!("The explicit {tool_name} path is not an executable file."),
         ));
     }
     let name = if cfg!(windows) {
-        "qlippy.exe"
+        format!("{tool_name}.exe")
     } else {
-        "qlippy"
+        tool_name.to_owned()
     };
     if let Ok(current) = std::env::current_exe() {
         if let Some(directory) = current.parent() {
-            let sibling = directory.join(name);
+            let sibling = directory.join(&name);
             if executable(&sibling) {
                 return Ok(sibling);
             }
@@ -713,13 +748,13 @@ fn find_qlippy(explicit: Option<&Path>) -> Result<PathBuf, Diagnostic> {
     }
     if let Some(path) = std::env::var_os("PATH") {
         for directory in std::env::split_paths(&path) {
-            let candidate = directory.join(name);
+            let candidate = directory.join(&name);
             if executable(&candidate) {
                 return fs::canonicalize(&candidate).map_err(|e| {
                     error(
                         "tool_missing",
                         "tool",
-                        format!("Cannot resolve qlippy on PATH: {e}"),
+                        format!("Cannot resolve {tool_name} on PATH: {e}"),
                     )
                 });
             }
@@ -728,11 +763,13 @@ fn find_qlippy(explicit: Option<&Path>) -> Result<PathBuf, Diagnostic> {
     Err(error(
         "tool_missing",
         "tool",
-        "qlippy was not found beside qargo or on PATH. Build the Rust engine during development or supply --qlippy=PATH.",
+        format!(
+            "{tool_name} was not found beside qargo or on PATH. Build the Rust engine during development or supply --{tool_name}=PATH."
+        ),
     ))
 }
 
-fn closed_object(value: &Value, fields: &[&str]) -> bool {
+pub(crate) fn closed_object(value: &Value, fields: &[&str]) -> bool {
     value.as_object().is_some_and(|object| {
         object.len() == fields.len() && fields.iter().all(|field| object.contains_key(*field))
     })
@@ -749,7 +786,7 @@ fn step_valid(step: &Value, source_count: usize) -> bool {
         }
 }
 
-fn transport(message: impl Into<String>) -> Diagnostic {
+pub(crate) fn transport(message: impl Into<String>) -> Diagnostic {
     error("invalid_tool_response", "tool", message)
 }
 
@@ -779,7 +816,7 @@ fn bundled_sources() -> Option<&'static Files> {
         .as_ref()
 }
 
-fn location_valid(location: &Value, sources: &FrozenSources, compiler: bool) -> bool {
+pub(crate) fn location_valid(location: &Value, sources: &FrozenSources, compiler: bool) -> bool {
     if location.is_null() {
         return compiler;
     }
@@ -986,7 +1023,7 @@ fn child_response(
         .map_err(|_| transport("qlippy returned malformed typed diagnostics."))
 }
 
-fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
+pub(crate) fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
     command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -995,7 +1032,7 @@ fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
         error(
             "tool_execution",
             "tool",
-            format!("Cannot execute qlippy: {e}"),
+            format!("Cannot execute selected tool: {e}"),
         )
     })?;
     let stdout = child.stdout.take().expect("piped child stdout");
@@ -1016,7 +1053,7 @@ fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
                 .take(limit + 1)
                 .read_to_end(&mut bytes)
                 .map(|_| bytes)
-                .map_err(|e| format!("Cannot read qlippy output: {e}"));
+                .map_err(|e| format!("Cannot read selected tool output: {e}"));
             let _ = sender.send((is_stdout, limit as usize, result));
         });
     }
@@ -1029,7 +1066,9 @@ fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
         let result = match received {
             Ok((is_stdout, limit, Ok(bytes))) if bytes.len() <= limit => {
                 if !is_stdout && !bytes.is_empty() {
-                    Err(transport("qlippy wrote unexpected stderr output."))
+                    Err(transport(
+                        "The selected tool wrote unexpected stderr output.",
+                    ))
                 } else {
                     if is_stdout {
                         stdout = bytes;
@@ -1038,13 +1077,13 @@ fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
                 }
             }
             Ok((_, _, Ok(_))) => Err(transport(
-                "qlippy output exceeds the transport size budget.",
+                "The selected tool output exceeds the transport size budget.",
             )),
             Ok((_, _, Err(message))) => Err(transport(message)),
             Err(_) => Err(error(
                 "tool_execution",
                 "tool",
-                "qlippy exceeded the 30-second execution limit.",
+                "The selected tool exceeded the 30-second execution limit.",
             )),
         };
         if let Err(diagnostic) = result {
@@ -1064,14 +1103,14 @@ fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
                 return Err(error(
                     "tool_execution",
                     "tool",
-                    "qlippy exceeded the 30-second execution limit.",
+                    "The selected tool exceeded the 30-second execution limit.",
                 ));
             }
             Err(e) => {
                 return Err(error(
                     "tool_execution",
                     "tool",
-                    format!("Cannot wait for qlippy: {e}"),
+                    format!("Cannot wait for selected tool: {e}"),
                 ));
             }
         }
@@ -1080,7 +1119,7 @@ fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
         error(
             "tool_execution",
             "tool",
-            "qlippy was terminated without an exit code.",
+            "The selected tool was terminated without an exit code.",
         )
     })?;
     Ok((stdout, code))
@@ -1102,7 +1141,7 @@ fn lint(options: &Options) -> Result<Report, Diagnostic> {
             .expect("qrate captured for default lint source")
             .sources
     };
-    let tool_path = find_qlippy(options.qlippy.as_deref())?;
+    let tool_path = find_tool("qlippy", options.qlippy.as_deref())?;
     let digest = snapshot::digest_path(&tool_path)?;
     let mut command = Command::new(&tool_path);
     command.arg(sources.root()).arg("--format=json");
@@ -1156,6 +1195,85 @@ fn lint(options: &Options) -> Result<Report, Diagnostic> {
     })
 }
 
+fn source_tool_report(
+    mut report: Report,
+    qrate: Option<&CapturedQrate>,
+    remap: bool,
+) -> Result<Report, Diagnostic> {
+    if remap {
+        if let Some(qrate) = qrate {
+            report.envelope.diagnostics = report
+                .envelope
+                .diagnostics
+                .into_iter()
+                .map(|diagnostic| remap_qrate(diagnostic, qrate))
+                .collect();
+        }
+    }
+    if let Some(result) = report.envelope.result.as_mut() {
+        result["orchestrator"] = crate::report::tool_info("qargo")?;
+        if let Some(qrate) = qrate {
+            result["input_id"] = json!(qrate.input_id);
+        }
+    }
+    Ok(report)
+}
+
+fn format_sources(options: &Options) -> Result<Report, Diagnostic> {
+    let qrate = if options.source.is_none() || options.manifest.is_some() {
+        Some(capture(options.manifest.as_deref())?)
+    } else {
+        None
+    };
+    let standalone;
+    let (sources, original_root) = if let Some(root) = &options.source {
+        standalone = FrozenSources::capture(root)?;
+        let root = fs::canonicalize(root)
+            .map_err(|error| error.to_string())
+            .map_err(|message| error("input", "qargo", message))?;
+        (&standalone, root)
+    } else {
+        let qrate = qrate.as_ref().expect("default source qrate");
+        (
+            &qrate.sources,
+            qrate.directory.join(&qrate.manifest.source.root),
+        )
+    };
+    let tool = find_tool("qlifmt", options.qlifmt.as_deref())?;
+    let digest = snapshot::digest_path(&tool)?;
+    let report = crate::bundled::format(sources, &original_root, &tool, &digest, options.check)?;
+    source_tool_report(report, qrate.as_ref(), options.source.is_none())
+}
+
+fn document_qrate(options: &Options) -> Result<Report, Diagnostic> {
+    let qrate = capture(options.manifest.as_deref())?;
+    let tool = find_tool("qlidoc", options.qlidoc.as_deref())?;
+    let digest = snapshot::digest_path(&tool)?;
+    let relative = format!(
+        "target/qlidoc/{}/{}/{}",
+        qrate.input_id.trim_start_matches("sha256:"),
+        digest.trim_start_matches("sha256:"),
+        if options.document_private_items {
+            "all"
+        } else {
+            "public"
+        }
+    );
+    let mut report = crate::bundled::document(
+        &qrate.sources,
+        &tool,
+        &digest,
+        &qrate.directory.join(&relative),
+        options.document_private_items,
+    )?;
+    if let Some(result) = report.envelope.result.as_mut() {
+        if result["artifact_path"].is_string() {
+            result["artifact_path"] = json!(relative);
+        }
+    }
+    source_tool_report(report, Some(&qrate), true)
+}
+
 fn execute(options: &Options) -> Result<Report, Diagnostic> {
     match options.command.as_str() {
         "help" => return Ok(Report::ok(FORMAT, "help", json!({"help":HELP}))),
@@ -1167,16 +1285,14 @@ fn execute(options: &Options) -> Result<Report, Diagnostic> {
             ));
         }
         "lint" => return lint(options),
+        "fmt" => return format_sources(options),
+        "doc" => return document_qrate(options),
         _ => {}
     }
     let qrate = capture(options.manifest.as_deref())?;
     let tool = crate::report::tool_info("qargo")?;
-    if ["test", "doc"].contains(&options.command.as_str()) {
-        let backend = if options.command == "test" {
-            "QLT"
-        } else {
-            "qlidoc"
-        };
+    if options.command == "test" {
+        let backend = "QLT";
         return Ok(failed(
             &options.command,
             error(

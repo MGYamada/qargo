@@ -209,13 +209,29 @@ fn emit_human(report: &Report) -> io::Result<()> {
             }
             if let Some(step) = result.get("qleisli_check") {
                 if step.get("status").and_then(Value::as_str) == Some("not_run") {
-                    writeln!(output, "  Qleisli check: not run (no sources)")?;
+                    let reason = step
+                        .get("reason")
+                        .and_then(Value::as_str)
+                        .unwrap_or("unspecified");
+                    writeln!(output, "  Qleisli check: not run ({reason})")?;
                 } else if step.get("status").and_then(Value::as_str) == Some("passed") {
                     writeln!(output, "  Qleisli source/IR check: passed")?;
                 }
             }
             if let Some(path) = result.get("artifact_path").and_then(Value::as_str) {
                 writeln!(output, "  artifacts: {path}")?;
+            }
+            if let Some(diff) = result
+                .get("diff")
+                .and_then(Value::as_str)
+                .filter(|value| !value.is_empty())
+            {
+                write!(output, "{diff}")?;
+            }
+            if let Some(updated) = result.get("updated_files").and_then(Value::as_array) {
+                for path in updated.iter().filter_map(Value::as_str) {
+                    writeln!(output, "  formatted: {path}")?;
+                }
             }
         }
     }

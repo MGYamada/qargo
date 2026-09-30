@@ -1,8 +1,8 @@
 use std::fs;
 
-use qlippy_engine::adapter;
-use qlippy_engine::report::coordinates;
-use qlippy_engine::snapshot::{Files, FrozenSources, collect_tree, digest_files, materialize};
+use qargo_tools::adapter;
+use qargo_tools::report::coordinates;
+use qargo_tools::snapshot::{Files, FrozenSources, collect_tree, digest_files, materialize};
 
 const IDENTITY: &str = "pub unitary fn identity(q: Q<Bit>) -> Q<Bit> { q }\n";
 

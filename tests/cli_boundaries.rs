@@ -183,7 +183,7 @@ fn every_qargo_operation_leaves_a_cargo_path_trap_untouched() {
         "--manifest-path={}",
         root.path().join("Qargo.toml").display()
     );
-    for command in ["check", "build", "lint", "test", "doc"] {
+    for command in ["check", "build", "lint", "fmt", "test", "doc"] {
         let output = Command::new(env!("CARGO_BIN_EXE_qargo"))
             .args([command, &manifest, "--format=json"])
             .env("PATH", bin.path())
@@ -192,7 +192,7 @@ fn every_qargo_operation_leaves_a_cargo_path_trap_untouched() {
             .output()
             .unwrap();
         let report = json(&output);
-        if command == "test" || command == "doc" {
+        if command == "test" {
             assert_eq!(output.status.code(), Some(1));
             assert_eq!(report["diagnostics"][0]["id"], "backend_unavailable");
         } else {

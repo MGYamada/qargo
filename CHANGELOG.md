@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.1 — 2026-09-30
+
+- Distribute the standard bundle as the self-contained crates.io package `qargo`, installing all four executables together. Compile the canonical qrate engine sources as internal modules and verify packaged sources and installation in CI; private engine packages remain development-only.
+- Develop Qargo and the standard qlippy, qlifmt, and qlidoc bundle together at 0.1.1. Each qrate contains its Rust engine, CLI, tests, and a minimal Qleisli management sample; developer Cargo manifests remain outside the qrates.
+- Add syntax-preserving Qleisli formatting through qlifmt and `qargo fmt`, including a non-writing `--check` mode, comment preservation, four-space indentation, and LF/CRLF preservation.
+- Add deterministic Markdown documentation through qlidoc and `qargo doc`, with public declarations by default, optional private declarations, and atomic reuse of identical documentation artifacts. Future HTML may adopt independent CSS and layout.
+- Bind new child-tool results to frozen sources and executable identities; validate formatting candidates and documentation artifacts before accepting them. Formatting and documentation use syntax parsing and make no mathematical verification claim.
+- Extend source-archive verification and Linux/macOS CI to three qrates and four executables, including Cargo and Rustdoc invocation traps.
+- Preserve the manifest schema and existing result versions at 1; introduce independent version-1 qlifmt.result and qlidoc.result formats. Retain Rust 1.85, exact Qleisli 0.2.1, existing qlippy rules, and explicitly unavailable QLT execution.
+
 ## 0.1.0 — 2026-09-30
 
 Initial experimental GitHub source release for Linux and macOS. Requires Rust 1.85 or newer and links exactly Qleisli 0.2.1 with the finite-v0 profile.

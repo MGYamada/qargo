@@ -2,8 +2,8 @@ use std::ffi::OsString;
 use std::fs;
 use std::process::Command;
 
-use qlippy_engine::qlippy;
-use qlippy_engine::report::{Diagnostic, Envelope, Report};
+use qargo_tools::qlippy;
+use qargo_tools::report::{Diagnostic, Envelope, Report};
 use tempfile::TempDir;
 
 const APPLY: &str = "unitary fn apply[static U:Op<Bit>](q:Q<Bit>)->Q<Bit> requires Apply(U){U(q)}";

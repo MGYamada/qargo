@@ -1,8 +1,10 @@
 # Qargo working guidelines
 
-- Qargo manages Qleisli qrates; Cargo builds the Rust implementation during development. Never invoke Cargo from a Qargo command or translate Qargo test/doc into Rust tests/Rustdoc.
-- The qlippy qrate includes all of its Rust engine, CLI, shared support, and Rust test sources, plus a minimal src/smoke.qli management sample. It has no .qlt files. Developer Cargo configuration lives outside the qrate. Use source strings and temporary directories for lint-rule tests; preserve coverage of empty qrate roots.
+- Qargo manages Qleisli qrates; Cargo builds, packages, and installs the Rust implementation outside Qargo operations. Never invoke Cargo from a Qargo command or translate Qargo test/doc into Rust tests/Rustdoc.
+- Starting with 0.1.1, distribute the standard bundle through crates.io under the package name qargo alongside GitHub source releases, installing all four executables. The public package compiles the canonical qrate sources as internal modules; private engine crates remain development-only. A source-archive check does not establish .crate packaging readiness. Validate the packaged sources and installation before publication; version preparation does not authorize publishing.
+- The standard bundle comprises qlippy, qlifmt, and qlidoc, developed together at version 0.1.1. Each qrate includes its Rust engine, CLI, Rust test sources, and a minimal src/smoke.qli management sample, with no .qlt files. Shared support belongs to qlippy. Developer Cargo configuration lives outside the qrates. Use source strings and temporary directories for engine tests; preserve coverage of empty qrate roots.
 - Read docs/specification.md before changing public behavior. Manifest and result schema versions are independent of product versions.
 - Preserve ordinary Qleisli checking and its trust boundary. Empty source roots have no Qleisli checking result. Lint results and build records are metadata, not mathematical evidence.
+- qlifmt and qlidoc use syntax parsing only; their success does not imply type, ownership, or contract verification. qlidoc currently generates Markdown; future HTML may use independent CSS and layout rather than rustdoc's appearance.
 - Specifications, public documentation, diagnostics, and code comments are English. User conversation can follow the user's language.
 - Rust 1.85 is the MSRV; forbid unsafe code. Keep the Qleisli dependency exactly at 0.2.1.

@@ -74,7 +74,14 @@ fn empty_qrate_check_and_build_report_no_compiler_result() {
             .find(|step| step["name"] == backend)
             .unwrap();
         assert_eq!(step["status"], "not_run");
-        assert_eq!(step["reason"], "backend_unavailable");
+        assert_eq!(
+            step["reason"],
+            if backend == "QLT" {
+                "backend_unavailable"
+            } else {
+                "not_requested"
+            }
+        );
     }
     assert_eq!(run(qrate.path(), "build", &[]).exit_code, 0);
 }
@@ -95,14 +102,23 @@ fn input_identity_survives_relocation_and_tracks_every_declared_input() {
 }
 
 #[test]
-fn unavailable_backends_fail_even_for_empty_qrates() {
+fn empty_qrates_keep_qlt_unavailable_and_generate_documentation() {
     let qrate = qrate();
-    for command in ["test", "doc"] {
-        let report = run(qrate.path(), command, &[]);
-        assert_eq!(report.exit_code, 1);
-        assert_eq!(report.envelope.diagnostics[0].id, "backend_unavailable");
-        assert_eq!(result(&report)["backend"]["status"], "unavailable");
-    }
+    let report = run(qrate.path(), "test", &[]);
+    assert_eq!(report.exit_code, 1);
+    assert_eq!(report.envelope.diagnostics[0].id, "backend_unavailable");
+    assert_eq!(result(&report)["backend"]["status"], "unavailable");
+    let tool = format!("--qlidoc={}", env!("CARGO_BIN_EXE_qlidoc"));
+    let report = run(qrate.path(), "doc", &[&tool]);
+    assert_eq!(report.exit_code, 0, "{:?}", report.envelope);
+    assert_eq!(
+        result(&report)["qleisli_check"],
+        json!({"status":"not_run","reason":"no_sources"})
+    );
+    let path = qrate
+        .path()
+        .join(result(&report)["artifact_path"].as_str().unwrap());
+    assert!(path.join("index.md").is_file());
 }
 
 #[test]
@@ -335,11 +351,7 @@ fn no_qargo_command_invokes_cargo() {
         let output = process.output().unwrap();
         assert_eq!(
             output.status.code(),
-            Some(if ["test", "doc"].contains(&command) {
-                1
-            } else {
-                0
-            }),
+            Some(if command == "test" { 1 } else { 0 }),
             "{}",
             String::from_utf8_lossy(&output.stdout)
         );
@@ -408,7 +420,7 @@ fn closed_child_schema_identity_and_coordinates_are_checked() {
     let valid = json!({
         "format":"qlippy.result","version":1,"command":"lint","outcome":"ok","diagnostics":[],
         "result":{"source_count":1,"source_id":frozen.source_id,"qleisli_check":{"status":"passed","reason":null},
-          "tool":{"name":"qlippy","version":"0.1.0","executable_sha256":digest,"qleisli_version":"0.2.1","profile":"finite-v0"}}
+          "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest,"qleisli_version":"0.2.1","profile":"finite-v0"}}
     });
     let args = [
         OsString::from("lint"),

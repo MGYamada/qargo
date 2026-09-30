@@ -1,0 +1,5 @@
+//! Minimal qrate management and documentation sample.
+/// Preserve the input qubit.
+pub unitary fn identity(q: Q<Bit>) -> Q<Bit> {
+    q
+}
