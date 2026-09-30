@@ -1,0 +1,2 @@
+// Minimal qrate management smoke test.
+pub unitary fn identity(q: Q<Bit>) -> Q<Bit> { q }

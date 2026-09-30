@@ -1,0 +1,14 @@
+schema-version = 1
+
+[qrate]
+name = "qlippy"
+version = "0.1.0"
+
+[source]
+root = "src"
+
+[tests]
+root = "tests"
+
+[docs]
+root = "docs"

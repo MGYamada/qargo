@@ -1,0 +1,25 @@
+# Developer-only Rust build configuration. Qargo never reads or executes this.
+[package]
+name = "qlippy-engine"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0"
+publish = false
+description = "Pure Rust lint engine whose sources belong to the qlippy qrate"
+
+[lib]
+path = "../../qrates/qlippy/src/lib.rs"
+
+[dependencies]
+qleisli = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tempfile = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[lints.rust]
+unsafe_code = "forbid"
