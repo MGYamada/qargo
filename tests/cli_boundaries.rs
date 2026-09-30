@@ -38,6 +38,99 @@ fn qargo(args: &[&str]) -> Output {
 }
 
 #[test]
+fn space_separated_paths_match_equality_paths_for_all_qargo_commands() {
+    let root = qrate();
+    let manifest = root.path().join("Qargo with spaces.toml");
+    fs::write(&manifest, MANIFEST).unwrap();
+    let manifest = manifest.to_str().unwrap();
+    let equal_manifest = format!("--manifest-path={manifest}");
+    for (command, selected) in [
+        ("check", None),
+        ("build", None),
+        ("test", None),
+        ("lint", Some(("--qlippy", env!("CARGO_BIN_EXE_qlippy")))),
+        ("fmt", Some(("--qlifmt", env!("CARGO_BIN_EXE_qlifmt")))),
+        ("doc", Some(("--qlidoc", env!("CARGO_BIN_EXE_qlidoc")))),
+    ] {
+        let mut equal_args = vec![command, &equal_manifest];
+        let mut spaced_args = vec![command, "--manifest-path", manifest];
+        let equal_tool;
+        if let Some((option, tool)) = selected {
+            equal_tool = format!("{option}={tool}");
+            equal_args.push(&equal_tool);
+            spaced_args.extend([option, tool]);
+        }
+        let equal = qargo(&equal_args);
+        let spaced = qargo(&spaced_args);
+        let expected_exit = if command == "test" { 1 } else { 0 };
+        assert_eq!(equal.status.code(), Some(expected_exit), "{command}");
+        assert_eq!(spaced.status.code(), Some(expected_exit), "{command}");
+        assert_eq!(json(&equal), json(&spaced), "{command}");
+    }
+}
+
+#[test]
+fn path_options_reject_missing_empty_repeated_and_incompatible_values() {
+    for args in [
+        vec!["check", "--manifest-path"],
+        vec!["check", "--manifest-path", ""],
+        vec!["check", "--manifest-path", "--format=json"],
+        vec!["check", "--manifest-path=a", "--manifest-path", "b"],
+        vec!["check", "--manifest-path", "a", "--manifest-path=b"],
+        vec!["lint", "--qlippy"],
+        vec!["lint", "--qlippy", "--deny-warnings"],
+        vec!["lint", "--qlippy=a", "--qlippy", "b"],
+        vec!["fmt", "--qlifmt", ""],
+        vec!["fmt", "--qlifmt", "--check"],
+        vec!["fmt", "--qlifmt", "a", "--qlifmt=b"],
+        vec!["doc", "--qlidoc"],
+        vec!["doc", "--qlidoc", "--document-private-items"],
+        vec!["doc", "--qlidoc=a", "--qlidoc", "b"],
+        vec!["check", "--qlippy", "a"],
+        vec!["lint", "--qlifmt", "a"],
+        vec!["fmt", "--qlidoc", "a"],
+        vec!["--help", "--manifest-path", "a"],
+    ] {
+        let output = qargo(&args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+        assert_eq!(json(&output)["diagnostics"][0]["category"], "usage");
+    }
+}
+
+#[test]
+fn cargo_style_dependency_requests_include_actionable_diagnostics() {
+    let output = qargo(&["add", "example"]);
+    assert_eq!(output.status.code(), Some(2));
+    let report = json(&output);
+    assert_eq!(report["diagnostics"][0]["category"], "usage");
+    assert!(
+        report["diagnostics"][0]["suggestion"]
+            .as_str()
+            .unwrap()
+            .contains("local Qargo.toml")
+    );
+    for table in ["dependencies", "dev-dependencies"] {
+        let root = qrate();
+        let manifest = root.path().join("Qargo.toml");
+        fs::write(
+            &manifest,
+            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.2\"\n"),
+        )
+        .unwrap();
+        let output = qargo(&["check", "--manifest-path", manifest.to_str().unwrap()]);
+        assert_eq!(output.status.code(), Some(1));
+        let report = json(&output);
+        assert_eq!(report["diagnostics"][0]["id"], "invalid_manifest");
+        assert!(
+            report["diagnostics"][0]["suggestion"]
+                .as_str()
+                .unwrap()
+                .contains("developer Cargo.toml")
+        );
+    }
+}
+
+#[test]
 fn external_lint_cli_preserves_warnings_denial_and_source_locations() {
     let root = tempfile::tempdir().unwrap();
     let source = "// 日本語 🦀\r\nuse std::quantum::h;\r\nuse std::quantum::x;\r\nunitary fn once(q:Q<Bit>)->Q<Bit>{repeat_static(1,h,q)}\r\n";

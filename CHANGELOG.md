@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.2 — 2026-09-30
+
+- Update Qargo, all three standard tools, their qrate manifests, private development packages, CI, and package/release verifiers together to 0.1.2.
+- Accept both `--option=PATH` and `--option PATH` for Qargo's manifest/tool paths and qlidoc's output path. Retain rejection of empty, missing, repeated, and incompatible options, and selected-tool authority without fallback.
+- Add actionable suggestions for unsupported Cargo-style qrate dependency commands and `[dependencies]`/`[dev-dependencies]` manifest tables. Preserve strict TOML string field types; unquoted date/time root values are rejected even when similarly named directories exist.
+- Introduce `qlippy --list-rules`, with an independently versioned machine-readable catalog of idiom, complexity, and resource groups, plus advisory/checker-candidate/theorem-candidate policies. Existing rules remain advisory warnings; lint result envelopes are unchanged.
+- Clarify qrate semantic scope versus raw input provenance, the host-language boundary, and checker-bound stdlib identity. Document the planned separation of qrate-selected Qleisli toolchains and Qargo orchestration, including the required checker/backend/stdlib bindings before proof-bearing results can be supported.
+- Adopt a curated stdlib center and future extensions with trusted sources, authenticated namespaces, and fixed identities. Defer public registry and automatic semver resolution; forbid arbitrary qrate build hooks, native procedural macros, dependency-install scripts, and global feature unification. A future lockfile will serve reproducibility and provenance, independently of proof.
+- Preserve manifest/result schema version 1, Rust 1.85, exact Qleisli 0.2.1, syntax-only formatting/documentation, empty-source behavior, and explicitly unavailable QLT execution. Publication remains a separate authorized action.
+
 ## 0.1.1 — 2026-09-30
 
 - Distribute the standard bundle as the self-contained crates.io package `qargo`, installing all four executables together. Compile the canonical qrate engine sources as internal modules and verify packaged sources and installation in CI; private engine packages remain development-only.

@@ -4,19 +4,25 @@ Status: public contract for the experimental 0.1.x releases; manifest and result
 
 Supported release platforms are Linux and macOS, validated with Rust 1.85 and stable. Windows and Android are outside the 0.1.x support contract. Starting with 0.1.1, distribution includes the complete GitHub source archive or tagged checkout and the qargo crates.io package, which must install all four executables. No prebuilt executable assets are provided. A crates.io package must build independently from its packaged sources and registry dependencies. Repository development uses Cargo manifests/lockfile outside the qrate snapshot. The published qargo package compiles the canonical qrate engine sources as internal modules, with no dependency on the three private development packages. Packaging and installation are verified independently of Git source archives.
 
-The documented CLI, manifest schema 1, independently versioned qargo.result, qlippy.result, qlifmt.result, and qlidoc.result formats (each initially version 1), and exit codes remain compatible within 0.1.x. Incompatible manifest/result changes require a new schema version, independently of product versions. Diagnostic prose and the internal Rust library API are not stable interfaces. Qargo, qlippy, qlifmt, and qlidoc must come from the same product release. The standard bundle consists of the three tool qrates, developed together at 0.1.1; Qargo still manages one qrate per operation.
+The documented CLI, manifest schema 1, independently versioned qargo.result, qlippy.result, qlifmt.result, and qlidoc.result formats (each initially version 1), and exit codes remain compatible within 0.1.x. Incompatible manifest/result changes require a new schema version, independently of product versions. Diagnostic prose and the internal Rust library API are not stable interfaces. Qargo, qlippy, qlifmt, and qlidoc must come from the same product release. The standard bundle consists of the three tool qrates, developed together at 0.1.2; Qargo still manages one qrate per operation.
 
 ## Boundaries
+
+The [ecosystem policy](ecosystem-policy.md) adopts a curated stdlib center with future extensions bound to trusted sources, authenticated namespaces, and fixed identities. Public registry and automatic semver resolution are deferred. Qargo will not introduce arbitrary qrate build hooks, native procedural macros, dependency-install scripts, or global feature unification. These are design constraints on future Qargo operations, independent of Cargo's Rust implementation build machinery.
 
 Qargo manages one local Qleisli qrate. Cargo builds, packages, and installs the Rust executables outside Qargo operations; no Qargo command invokes it. crates.io distribution does not add a Qargo registry or Cargo-backed qrate operations. Qargo has no Rust target, dependency solver, registry, downloads, publishing, Qargo.lock, or shell hooks. Zero .qli or .qlt files are supported. Each standard qrate includes src/smoke.qli, a minimal unitary identity operation used to exercise qrate management, and no .qlt files. Each complete Rust engine, CLI, and Rust test sources belong to its qrate and are captured as raw inputs. Shared snapshot, diagnostic, identity, and syntax support belongs to qlippy and is reused by qlifmt and qlidoc. Developer Cargo configuration lives outside the qrates in the repository root and rust/<tool>/Cargo.toml. Capturing .rs files does not authorize Qargo to compile or run them.
 
 A qrate comprises Qargo.toml, a source root, a QLT test root, a documentation root, and deterministic local identity/build metadata. All three roots must exist as directories, may be empty, are UTF-8 qrate-relative paths, and must not escape the qrate, traverse symlinks, overlap each other, or include the reserved target directory. Unsupported schema versions and unknown fields are rejected.
 
+The semantic subject of a qrate is its local Qleisli modules, public declarations, and contracts checked by the selected Qleisli implementation. Its raw input identity is a provenance envelope and can also contain host-language sources, tests, and documentation. Including Rust in that envelope does not extend Qleisli checking to Rust or make the host engine part of a proved Qleisli interface. The standard tool qrates are management examples whose smoke interfaces do not describe or certify their Rust engines. Schema 1 provides local source management and provenance; it does not promise registry identity, dependency compatibility, or a complete semantic package contract.
+
+In 0.1.2 the acceptance implementation is the linked Qleisli 0.2.1 ordinary checker. Qargo and qlippy record that linked version, finite-v0 profile, and actual host executable digest. A `qleisli` executable on PATH is not selected or consulted. The embedded standard library belongs to that linked checker distribution, not to an independently resolved qrate; local source identity excludes it and must be interpreted together with the recorded tool identity. This metadata identifies a processing implementation, not a proof. See [toolchain evolution](toolchains.md) for the future separation of qrate-selected acceptance toolchains and orchestration.
+
 ```toml
 schema-version = 1
 [qrate]
 name = "qlippy"
-version = "0.1.1"
+version = "0.1.2"
 [source]
 root = "src"
 [tests]
@@ -27,6 +33,8 @@ root = "docs"
 
 Names use ASCII letters/digits, hyphens and underscores, beginning with a letter. Versions are nonnegative canonical decimal MAJOR.MINOR.PATCH. There is no edition field until Qleisli defines editions. Explicit --manifest-path takes precedence; otherwise search current and ancestor directories for Qargo.toml. A malformed found manifest is an error, never grounds for continuing upward.
 
+Dependency tables, including [dependencies] and [dev-dependencies], are unsupported and rejected with an invalid_manifest diagnostic and a suggestion to use local Qleisli modules and external developer Cargo configuration. Unsupported Cargo-style dependency commands such as qargo add remain usage errors with suggestions for supported local operations.
+
 ## Commands
 
 - qargo check [--manifest-path=PATH]: validate and freeze inputs, then check the .qli source root using Qleisli 0.2.1's ordinary public check API. Library roots do not require main. All local definitions receive normal source/IR checks.
@@ -36,11 +44,12 @@ Names use ASCII letters/digits, hyphens and underscores, beginning with a letter
 - qargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items]: generate Markdown for the qrate source root through qlidoc on frozen sources; validate the child response and all generated files before publishing under target/qlidoc/<input-id>/<tool-id>/<public-or-all>/. The path components use SHA-256 hex without the sha256: label.
 - qargo test [--manifest-path=PATH]: validate the qrate, then fail explicitly with backend_unavailable because QLT execution is not implemented, including empty packages. Do not substitute a host-language test runner.
 - qlippy <source-root> [--deny-warnings]: freeze .qli sources, check their actual source/IR through Qleisli 0.2.1, then lint local ASTs. Compiler failures prevent lint evaluation.
+- qlippy --list-rules: enumerate rule groups and promotion policies without reading sources or calling Qleisli. Accept --format=json for the rule catalog described below; do not combine with source arguments, --deny-warnings, --help, or --version.
 - qlifmt <file-or-source-root> [--check]: parse captured .qli sources, generate validated formatting candidates, and write them unless --check is requested.
 - qlidoc <file-or-source-root> [--output=PATH] [--document-private-items]: parse documented modules and publish Markdown. The default output is target/qlidoc/<source-id>/<tool-id>/<public-or-all>/ under the current working directory; --output selects a complete output directory.
 - --version on each executable: report engine version, actual executable SHA-256, linked Qleisli version, and finite-v0 profile.
 
-All commands accept --format=json once, anywhere. All four executables support --help and --version. Unknown/repeated options, invalid option combinations and missing arguments are usage errors. Equality-style path options are used as shown; empty values are rejected. Handled JSON-mode results emit exactly one UTF-8 object followed by LF on stdout, with no progress/log prose. Human diagnostics use stderr. Exit codes: 0 success (including warnings), 1 execution/validation/compiler/backend failure, denied warnings, or formatting differences in --check mode, 2 usage. --deny-warnings applies only to linting; --check applies only to formatting; --document-private-items applies only to documentation.
+All commands accept --format=json once, anywhere. All four executables support --help and --version. Unknown/repeated options, invalid option combinations and missing arguments are usage errors. Path options accept both equality syntax (--manifest-path=PATH, --qlippy=PATH, --qlifmt=PATH, --qlidoc=PATH, --output=PATH) and space-separated syntax (--manifest-path PATH, etc.). Empty values and repetition across either form are rejected. A space-separated value cannot start with a hyphen; use equality syntax or a ./ prefix for such paths. --format=json retains equality syntax. Handled JSON-mode results emit exactly one UTF-8 object followed by LF on stdout, with no progress/log prose. Human diagnostics use stderr. Exit codes: 0 success (including warnings), 1 execution/validation/compiler/backend failure, denied warnings, or formatting differences in --check mode, 2 usage. --deny-warnings applies only to linting; --check applies only to formatting; --document-private-items applies only to documentation.
 
 For zero .qli files, check/build/lint/fmt/doc succeed with source_count=0 and a Qleisli step of status=not_run, reason=no_sources. They do not call the Qleisli checker and do not report verified=true. Bundled std modules are not local package declarations. No test or documentation status is inferred from a source check. Nonempty formatting and documentation inputs use syntax parsing only; qleisli_check is not_run with reason=syntax_only, without calling ordinary type, ownership, or contract checking.
 
@@ -66,13 +75,25 @@ All three rules default to warning; --deny-warnings makes warnings fail without 
 
 Do not cancel arbitrary gates, use floating-point equivalence, infer clean release, or claim algorithm correctness. Syntax and all normal compiler checks apply before these advisory rules.
 
+Rule policy is exposed by qlippy --list-rules --format=json in a qlippy.result version-1 envelope with command=list-rules. Its result has exactly catalog_version (1), groups, promotion_policies, rules, and tool. Group and promotion-policy entries have exactly id and description. Each rule has exactly id, group, promotion, default_severity, description, and rationale. Rules are sorted by diagnostic ID. Catalog versioning is independent of product and result-envelope versions; incompatible catalog changes require a new catalog version. It contains no source binding, qleisli_check, or verification claim. Existing lint diagnostic/result shapes are unchanged; diagnostic IDs join to catalog IDs.
+
+The idiom group covers local conventions, import hygiene, and stdlib idioms; complexity covers unnecessary syntax; resource reserves a place for advisory resource-use observations and currently has no rules. A group never establishes Resource Safety. Promotion values are advisory (remains advisory, with no planned acceptance/theorem obligation), checker_candidate (may be retired when ordinary checking enforces the condition), and theorem_candidate (may be retired when a Qleisli theorem obligation covers it). Candidate status is a maintenance policy, not evidence or an acceptance condition. A future promotion must identify the covering checker diagnostic or theorem and its toolchain version in the catalog/release migration documentation before retiring a rule. This catalog has no such promotions yet.
+
+| Rule | Group | Promotion | Reason |
+| --- | --- | --- | --- |
+| unused_import | idiom | advisory | Unused imports remain valid; removal is import hygiene. |
+| redundant_repeat_one | complexity | advisory | A shorter spelling is optional; count-one repeat remains valid. |
+| double_inverse | complexity | advisory | A shorter spelling is optional; nested inverses remain valid. |
+
+Possible future proofs of repetition or inverse identities do not make these style preferences theorem obligations. All three default severities remain warning. Groups do not currently provide CLI selection or severity configuration.
+
 ## Formatting and documentation
 
-qlifmt uses four-space indentation and a target line width of 100; indivisible syntax tokens or comments may exceed the target. It preserves syntax-token values, comments' exact content and order, doc-comment attachment, and LF/CRLF convention. All files are parsed and all candidates validated before the first write. No import reordering or configuration file is provided in 0.1.1. Type and ownership errors do not prevent formatting when syntax is valid. --check prints a human-readable diff (or places it in the JSON diff field), returns 1 on differences, and writes no source files.
+qlifmt uses four-space indentation and a target line width of 100; indivisible syntax tokens or comments may exceed the target. It preserves syntax-token values, comments' exact content and order, doc-comment attachment, and LF/CRLF convention. All files are parsed and all candidates validated before the first write. No import reordering or configuration file is provided in 0.1.2. Type and ownership errors do not prevent formatting when syntax is valid. --check prints a human-readable diff (or places it in the JSON diff field), returns 1 on differences, and writes no source files.
 
 qlidoc calls Qleisli 0.2.1's parse_documented_module and renders module docs, declaration signatures, and attached doc comments to Markdown. The default visibility policy includes only public declarations, following rustdoc's public/private selection convention; --document-private-items includes nonpublic declarations. It writes index.md plus modules/<relative-source-path-without-.qli>.md, including nested source paths. Handwritten qrate documentation remains an ordinary captured input rather than being rewritten. Documentation examples are not executed, and type-invalid but syntactically valid modules can be documented. Empty inputs produce an index without a Qleisli verification result.
 
-Complete documentation directories are staged and published atomically without replacing existing output. Exact repeated contents are validated and reused; conflicting contents, symlinks, and unsafe paths fail. Generated files cannot feed back into captured qrate inputs. Future HTML generation may adopt qlidoc-specific CSS, colors, and layout; visual compatibility with rustdoc is not required. HTML and styling are outside the 0.1.1 implementation.
+Complete documentation directories are staged and published atomically without replacing existing output. Exact repeated contents are validated and reused; conflicting contents, symlinks, and unsafe paths fail. Generated files cannot feed back into captured qrate inputs. Future HTML generation may adopt qlidoc-specific CSS, colors, and layout; visual compatibility with rustdoc is not required. HTML and styling are outside the 0.1.2 implementation.
 
 ## Snapshots, identity and artifacts
 

@@ -1,17 +1,21 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.1. Version 0.1.1 is available on [crates.io](https://crates.io/crates/qargo/0.1.1) and as a [formal GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.1) for Linux and macOS.
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.2. Version 0.1.2 is available on [crates.io](https://crates.io/crates/qargo/0.1.2) and as a [GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.2) for Linux and macOS.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
 Each standard qrate ([qlippy](qrates/qlippy/Qargo.toml), [qlifmt](qrates/qlifmt/Qargo.toml), and [qlidoc](qrates/qlidoc/Qargo.toml)) contains its complete Rust engine, CLI, tests, and a short `src/smoke.qli` identity operation, with no `.qlt` files. Shared support belongs to qlippy. Qargo snapshots and identifies both `.rs` and `.qli` inputs, checks the `.qli` source, and leaves Rust compilation to developer Cargo configuration outside the qrates. Each engine also accepts external Qleisli sources. The published `qargo` crate compiles these same engine sources as internal modules; the three private workspace packages remain available for independent development.
+
+A qrate's semantic surface is its Qleisli modules and contracts; its raw input identity also tracks host implementation inputs for provenance. Checking a bundled smoke sample does not certify the Rust engine. The acceptance implementation is the linked Qleisli 0.2.1 checker and its embedded stdlib, regardless of any `qleisli` on PATH. Results record that linked version, profile, and host executable digest. Future qrate-selected acceptance toolchains and checker/stdlib/proof-backend bindings are described in the [toolchain design note](docs/toolchains.md).
+
+The [ecosystem policy](docs/ecosystem-policy.md) puts a curated stdlib at the center. Future extensions require trusted sources, authenticated publisher namespaces, and fixed identities. Public registry and automatic semver resolution are deferred; arbitrary qrate build hooks, native procedural macros, dependency-install scripts, and global feature unification will not be introduced. Cargo's command structure does not determine Qleisli's governance.
 
 ## Install from crates.io
 
 Rust 1.85 or newer is required. Install all four executables together:
 
 ```sh
-cargo install qargo --version=0.1.1 --locked --bins
+cargo install qargo --version=0.1.2 --locked --bins
 ```
 
 Cargo compiles the Rust tools during installation. The installed Qargo executable manages Qleisli qrates without invoking Cargo. The package includes all three engines and requires no private engine crates or repository checkout.
@@ -49,6 +53,7 @@ Use either of the other qrate manifests with the same commands. Qargo operates o
 
 ```sh
 target/release/qlippy /path/to/project --format=json
+target/release/qlippy --list-rules --format=json
 target/release/qargo lint /path/to/project --deny-warnings
 target/release/qlifmt /path/to/project --check
 target/release/qargo fmt /path/to/project
@@ -58,13 +63,15 @@ target/release/qargo doc --manifest-path=/path/to/project/Qargo.toml --document-
 
 qlippy freezes original bytes, runs ordinary Qleisli source/IR checks, and then inspects local syntax. Compiler rejection prevents advisory linting. Its three warning rules remain:
 
-| Rule | Diagnostic |
-| --- | --- |
-| `unused_import` | No possible import use in bodies, meanings, static arguments, or capability requirements |
-| `redundant_repeat_one` | `repeat_static(1, …)` or `repeat_op(1, …)` |
-| `double_inverse` | `inverse_op(inverse_op(…))` |
+| Rule | Group | Diagnostic |
+| --- | --- | --- |
+| `unused_import` | `idiom` | No possible import use in bodies, meanings, static arguments, or capability requirements |
+| `redundant_repeat_one` | `complexity` | `repeat_static(1, …)` or `repeat_op(1, …)` |
+| `double_inverse` | `complexity` | `inverse_op(inverse_op(…))` |
 
 Ambiguous shadowing conservatively retains imports. Suggestions are prose. `--deny-warnings` makes a warning-bearing result fail with exit 1; otherwise warnings succeed.
+
+`qlippy --list-rules` exposes an independently versioned catalog with `idiom`, `complexity`, and `resource` groups. All three existing rules have promotion policy `advisory`; the catalog also defines `checker_candidate` and `theorem_candidate` for future rules that might be absorbed by ordinary checking or theorem obligations. The resource group is currently empty. Classification and candidate status make no safety or proof claim, and groups do not enable CLI filtering. Diagnostic IDs join to catalog entries without changing lint result schemas.
 
 qlifmt accepts a `.qli` file or source directory. It preserves syntax tokens, comment content and order, doc-comment attachment, and LF/CRLF while using four-space indentation and a target width of 100 columns. Indivisible tokens and comments may exceed that width. Normal execution writes formatting changes; `--check` leaves sources unchanged, displays a diff, and exits 1 when changes are needed. It parses every input before writing and validates candidates before applying them. Qargo additionally uses frozen copies and rejects a source change detected before applying candidates. An I/O failure during application reports files already updated. Formatting configuration and import reordering are deferred.
 
@@ -78,7 +85,9 @@ All four tools support `--help`, `--version`, and `--format=json`. Independent v
 
 Linux and macOS are validated with Rust 1.85 and stable. Windows and Android are outside the supported release platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package. Prebuilt executable assets are not provided; Cargo compiles the installed executables. All Rust packages forbid unsafe code.
 
-The public contract covers CLI commands, manifest schema 1, the independently versioned JSON result formats, and exit codes 0/1/2. Path options use equality syntax, such as `--manifest-path=PATH`. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
+The public contract covers CLI commands, manifest schema 1, the independently versioned JSON result formats, and exit codes 0/1/2. Path options accept both equality and space-separated syntax, such as `--manifest-path=PATH` and `--manifest-path PATH`, including explicit tool paths and qlidoc's `--output`. Empty, missing, and repeated values are usage errors. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
+
+Cargo-style qrate dependency commands such as `qargo add` and manifest tables such as `[dependencies]` are still unsupported. Their diagnostics suggest supported local operations and keeping Rust dependencies in external developer Cargo configuration. Qargo does not resolve them through Cargo.
 
 QLT execution and HTML generation remain deferred. Qargo's own qrate registry, dependency resolution, installation, publication, and host-language build steps also remain deferred; this is independent of distributing the Rust tools through crates.io. See the [changelog](CHANGELOG.md) and [specification](docs/specification.md) for supported behavior and limits.
 

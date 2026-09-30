@@ -3,6 +3,7 @@
 pub mod adapter;
 pub mod qlippy;
 pub mod report;
+pub mod rules;
 pub mod snapshot;
 pub mod source;
 

@@ -3,6 +3,7 @@
 use std::ffi::OsString;
 use std::fmt;
 use std::io::{self, Write};
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use serde::{Deserialize, Serialize};
@@ -105,6 +106,30 @@ pub fn json_requested(args: &[OsString]) -> bool {
     args.iter().any(|arg| arg == "--format=json")
 }
 
+/// Read equality or space-separated path options, rejecting option-shaped values.
+pub fn path_argument(
+    option: &str,
+    argument: &str,
+    remaining: &mut std::slice::Iter<'_, OsString>,
+) -> Result<PathBuf, String> {
+    let value = if argument == option {
+        remaining
+            .next()
+            .and_then(|value| value.to_str())
+            .filter(|value| !value.starts_with('-'))
+    } else {
+        argument
+            .strip_prefix(option)
+            .and_then(|value| value.strip_prefix('='))
+    };
+    match value.filter(|value| !value.is_empty()) {
+        Some(value) => Ok(PathBuf::from(value)),
+        None => Err(format!(
+            "{option} requires a nonempty UTF-8 path. Use {option}=PATH or {option} PATH."
+        )),
+    }
+}
+
 /// Bind metadata to the executable actually running, not to a path or timestamp.
 pub fn tool_info(name: &str) -> Result<Value, Diagnostic> {
     let executable = std::env::current_exe().map_err(|error| {
@@ -196,6 +221,23 @@ fn emit_human(report: &Report) -> io::Result<()> {
                 crate::QLEISLI_VERSION,
                 crate::PROFILE
             )?;
+        } else if report.envelope.command == "list-rules" {
+            writeln!(
+                output,
+                "qlippy rule catalog {}",
+                crate::rules::CATALOG_VERSION
+            )?;
+            for rule in crate::rules::RULES {
+                let metadata = serde_json::to_value(rule).map_err(io::Error::other)?;
+                writeln!(
+                    output,
+                    "{} [{}; {}]: {}",
+                    rule.id,
+                    metadata["group"].as_str().unwrap_or(""),
+                    metadata["promotion"].as_str().unwrap_or(""),
+                    rule.description
+                )?;
+            }
         } else {
             writeln!(
                 output,

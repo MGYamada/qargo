@@ -75,7 +75,7 @@ fn run(root: &Path, command: &str, report: &Value) -> qargo_tools::report::Repor
         for directory in ["tests", "docs"] {
             fs::create_dir(root.join(directory)).unwrap();
         }
-        fs::write(root.join("Qargo.toml"), "schema-version=1\n[qrate]\nname=\"example\"\nversion=\"0.1.1\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+        fs::write(root.join("Qargo.toml"), "schema-version=1\n[qrate]\nname=\"example\"\nversion=\"0.1.2\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
         args.push(format!("--manifest-path={}", root.join("Qargo.toml").display()).into());
     }
     qargo::run(&args)

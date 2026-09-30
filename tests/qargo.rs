@@ -122,6 +122,46 @@ fn empty_qrates_keep_qlt_unavailable_and_generate_documentation() {
 }
 
 #[test]
+fn manifest_roots_require_strings_even_when_date_named_directories_exist() {
+    for literal in [
+        "2026-09-30",
+        "2026-09-30T12:34:56",
+        "2026-09-30T12:34:56Z",
+        "12:34:56",
+    ] {
+        for root in ["src", "tests", "docs"] {
+            let qrate = qrate();
+            fs::create_dir(qrate.path().join(literal)).unwrap();
+            let field = format!("root = \"{root}\"");
+            let quoted = MANIFEST.replace(&field, &format!("root = \"{literal}\""));
+            fs::write(qrate.path().join("Qargo.toml"), quoted).unwrap();
+            let accepted = run(qrate.path(), "check", &[]);
+            assert_eq!(
+                accepted.exit_code, 0,
+                "{root}: {literal}: {:?}",
+                accepted.envelope
+            );
+            assert_eq!(result(&accepted)["qleisli_check"]["reason"], "no_sources");
+
+            let unquoted = MANIFEST.replace(&field, &format!("root = {literal}"));
+            fs::write(qrate.path().join("Qargo.toml"), unquoted).unwrap();
+            for command in ["check", "build"] {
+                let rejected = run(qrate.path(), command, &[]);
+                assert_eq!(
+                    rejected.exit_code, 1,
+                    "{command}: {root}: {literal}: {:?}",
+                    rejected.envelope
+                );
+                assert_eq!(rejected.envelope.diagnostics[0].id, "invalid_manifest");
+                assert_eq!(rejected.envelope.diagnostics[0].category, "qargo");
+                assert!(rejected.envelope.result.is_none());
+            }
+            assert!(!qrate.path().join("target").exists());
+        }
+    }
+}
+
+#[test]
 fn manifest_validation_is_closed_and_rejects_bad_roots_names_versions() {
     for manifest in [
         MANIFEST.replace("schema-version = 1", "schema-version = 2"),

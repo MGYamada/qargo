@@ -2,7 +2,7 @@ schema-version = 1
 
 [qrate]
 name = "qlippy"
-version = "0.1.1"
+version = "0.1.2"
 
 [source]
 root = "src"

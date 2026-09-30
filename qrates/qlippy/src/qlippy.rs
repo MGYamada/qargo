@@ -13,16 +13,18 @@ use serde_json::json;
 
 use crate::adapter;
 use crate::report::{Diagnostic, Location, Report, coordinates, tool_info};
+use crate::rules::{self, DOUBLE_INVERSE, REDUNDANT_REPEAT_ONE, UNUSED_IMPORT};
 use crate::snapshot::FrozenSources;
 
 const FORMAT: &str = "qlippy.result";
-const HELP: &str = "qlippy <source-root> [--format=json] [--deny-warnings]\nqlippy --version [--format=json]\nqlippy --help [--format=json]\n\nCheck frozen Qleisli sources before emitting advisory lint diagnostics.\nNo source rewriting or mathematical evidence is produced.";
+const HELP: &str = "qlippy <source-root> [--format=json] [--deny-warnings]\nqlippy --list-rules [--format=json]\nqlippy --version [--format=json]\nqlippy --help [--format=json]\n\nCheck frozen Qleisli sources before emitting advisory lint diagnostics.\nNo source rewriting or mathematical evidence is produced.";
 
 struct Options {
     source_root: Option<PathBuf>,
     deny_warnings: bool,
     help: bool,
     version: bool,
+    list_rules: bool,
 }
 
 fn usage(message: &str) -> Report {
@@ -40,6 +42,7 @@ fn options(args: &[OsString]) -> Result<Options, Box<Report>> {
         deny_warnings: false,
         help: false,
         version: false,
+        list_rules: false,
     };
     let mut format_seen = false;
     for arg in args {
@@ -48,6 +51,7 @@ fn options(args: &[OsString]) -> Result<Options, Box<Report>> {
             Some("--deny-warnings") if !options.deny_warnings => options.deny_warnings = true,
             Some("--help") if !options.help => options.help = true,
             Some("--version") if !options.version => options.version = true,
+            Some("--list-rules") if !options.list_rules => options.list_rules = true,
             _ if arg.to_string_lossy().starts_with('-') => {
                 return Err(Box::new(usage("Unknown, repeated, or malformed option.")));
             }
@@ -60,11 +64,14 @@ fn options(args: &[OsString]) -> Result<Options, Box<Report>> {
             _ => options.source_root = Some(PathBuf::from(arg)),
         }
     }
-    if options.help || options.version {
-        if options.help && options.version || options.source_root.is_some() || options.deny_warnings
-        {
+    let special_count = [options.help, options.version, options.list_rules]
+        .into_iter()
+        .filter(|value| *value)
+        .count();
+    if special_count > 0 {
+        if special_count > 1 || options.source_root.is_some() || options.deny_warnings {
             return Err(Box::new(usage(
-                "Help and version cannot be combined with lint arguments.",
+                "Help, version, and rule listing must be used separately, without lint arguments.",
             )));
         }
     } else if options.source_root.is_none() {
@@ -88,6 +95,16 @@ pub fn run(args: &[OsString]) -> Report {
         return match tool_info("qlippy") {
             Ok(tool) => Report::ok(FORMAT, "version", json!({ "tool": tool })),
             Err(diagnostic) => Report::fail(FORMAT, "version", diagnostic, 1),
+        };
+    }
+    if options.list_rules {
+        return match tool_info("qlippy") {
+            Ok(tool) => {
+                let mut catalog = rules::catalog();
+                catalog["tool"] = tool;
+                Report::ok(FORMAT, "list-rules", catalog)
+            }
+            Err(diagnostic) => Report::fail(FORMAT, "list-rules", diagnostic, 1),
         };
     }
     let Some(root) = options.source_root else {
@@ -176,7 +193,7 @@ fn lint_project(project: &Project, sources: &FrozenSources) -> Result<Vec<Diagno
             };
             if !visitor.names.contains(&name.text) {
                 diagnostics.push(warning(
-                    "unused_import",
+                    UNUSED_IMPORT.id,
                     &path,
                     &module.source,
                     import.span,
@@ -233,7 +250,10 @@ fn warning(
     Diagnostic {
         id: id.to_owned(),
         category: "lint".to_owned(),
-        severity: "warning".to_owned(),
+        severity: rules::find(id)
+            .expect("registered lint rule")
+            .default_severity
+            .to_owned(),
         primary: Some(Box::new(Location {
             path: path.to_owned(),
             start: span.start,
@@ -344,7 +364,7 @@ impl Visitor {
             StaticOpKind::Inverse(inner) => {
                 if matches!(inner.kind, StaticOpKind::Inverse(_)) {
                     self.findings.push(Finding {
-                        id: "double_inverse",
+                        id: DOUBLE_INVERSE.id,
                         span: operation.span,
                     });
                 }
@@ -354,7 +374,7 @@ impl Visitor {
             StaticOpKind::Repeat(count, inner) => {
                 if *count == 1 {
                     self.findings.push(Finding {
-                        id: "redundant_repeat_one",
+                        id: REDUNDANT_REPEAT_ONE.id,
                         span: operation.span,
                     });
                 }
@@ -391,7 +411,7 @@ impl Visitor {
             } => {
                 if *count == 1 {
                     self.findings.push(Finding {
-                        id: "redundant_repeat_one",
+                        id: REDUNDANT_REPEAT_ONE.id,
                         span: expression.span,
                     });
                 }
