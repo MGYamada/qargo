@@ -34,8 +34,69 @@ fn warnings(report: &Report) -> &[Diagnostic] {
         assert_eq!(diagnostic.category, "lint");
         assert_eq!(diagnostic.severity, "warning");
         assert!(diagnostic.suggestion.is_some());
+        let policy = qargo_tools::rules::find(&diagnostic.id).expect("catalogued lint rule");
+        assert_eq!(diagnostic.severity, policy.default_severity);
+        assert_eq!(policy.promotion, qargo_tools::rules::Promotion::Advisory);
     }
     &report.envelope.diagnostics
+}
+
+#[test]
+fn rule_catalog_is_machine_readable_and_independent_of_checking() {
+    let root = root(&[("invalid.qli", "this is not Qleisli")]);
+    let output = Command::new(env!("CARGO_BIN_EXE_qlippy"))
+        .current_dir(root.path())
+        .args(["--list-rules", "--format=json"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    assert_eq!(
+        output.stdout.iter().filter(|byte| **byte == b'\n').count(),
+        1
+    );
+    let envelope: Envelope = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(envelope.format, "qlippy.result");
+    assert_eq!(envelope.version, 1);
+    assert_eq!(envelope.command, "list-rules");
+    let result = envelope.result.unwrap();
+    assert_eq!(result["catalog_version"], 1);
+    assert_eq!(result["tool"]["version"], "0.1.2");
+    assert!(result.get("qleisli_check").is_none());
+    assert!(result.get("verified").is_none());
+    let groups: Vec<_> = result["groups"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|group| group["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(groups, ["idiom", "complexity", "resource"]);
+    let rules = result["rules"].as_array().unwrap();
+    let ids: Vec<_> = rules
+        .iter()
+        .map(|rule| rule["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        ids,
+        ["double_inverse", "redundant_repeat_one", "unused_import"]
+    );
+    for rule in rules {
+        assert!(groups.contains(&rule["group"].as_str().unwrap()));
+        assert_eq!(rule["promotion"], "advisory");
+        assert_eq!(rule["default_severity"], "warning");
+        assert!(!rule["rationale"].as_str().unwrap().is_empty());
+    }
+    for args in [
+        vec!["--list-rules", "--list-rules"],
+        vec!["--list-rules", "--help"],
+        vec!["--version", "--list-rules"],
+        vec!["--list-rules", "source"],
+        vec!["--list-rules", "--deny-warnings"],
+        vec!["--list-rules", "--format=json", "--format=json"],
+    ] {
+        let args: Vec<_> = args.into_iter().map(OsString::from).collect();
+        assert_eq!(qlippy::run(&args).exit_code, 2);
+    }
 }
 
 #[test]

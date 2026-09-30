@@ -31,6 +31,40 @@ fn command_args(input: &Path, output: &Path) -> Vec<OsString> {
 }
 
 #[test]
+fn output_paths_accept_both_forms_and_reject_missing_or_repeated_values() {
+    let (_temp, root) = canonical_temp();
+    let input = root.join("sources with spaces");
+    fs::create_dir(&input).unwrap();
+    fs::write(
+        input.join("module.qli"),
+        "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+    )
+    .unwrap();
+    let output = root.join("docs with spaces");
+    let equal = run(&command_args(&input, &output));
+    let spaced_args = vec![
+        "--output".into(),
+        output.as_os_str().to_owned(),
+        input.as_os_str().to_owned(),
+    ];
+    let spaced = run(&spaced_args);
+    assert_eq!(equal.exit_code, 0);
+    assert_eq!(spaced.exit_code, 0);
+    assert_eq!(equal.envelope, spaced.envelope);
+    for args in [
+        vec!["source", "--output"],
+        vec!["source", "--output", ""],
+        vec!["source", "--output", "--format=json"],
+        vec!["source", "--output", "--document-private-items"],
+        vec!["source", "--output=a", "--output", "b"],
+        vec!["source", "--output", "a", "--output=b"],
+    ] {
+        let args: Vec<_> = args.into_iter().map(OsString::from).collect();
+        assert_eq!(run(&args).exit_code, 2);
+    }
+}
+
+#[test]
 fn public_default_and_private_option_preserve_all_module_pages() {
     let mut files = sources(
         "main.qli",
@@ -135,7 +169,7 @@ fn parse_failures_preserve_original_utf8_coordinates_and_do_not_publish() {
     assert_eq!(result["qleisli_check"]["reason"], "syntax_only");
     assert!(result["artifact_path"].is_null());
     assert_eq!(result["files"], serde_json::json!([]));
-    assert_eq!(result["tool"]["version"], "0.1.1");
+    assert_eq!(result["tool"]["version"], "0.1.2");
     let location = report.envelope.diagnostics[0].primary.as_ref().unwrap();
     assert_eq!(location.path, "invalid.qli");
     assert_eq!((location.line, location.column), (2, 1));
@@ -395,7 +429,7 @@ fn cli_is_one_json_envelope_with_portable_relative_paths_and_usage_exit_codes() 
         .unwrap();
     assert!(version.status.success());
     let version: Value = serde_json::from_slice(&version.stdout).unwrap();
-    assert_eq!(version["result"]["version"], "0.1.1");
+    assert_eq!(version["result"]["version"], "0.1.2");
     assert_eq!(version["result"]["qleisli_version"], "0.2.1");
     for args in [
         vec!["--format=json"],

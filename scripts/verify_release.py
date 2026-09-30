@@ -13,7 +13,7 @@ import tempfile
 
 QRATES = ("qlippy", "qlifmt", "qlidoc")
 TOOLS = ("qargo", *QRATES)
-PRODUCT_VERSION = "0.1.1"
+PRODUCT_VERSION = "0.1.2"
 
 
 def require(condition, message):
@@ -80,7 +80,7 @@ def qrate_inputs(qrate):
     name = qrate.name
     manifest = expected["Qargo.toml"].decode("utf-8")
     require(re.search(r'^name\s*=\s*"' + name + r'"\s*$', manifest, re.MULTILINE), "Incorrect qrate name")
-    require(re.search(r'^version\s*=\s*"0\.1\.1"\s*$', manifest, re.MULTILINE), "Incorrect qrate version")
+    require(re.search(r'^version\s*=\s*"' + re.escape(PRODUCT_VERSION) + r'"\s*$', manifest, re.MULTILINE), "Incorrect qrate version")
     for label in ("src/lib.rs", "src/bin/" + name + ".rs", "src/smoke.qli"):
         require(label in expected, "Missing qrate input: " + name + "/" + label)
     require(any(label.startswith("tests/") and label.endswith(".rs") for label in expected), "Missing Rust tests: " + name)
@@ -131,6 +131,9 @@ def verify_qrate(qrate, binaries, tools, environment):
             require(result["formatted_source_id"] == expected_source_id, "Formatting changed canonical input")
         reports[command] = report
 
+    spaced_check = invoke(binaries["qargo"], ["check", "--manifest-path", str(qrate / "Qargo.toml")], environment)
+    require(spaced_check == reports["check"], "Space-separated manifest path changed the check result")
+
     artifact = (qrate / reports["build"]["result"]["artifact_path"]).resolve()
     require((qrate / "target/qargo").resolve() in artifact.parents, "Build artifact escaped output root")
     snapshot = artifact / "snapshot"
@@ -172,17 +175,18 @@ def verify_qrate(qrate, binaries, tools, environment):
         require(report["format"] == "qlidoc.result" and report["result"]["tool"] == tools["qlidoc"], "Incorrect standalone documentation identity")
         require(report["result"]["source_id"] == expected_source_id, "Standalone documentation source mismatch")
         require(files_under(destination) == documentation, "Standalone and Qargo documentation differ")
-        require(invoke(binaries["qlidoc"], args, environment) == report, "Repeated standalone documentation changed")
+        spaced_args = [str(qrate / "src"), "--output", str(destination)]
+        require(invoke(binaries["qlidoc"], spaced_args, environment) == report, "Space-separated output changed repeated documentation")
 
 
 def verify(source_root, bin_dir):
     source_root = source_root.resolve()
     bin_dir = bin_dir.resolve()
-    for label in ("Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "docs/specification.md", "docs/releasing.md", "AGENTS.md", *["rust/" + name + "/Cargo.toml" for name in QRATES]):
+    for label in ("Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "docs/specification.md", "docs/releasing.md", "docs/toolchains.md", "docs/ecosystem-policy.md", "AGENTS.md", *["rust/" + name + "/Cargo.toml" for name in QRATES]):
         require((source_root / label).is_file(), "Missing source-release input: " + label)
     for label in ("Cargo.toml", *["rust/" + name + "/Cargo.toml" for name in QRATES]):
         manifest = (source_root / label).read_text(encoding="utf-8")
-        require(re.search(r'^version\s*=\s*"0\.1\.1"\s*$', manifest, re.MULTILINE), "Incorrect developer product version: " + label)
+        require(re.search(r'^version\s*=\s*"' + re.escape(PRODUCT_VERSION) + r'"\s*$', manifest, re.MULTILINE), "Incorrect developer product version: " + label)
         require(re.search(r'^rust-version\s*=\s*"1\.85"\s*$', manifest, re.MULTILINE), "Incorrect MSRV: " + label)
         if label == "Cargo.toml":
             require(re.search(r'^name\s*=\s*"qargo"\s*$', manifest, re.MULTILINE), "Incorrect crates.io package name")
@@ -213,11 +217,19 @@ def verify(source_root, bin_dir):
             require(tool["qleisli_version"] == "0.2.1" and tool["profile"] == "finite-v0", "Incorrect compiler/profile")
             require(tool["executable_sha256"] == sha256(binary.read_bytes()), "Incorrect executable identity")
             tools[name] = tool
+        catalog = invoke(binaries["qlippy"], ["--list-rules"], environment)
+        require(catalog["command"] == "list-rules", "Incorrect rule catalog command")
+        policy = catalog["result"]
+        require(policy["catalog_version"] == 1 and policy["tool"] == tools["qlippy"], "Incorrect catalog identity")
+        require([group["id"] for group in policy["groups"]] == ["idiom", "complexity", "resource"], "Incorrect rule groups")
+        require([rule["id"] for rule in policy["rules"]] == ["double_inverse", "redundant_repeat_one", "unused_import"], "Incorrect rule inventory")
+        require(all(rule["promotion"] == "advisory" and rule["default_severity"] == "warning" for rule in policy["rules"]), "Incorrect advisory rule policy")
+        require("qleisli_check" not in policy and "verified" not in policy, "Rule catalog claimed checking")
         for name in QRATES:
             verify_qrate(source_root / "qrates" / name, binaries, tools, environment)
             require(not any(marker.exists() for marker in markers.values()), "Runtime invoked developer Cargo or Rustdoc")
 
-    print("Source verification passed: four 0.1.1 executables, three complete qrates, checked smoke sources, stable snapshots/builds, canonical formatting, deterministic Markdown, unavailable QLT, and no Cargo/Rustdoc invocation.")
+    print(f"Source verification passed: four {PRODUCT_VERSION} executables, three complete qrates, advisory rule catalog, both path-option forms, checked smoke sources, stable snapshots/builds, canonical formatting, deterministic Markdown, unavailable QLT, and no Cargo/Rustdoc invocation.")
 
 
 def main():

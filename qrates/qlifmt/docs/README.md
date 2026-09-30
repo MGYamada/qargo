@@ -1,6 +1,6 @@
 # qlifmt
 
-qlifmt 0.1.1 is the Qleisli formatter in the standard Qargo bundle.
+qlifmt 0.1.2 is the Qleisli formatter in the standard Qargo bundle.
 
 ```text
 qlifmt <file-or-source-root> [--check] [--format=json]
@@ -15,7 +15,7 @@ The initial style uses four spaces and a target line width of 100 Unicode scalar
 characters. Long indivisible tokens and comments may exceed that target. All
 syntax token spellings, comment bodies and comment order are preserved. LF and
 CRLF are retained; files containing both retain their first line-ending style.
-No import sorting or style configuration is provided in 0.1.1.
+No import sorting or style configuration is provided in 0.1.2.
 
 Formatting parses Qleisli 0.2.1 syntax and validates token/comment preservation
 and documentation attachment. It does not require or imply type, ownership,

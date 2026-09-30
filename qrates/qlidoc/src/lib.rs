@@ -10,7 +10,7 @@ use qleisli::frontend::ast::{Decl, FnBody};
 use qleisli::frontend::documentation::DocComment;
 use qleisli::frontend::lexer::{Token, TokenKind, lex};
 use qleisli::frontend::parser::parse_documented_module;
-use qlippy_engine::report::{Diagnostic, Report, tool_info};
+use qlippy_engine::report::{Diagnostic, Report, path_argument, tool_info};
 use qlippy_engine::snapshot::{Files, portable_relative};
 use qlippy_engine::source::{capture_source, parse_diagnostic, syntax_step};
 use serde_json::{Value, json};
@@ -21,7 +21,7 @@ mod publication;
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 const FORMAT: &str = "qlidoc.result";
-const HELP: &str = "qlidoc <file-or-source-root> [--output=PATH] [--document-private-items] [--format=json]\nqlidoc --help\nqlidoc --version\nGenerate syntax-only Markdown; documentation examples are never executed.";
+const HELP: &str = "qlidoc <file-or-source-root> [--output=PATH] [--document-private-items] [--format=json]\nqlidoc --help\nqlidoc --version\n--output also accepts --output PATH.\nGenerate syntax-only Markdown; documentation examples are never executed.";
 const DISCLAIMER: &str = "Source documentation only; no type, ownership or contract verification is implied. Examples are not executed.\n\n";
 
 fn output_error(message: impl Into<String>) -> Diagnostic {
@@ -55,7 +55,8 @@ fn options(args: &[OsString]) -> Result<Options, Diagnostic> {
     let mut output = None;
     let mut include_private = false;
     let mut json_mode = false;
-    for arg in args {
+    let mut remaining = args.iter();
+    while let Some(arg) = remaining.next() {
         if arg.to_str().is_none() {
             return Err(usage_error("Arguments must be UTF-8."));
         }
@@ -74,11 +75,22 @@ fn options(args: &[OsString]) -> Result<Options, Diagnostic> {
                 ));
             }
             include_private = true;
-        } else if let Some(value) = arg.to_str().and_then(|s| s.strip_prefix("--output=")) {
-            if value.is_empty() || output.is_some() {
+        } else if arg == "--output"
+            || arg
+                .to_str()
+                .is_some_and(|value| value.starts_with("--output="))
+        {
+            if output.is_some() {
                 return Err(usage_error("--output requires one nonempty path."));
             }
-            output = Some(PathBuf::from(value));
+            output = Some(
+                path_argument(
+                    "--output",
+                    arg.to_str().expect("UTF-8 argument"),
+                    &mut remaining,
+                )
+                .map_err(usage_error)?,
+            );
         } else if arg.to_str().is_some_and(|s| s.starts_with('-')) {
             return Err(usage_error("Unknown option; see qlidoc --help."));
         } else if input.is_some() {

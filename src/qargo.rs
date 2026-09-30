@@ -12,12 +12,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::adapter;
-use crate::report::{Diagnostic, Envelope, Report};
+use crate::report::{Diagnostic, Envelope, Report, path_argument};
 use crate::snapshot::{self, Files, FrozenSources};
 use crate::{PROFILE, QLEISLI_VERSION, VERSION};
 
 const FORMAT: &str = "qargo.result";
-const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nQargo manages Qleisli qrates. Cargo builds and installs Rust tools outside Qargo commands.";
+const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nPath options also accept --option PATH.\nUse qlippy --list-rules to inspect advisory rule policy.\nQargo manages Qleisli qrates. Cargo builds and installs Rust tools outside Qargo commands.";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -114,7 +114,8 @@ fn usage(message: impl Into<String>) -> Diagnostic {
 fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
     let mut options = Options::default();
     let mut format_seen = false;
-    for arg in args {
+    let mut remaining = args.iter();
+    while let Some(arg) = remaining.next() {
         let arg = arg
             .to_str()
             .ok_or_else(|| usage("Arguments must be UTF-8."))?;
@@ -130,26 +131,27 @@ fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
                 ));
             }
             options.command = arg[2..].into();
-        } else if let Some(path) = arg.strip_prefix("--manifest-path=") {
-            if path.is_empty() || options.manifest.is_some() {
+        } else if arg == "--manifest-path" || arg.starts_with("--manifest-path=") {
+            if options.manifest.is_some() {
                 return Err(usage("--manifest-path requires one nonempty path."));
             }
-            options.manifest = Some(PathBuf::from(path));
-        } else if let Some(path) = arg.strip_prefix("--qlippy=") {
-            if path.is_empty() || options.qlippy.is_some() {
+            options.manifest =
+                Some(path_argument("--manifest-path", arg, &mut remaining).map_err(usage)?);
+        } else if arg == "--qlippy" || arg.starts_with("--qlippy=") {
+            if options.qlippy.is_some() {
                 return Err(usage("--qlippy requires one nonempty path."));
             }
-            options.qlippy = Some(PathBuf::from(path));
-        } else if let Some(path) = arg.strip_prefix("--qlifmt=") {
-            if path.is_empty() || options.qlifmt.is_some() {
+            options.qlippy = Some(path_argument("--qlippy", arg, &mut remaining).map_err(usage)?);
+        } else if arg == "--qlifmt" || arg.starts_with("--qlifmt=") {
+            if options.qlifmt.is_some() {
                 return Err(usage("--qlifmt requires one nonempty path."));
             }
-            options.qlifmt = Some(PathBuf::from(path));
-        } else if let Some(path) = arg.strip_prefix("--qlidoc=") {
-            if path.is_empty() || options.qlidoc.is_some() {
+            options.qlifmt = Some(path_argument("--qlifmt", arg, &mut remaining).map_err(usage)?);
+        } else if arg == "--qlidoc" || arg.starts_with("--qlidoc=") {
+            if options.qlidoc.is_some() {
                 return Err(usage("--qlidoc requires one nonempty path."));
             }
-            options.qlidoc = Some(PathBuf::from(path));
+            options.qlidoc = Some(path_argument("--qlidoc", arg, &mut remaining).map_err(usage)?);
         } else if arg == "--check" {
             if options.check {
                 return Err(usage("--check may only be supplied once."));
@@ -169,7 +171,13 @@ fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
             return Err(usage(format!("Unknown option: {arg}")));
         } else if options.command.is_empty() {
             if !["check", "build", "lint", "fmt", "test", "doc"].contains(&arg) {
-                return Err(usage(format!("Unknown command: {arg}")));
+                let mut diagnostic = usage(format!("Unknown command: {arg}"));
+                diagnostic.suggestion = Some(if ["add", "remove", "update", "install", "publish"].contains(&arg) {
+                    "Qargo has no qrate registry or dependency management yet. Use a local Qargo.toml with check, build, lint, fmt, doc, or test. To install the Rust tools, use Cargo outside Qargo operations."
+                } else {
+                    "Use qargo --help to see supported commands."
+                }.into());
+                return Err(diagnostic);
             }
             options.command = arg.into();
         } else if ["lint", "fmt"].contains(&options.command.as_str())
@@ -338,6 +346,25 @@ fn capture(explicit: Option<&Path>) -> Result<CapturedQrate, Diagnostic> {
     let raw = snapshot::read_regular(&path)?;
     let text = std::str::from_utf8(&raw)
         .map_err(|_| error("invalid_manifest", "qargo", "Qargo.toml must be UTF-8."))?;
+    let parsed: toml::Value = toml::from_str(text).map_err(|e| {
+        error(
+            "invalid_manifest",
+            "qargo",
+            format!("Invalid Qargo.toml: {e}"),
+        )
+    })?;
+    if parsed.get("dependencies").is_some() || parsed.get("dev-dependencies").is_some() {
+        let mut diagnostic = error(
+            "invalid_manifest",
+            "qargo",
+            "Qargo manifest schema 1 does not support dependency tables.",
+        );
+        diagnostic.suggestion = Some(
+            "Remove [dependencies] and [dev-dependencies] from Qargo.toml. Use local Qleisli source modules; keep Rust engine dependencies in developer Cargo.toml outside the qrate. Qrate dependency resolution is deferred.".into(),
+        );
+        return Err(diagnostic);
+    }
+    // Decode the original text to preserve TOML field types; Value converts datetimes to strings.
     let manifest: Manifest = toml::from_str(text).map_err(|e| {
         error(
             "invalid_manifest",
@@ -925,9 +952,7 @@ fn child_response(
         let id = diagnostic["id"].as_str().unwrap_or("");
         let severity = diagnostic["severity"].as_str().unwrap_or("");
         if category == "lint" {
-            if !["unused_import", "redundant_repeat_one", "double_inverse"].contains(&id)
-                || severity != "warning"
-            {
+            if crate::rules::find(id).is_none() || severity != "warning" {
                 return Err(transport(
                     "qlippy returned an unknown lint rule or severity.",
                 ));
