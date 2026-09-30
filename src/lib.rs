@@ -11,8 +11,9 @@ pub mod qlifmt_engine;
 mod qlippy_support;
 
 mod bundled;
-mod installation;
 pub mod qargo;
+mod tool_process;
 pub use qlippy_support::{
-    PROFILE, QLEISLI_VERSION, VERSION, adapter, qlippy, report, rules, snapshot, source,
+    PROFILE, QLEISLI_VERSION, VERSION, adapter, publication, qlippy, report, rules, snapshot,
+    source,
 };

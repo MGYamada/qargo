@@ -63,7 +63,7 @@ target/release/qargo fmt --manifest-path=qrates/qlippy/Qargo.toml --check
 target/release/qargo doc --manifest-path=qrates/qlippy/Qargo.toml
 ```
 
-Use either of the other qrate manifests with the same commands. Qargo operates on one qrate at a time. `check` uses ordinary Qleisli source/IR checking. `build` writes an exact input snapshot, public module index, and build record under the qrate's `target/qargo/`; it does not run document generation. The smoke sources export `identity` and pass checking and linting. Empty source roots succeed with `source_count=0` and a Qleisli check marked `not_run` with reason `no_sources`.
+Use either of the other qrate manifests with the same commands. Qargo operates on one qrate at a time. For `lint` and `fmt`, an explicit standalone source root cannot be combined with `--manifest-path`; use one input mode per command. `check` uses ordinary Qleisli source/IR checking. `build` writes an exact input snapshot, public module index, and build record under the qrate's `target/qargo/`; it does not run document generation. The smoke sources export `identity` and pass checking and linting. Empty source roots succeed with `source_count=0` and a Qleisli check marked `not_run` with reason `no_sources`.
 
 `qargo test` still fails with an explicit `backend_unavailable` diagnostic because QLT execution is not implemented. No fallback test runner is used.
 
