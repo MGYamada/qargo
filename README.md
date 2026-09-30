@@ -1,6 +1,6 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.1. Distribution includes the `qargo` package on crates.io alongside GitHub source releases. The latest experimental GitHub source release is 0.1.0 for Linux and macOS.
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.1. Version 0.1.1 is available on [crates.io](https://crates.io/crates/qargo/0.1.1) and as a [formal GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.1) for Linux and macOS.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 

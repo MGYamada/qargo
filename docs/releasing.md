@@ -61,4 +61,6 @@ Check all four version commands and run the package/runtime verifiers against th
 
 This step requires authorization for the GitHub release channel. Check the remote `v0.1.1` tag and release before creating either; do not force-push or replace existing release data.
 
-Create and push an annotated `v0.1.1` tag for the verified candidate and create a GitHub prerelease titled `Qargo v0.1.1`, using the changelog entry as release notes. GitHub supplies source archives; do not attach prebuilt Rust executable assets. Confirm that the tag and source archive identify the verified candidate and include all three complete qrates without generated outputs.
+Create and push an annotated `v0.1.1` tag for the verified candidate and create a formal GitHub release titled `Qargo v0.1.1`, using the changelog entry as release notes. Publish with `--verify-tag --latest --prerelease=false --draft=false`. GitHub supplies source archives; do not attach prebuilt Rust executable assets. Confirm that the tag and source archive identify the verified candidate and include all three complete qrates without generated outputs. When the same version is also published on crates.io, retain that exact candidate commit for the tag; subsequent documentation updates must not move the tag or replace the package.
+
+Reflect the release on the default branch through a pull request when repository rules require one. Preserve the verified candidate commits in the merge, satisfy all required checks, and update the README to link the published release and package.
