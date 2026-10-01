@@ -5,6 +5,9 @@
 - Update Qargo, all three standard tools, their qrate manifests, private development packages, lockfile, CI, documentation, and package/release verifiers together to 0.1.4.
 - Ignore macOS `.DS_Store` files and Python bytecode alongside existing build outputs and Python cache directories. Keep `Cargo.lock` tracked for reproducible development, MSRV checks, and locked installation.
 - Separate Qargo argument parsing, manifest validation/input capture, and child-tool response validation. Share closed response schemas and tool-identity checks across linting, formatting, and documentation without changing CLI behavior or result formats.
+- Reject declared-root overlap and reserved `target` capture through filesystem aliases, using directory identities while preserving distinct case-sensitive directories (#9).
+- Keep selected-tool process-group cleanup armed through response and output validation, terminating detached-output descendants on rejected lint, format, or document transport (#10).
+- Clarify the separate 4096-entry traversal and 4096-file capture budgets, and cover directory, filtered-file, and depth boundaries without changing the limits (#11).
 - Preserve manifest schema 2, independent result schema version 1, Rust 1.85, and exact Qleisli 0.2.1.
 
 ## 0.1.3 — 2026-09-30

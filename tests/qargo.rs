@@ -561,3 +561,83 @@ fn closed_child_schema_identity_and_coordinates_are_checked() {
         assert_eq!(report.envelope.diagnostics[0].id, "invalid_tool_response");
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn filesystem_aliases_cannot_overlap_declared_roots() {
+    let qrate = qrate();
+    if !qrate.path().join("SRC").exists() {
+        eprintln!("Case-insensitive directory aliases are unavailable on this filesystem.");
+        return;
+    }
+    fs::create_dir(qrate.path().join("src/nested")).unwrap();
+    for alias in ["SRC", "SRC/nested"] {
+        let manifest = MANIFEST.replace("root = \"tests\"", &format!("root = \"{alias}\""));
+        fs::write(qrate.path().join("Qargo.toml"), manifest).unwrap();
+        for command in ["check", "build", "lint", "fmt", "doc", "test"] {
+            let report = run(qrate.path(), command, &[]);
+            assert_eq!(
+                report.exit_code, 1,
+                "{command}: {alias}: {:?}",
+                report.envelope
+            );
+            assert_eq!(report.envelope.diagnostics[0].id, "invalid_manifest");
+            assert!(report.envelope.result.is_none());
+        }
+        assert!(!qrate.path().join("target").exists());
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn filesystem_aliases_cannot_capture_reserved_output_directories() {
+    let qrate = qrate();
+    fs::create_dir_all(qrate.path().join("TARGET/input")).unwrap();
+    if !qrate.path().join("target").exists() {
+        eprintln!("Case-insensitive directory aliases are unavailable on this filesystem.");
+        return;
+    }
+    fs::write(
+        qrate.path().join("TARGET/input/generated.rs"),
+        "generated output",
+    )
+    .unwrap();
+    for alias in ["TARGET", "TARGET/input"] {
+        let manifest = MANIFEST.replace("root = \"docs\"", &format!("root = \"{alias}\""));
+        fs::write(qrate.path().join("Qargo.toml"), manifest).unwrap();
+        for command in ["check", "build", "lint", "fmt", "doc", "test"] {
+            let report = run(qrate.path(), command, &[]);
+            assert_eq!(
+                report.exit_code, 1,
+                "{command}: {alias}: {:?}",
+                report.envelope
+            );
+            assert_eq!(report.envelope.diagnostics[0].id, "invalid_manifest");
+            assert!(report.envelope.result.is_none());
+        }
+        assert!(!qrate.path().join("TARGET/qargo").exists());
+        assert!(!qrate.path().join("TARGET/qlidoc").exists());
+        assert_eq!(
+            fs::read_to_string(qrate.path().join("TARGET/input/generated.rs")).unwrap(),
+            "generated output"
+        );
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn distinct_case_sensitive_directories_are_not_rejected_by_spelling() {
+    let qrate = qrate();
+    fs::create_dir(qrate.path().join("TARGET")).unwrap();
+    if qrate.path().join("target").exists() {
+        eprintln!("Distinct case-sensitive directory names are unavailable on this filesystem.");
+        return;
+    }
+    fs::write(
+        qrate.path().join("Qargo.toml"),
+        MANIFEST.replace("root = \"docs\"", "root = \"TARGET\""),
+    )
+    .unwrap();
+    assert_eq!(run(qrate.path(), "check", &[]).exit_code, 0);
+    assert_eq!(run(qrate.path(), "build", &[]).exit_code, 0);
+}

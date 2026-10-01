@@ -12,6 +12,34 @@ use crate::snapshot::{self, Files, FrozenSources};
 const MANIFEST_SCHEMA_VERSION: u32 = 2;
 const QLEISLI_EDITION: &str = "2026";
 
+#[cfg(unix)]
+type DirectoryIdentity = (u64, u64);
+#[cfg(not(unix))]
+type DirectoryIdentity = PathBuf;
+
+fn directory_identity(
+    path: &Path,
+    metadata: &fs::Metadata,
+) -> Result<DirectoryIdentity, Diagnostic> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let _ = path;
+        Ok((metadata.dev(), metadata.ino()))
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = metadata;
+        fs::canonicalize(path).map_err(|error| {
+            Diagnostic::error(
+                "invalid_manifest",
+                "qargo",
+                format!("Cannot resolve declared directory: {error}"),
+            )
+        })
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Manifest {
@@ -166,6 +194,22 @@ fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagno
     .into_iter()
     .map(|root| root_path(root))
     .collect::<Result<Vec<_>, _>>()?;
+    let target = directory.join("target");
+    let reserved_target = match fs::symlink_metadata(&target) {
+        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+            Some(directory_identity(&target, &metadata)?)
+        }
+        Ok(_) => None,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => {
+            return Err(Diagnostic::error(
+                "invalid_manifest",
+                "qargo",
+                format!("Cannot inspect reserved target directory: {error}"),
+            ));
+        }
+    };
+    let mut resolved_roots = Vec::new();
     for (index, root) in roots.iter().enumerate() {
         if roots
             .iter()
@@ -179,6 +223,7 @@ fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagno
             ));
         }
         let mut path = directory.to_path_buf();
+        let mut identities = Vec::new();
         for component in root.components() {
             path.push(component.as_os_str());
             let metadata = fs::symlink_metadata(&path).map_err(|e| {
@@ -195,6 +240,33 @@ fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagno
                     "Every declared root and its ancestors must be existing directories without symlinks.",
                 ));
             }
+            identities.push(directory_identity(&path, &metadata)?);
+        }
+        resolved_roots.push(identities);
+    }
+    // Compare filesystem objects after rejecting symlinks, not normalized spellings.
+    for (index, identities) in resolved_roots.iter().enumerate() {
+        if reserved_target
+            .as_ref()
+            .is_some_and(|target| identities.contains(target))
+        {
+            return Err(Diagnostic::error(
+                "invalid_manifest",
+                "qargo",
+                "Declared roots must not include the reserved target directory or any filesystem alias of it.",
+            ));
+        }
+        let root = identities.last().expect("nonempty declared root");
+        if resolved_roots
+            .iter()
+            .enumerate()
+            .any(|(other_index, other)| index != other_index && other.contains(root))
+        {
+            return Err(Diagnostic::error(
+                "invalid_manifest",
+                "qargo",
+                "Source, test and documentation roots must not overlap.",
+            ));
         }
     }
     Ok(())

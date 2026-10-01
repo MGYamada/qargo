@@ -13,7 +13,8 @@ use crate::report::Diagnostic;
 pub type Files = BTreeMap<String, Vec<u8>>;
 pub const FILE_BYTES: u64 = 1 << 20;
 pub const TOTAL_BYTES: usize = 16 << 20;
-const FILE_COUNT: usize = 4096;
+const SCANNED_ENTRY_COUNT: usize = 4096;
+const CAPTURED_FILE_COUNT: usize = 4096;
 const DIRECTORY_DEPTH: usize = 64;
 
 fn input_error(message: impl Into<String>) -> Diagnostic {
@@ -96,6 +97,7 @@ pub fn portable_relative(path: &Path) -> Result<String, Diagnostic> {
     Ok(label)
 }
 
+/// Bound traversal by all scanned entries, including directories and filtered files.
 pub fn collect_tree(root: &Path, extension: Option<&str>) -> Result<Files, Diagnostic> {
     // Parent aliases such as /tmp are permitted; the selected root itself cannot be a symlink.
     let metadata = fs::symlink_metadata(root)
@@ -129,7 +131,7 @@ pub fn collect_tree(root: &Path, extension: Option<&str>) -> Result<Files, Diagn
         for entry in entries {
             let entry = entry.map_err(|error| input_error(error.to_string()))?;
             visited += 1;
-            if visited > FILE_COUNT {
+            if visited > SCANNED_ENTRY_COUNT {
                 return Err(Diagnostic::error(
                     "limit",
                     "qargo",
@@ -264,7 +266,7 @@ impl FrozenSources {
 
     pub fn from_files(files: Files) -> Result<Self, Diagnostic> {
         let mut total = 0usize;
-        if files.len() > FILE_COUNT {
+        if files.len() > CAPTURED_FILE_COUNT {
             return Err(Diagnostic::error(
                 "limit",
                 "qargo",

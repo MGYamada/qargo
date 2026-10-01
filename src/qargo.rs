@@ -243,8 +243,15 @@ fn lint(options: &Options) -> Result<Report, Diagnostic> {
     if options.deny_warnings {
         command.arg("--deny-warnings");
     }
-    let (stdout, status) = bounded_output(&mut command)?;
-    let mut envelope = lint_response(&stdout, status, sources, &digest, options.deny_warnings)?;
+    let output = bounded_output(&mut command)?;
+    let status = output.status;
+    let mut envelope = lint_response(
+        &output.stdout,
+        status,
+        sources,
+        &digest,
+        options.deny_warnings,
+    )?;
     if snapshot::digest_path(&tool_path)? != digest {
         return Err(transport(
             "The selected qlippy executable changed during execution.",
@@ -284,6 +291,7 @@ fn lint(options: &Options) -> Result<Report, Diagnostic> {
             {"name":"lint","status":lint_status,"reason":lint_reason}
         ]);
     }
+    output.accept();
     Ok(Report {
         envelope,
         exit_code: status as u8,

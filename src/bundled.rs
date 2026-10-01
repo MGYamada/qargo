@@ -10,7 +10,7 @@ use sha2::{Digest, Sha256};
 
 use crate::report::{Diagnostic, Envelope, Report};
 use crate::snapshot::{self, FrozenSources};
-use crate::tool_process::bounded_output;
+use crate::tool_process::{ToolOutput, bounded_output};
 use crate::tool_response::{
     DIAGNOSTIC_FIELDS, ENVELOPE_FIELDS, Response, Step, Tool, closed_object, location_valid,
     tool_matches, transport,
@@ -149,7 +149,7 @@ fn invoke(
     sources: &FrozenSources,
     digest: &str,
     extra: &[String],
-) -> Result<(Vec<u8>, i32), Diagnostic> {
+) -> Result<ToolOutput, Diagnostic> {
     let mut command = Command::new(path);
     command.arg(sources.root()).arg("--format=json").args(extra);
     let output = bounded_output(&mut command)?;
@@ -169,9 +169,10 @@ pub(crate) fn format(
     check: bool,
 ) -> Result<Report, Diagnostic> {
     // The child modifies a private copy; the parent alone updates user sources.
-    let (bytes, status) = invoke(tool, sources, digest, &[])?;
+    let output = invoke(tool, sources, digest, &[])?;
+    let status = output.status;
     let mut envelope = decode::<FormatResult>(
-        &bytes,
+        &output.stdout,
         status,
         sources,
         "qlifmt",
@@ -216,6 +217,7 @@ pub(crate) fn format(
         // Child-side partial writes affected only the private copy.
         result["updated_files"] = json!([]);
         result["formatted_source_id"] = Value::Null;
+        output.accept();
         return Ok(Report {
             envelope,
             exit_code: 1,
@@ -233,6 +235,7 @@ pub(crate) fn format(
             "Formatter output differs from its reported source identity or changes.",
         ));
     }
+    output.accept();
     result["updated_files"] = json!([]);
     if check {
         result["diff"] = json!(qlifmt_engine::diff(&sources.files, &formatted));
@@ -298,9 +301,10 @@ pub(crate) fn document(
     if include_private {
         args.push("--document-private-items".into());
     }
-    let (bytes, status) = invoke(tool, sources, digest, &args)?;
+    let output_capture = invoke(tool, sources, digest, &args)?;
+    let status = output_capture.status;
     let mut envelope = decode::<DocResult>(
-        &bytes,
+        &output_capture.stdout,
         status,
         sources,
         "qlidoc",
@@ -345,6 +349,7 @@ pub(crate) fn document(
     }
     if status != 0 {
         result["artifact_path"] = Value::Null;
+        output_capture.accept();
         return Ok(Report {
             envelope,
             exit_code: 1,
@@ -388,6 +393,7 @@ pub(crate) fn document(
             "Document tool returned incorrect artifact identities.",
         ));
     }
+    output_capture.accept();
     // Publish from the captured, validated bytes, not another read of child files.
     result["artifact_path"] = json!(output.to_string_lossy());
     if let Err(diagnostic) = qlidoc_engine::publish(output, &expected) {
