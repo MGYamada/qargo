@@ -296,7 +296,8 @@ mod tests {
     #[test]
     fn anonymous_snapshot_cannot_be_modified_or_truncated() {
         use std::io::Write;
-        let tool = SelectedExecutable::capture(Path::new("/bin/sh")).unwrap();
+        let shell = fs::canonicalize("/bin/sh").unwrap();
+        let tool = SelectedExecutable::capture(&shell).unwrap();
         let mut file = tool.file.try_clone().unwrap();
         assert!(file.write_all(b"modified").is_err());
         assert!(file.set_len(0).is_err());

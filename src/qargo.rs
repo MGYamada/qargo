@@ -193,7 +193,13 @@ fn find_tool(tool_name: &str, explicit: Option<&Path>) -> Result<PathBuf, Diagno
         if let Some(directory) = current.parent() {
             let sibling = directory.join(&name);
             if executable(&sibling) {
-                return Ok(sibling);
+                return fs::canonicalize(&sibling).map_err(|failure| {
+                    error(
+                        "tool_missing",
+                        "tool",
+                        format!("Cannot resolve sibling {tool_name}: {failure}"),
+                    )
+                });
             }
         }
     }

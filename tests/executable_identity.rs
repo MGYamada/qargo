@@ -2,6 +2,7 @@
 
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::symlink;
 use std::path::Path;
 use std::process::Command;
 
@@ -42,6 +43,9 @@ fn explicit_sibling_and_path_selection_share_the_same_captured_object_contract()
             ("qlidoc", env!("CARGO_BIN_EXE_qlidoc")),
         ] {
             fs::copy(binary, tools.join(name)).unwrap();
+            let target = format!("{name}.binary");
+            fs::rename(tools.join(name), tools.join(&target)).unwrap();
+            symlink(target, tools.join(name)).unwrap();
         }
         for (operation, name) in [("lint", "qlippy"), ("fmt", "qlifmt"), ("doc", "qlidoc")] {
             let mut command = Command::new(&qargo);
