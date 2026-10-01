@@ -156,8 +156,8 @@ impl SelectedExecutable {
                     .custom_flags(libc::O_DIRECTORY | libc::O_NOFOLLOW)
                     .open(&stage_path)
                     .map_err(|error| identity_error(error.to_string()))?;
-                // The selected installation path is never reopened for launch. Only Qargo
-                // owns this private stage; no child receives its path in arguments or env.
+                // The selected installation path is never reopened for launch.
+                // Qargo creates and validates this private stage independently of it.
                 let stage = MacStage {
                     _root: stage,
                     directory,
