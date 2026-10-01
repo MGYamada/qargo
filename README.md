@@ -1,6 +1,6 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.4. The standard bundle is distributed through [crates.io](https://crates.io/crates/qargo/0.1.4) and a [GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.4) for Linux and macOS. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share candidate version 0.1.5, adding Cargo-free binary installation for Linux and macOS on x86_64 and ARM64. Version 0.1.5 is not yet published; the current published bundle is available through [crates.io 0.1.4](https://crates.io/crates/qargo/0.1.4) and the [GitHub 0.1.4 source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.4). Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
@@ -12,12 +12,57 @@ The [ecosystem policy](docs/ecosystem-policy.md) puts a curated stdlib at the ce
 
 The [tooling adoption plan](docs/adoption-plan.md) sets the implementation order for local diagnostic explanations, compatibility comparisons, documentation examples, and scoped review records. Upstream toolchain, structured-repair, and QLT protocols determine their later integration.
 
-## Install from crates.io
+## Installation
 
-Rust 1.85 or newer is required. Install all four executables from version 0.1.4 together:
+### Install without Cargo
+
+The following download commands become available after the 0.1.5 GitHub binary release is published. Earlier source-only releases do not contain `install.sh` or binary assets. Rust and Cargo are unnecessary on the installing machine:
 
 ```sh
-cargo install qargo --version=0.1.4 --locked --bins
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/MGYamada/qargo/releases/latest/download/install.sh | sh
+```
+
+The installer selects Linux/macOS and x86_64/ARM64, resolves the latest formal release once, verifies the archive's SHA-256 and inventory, and checks all four executable versions. Linux binaries link statically with musl. macOS binaries have deployment target 11.0 and use system libraries; native CI executes the Intel bundle on macOS 15 and the ARM64 bundle on macOS 14. Earlier macOS versions are not runtime-tested by CI.
+
+The default prefix is `$HOME/.local`, with no sudo or shell configuration changes. If needed, add its bin directory to PATH:
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+qargo --version
+```
+
+Run the installer again to update all four tools together. Download the script for inspection, select a version, or choose a different absolute prefix:
+
+```sh
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/MGYamada/qargo/releases/download/v0.1.5/install.sh -o install.sh
+sh install.sh --version 0.1.5 --prefix "$HOME/.local"
+```
+
+POSIX shell, curl, tar, `sha256sum` or `shasum`, and standard Unix utilities are required. Python/jq are unnecessary. Unsupported environments and missing release assets fail explicitly. Existing unrelated commands are preserved; choose another prefix if its `bin/qargo`, `bin/qlippy`, `bin/qlifmt`, or `bin/qlidoc` already belongs to another installation.
+
+Bundles are stored under `lib/qargo/releases/`; the common `lib/qargo/current` link selects one version for all four command links. Updates preserve older bundles and switch only after validation. An interrupted install can leave a `.install-lock` directory under `lib/qargo`; after confirming that no installer is running, remove that empty lock with `rmdir` and retry.
+
+For manual installation, download the matching `qargo-0.1.5-<target>.tar.gz` and `SHA256SUMS` from the same release. For example, verify and extract the Apple Silicon archive:
+
+```sh
+awk '$2 == "qargo-0.1.5-aarch64-apple-darwin.tar.gz"' SHA256SUMS | shasum -a 256 -c -
+tar -xzf qargo-0.1.5-aarch64-apple-darwin.tar.gz
+export PATH="$PWD/qargo-0.1.5-aarch64-apple-darwin/bin:$PATH"
+```
+
+On Linux use `sha256sum -c -` instead. Keep all four executables together. To uninstall an installer-managed default-prefix bundle, remove its four command links and managed directory:
+
+```sh
+rm "$HOME/.local/bin/qargo" "$HOME/.local/bin/qlippy" "$HOME/.local/bin/qlifmt" "$HOME/.local/bin/qlidoc"
+rm -rf "$HOME/.local/lib/qargo"
+```
+
+### Install from crates.io
+
+Rust 1.85 or newer is required. After crates.io publication, install all four executables from version 0.1.5 together (use `--version=0.1.4` for the currently published version):
+
+```sh
+cargo install qargo --version=0.1.5 --locked --bins
 ```
 
 Cargo compiles the Rust tools during installation. The installed Qargo executable manages Qleisli qrates without invoking Cargo. The package includes all three engines and requires no private engine crates or repository checkout.
@@ -41,13 +86,13 @@ Keep `Cargo.lock` in version control so development, CI, Rust 1.85 checks, and `
 
 ## Manage a bundled qrate
 
-Qargo 0.1.4 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
+Qargo 0.1.5 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
 
 ```toml
 schema-version = 2
 [qrate]
 name = "example"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2026"
 [source]
 root = "src"

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use crate::report::{Diagnostic, path_argument};
 
-pub(super) const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nPath options also accept --option PATH.\nStandalone source roots and --manifest-path are mutually exclusive.\nUse qlippy --list-rules to inspect advisory rule policy.\nQargo manages Qleisli qrates. Cargo builds and installs Rust tools outside Qargo commands.";
+pub(super) const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nPath options also accept --option PATH.\nStandalone source roots and --manifest-path are mutually exclusive.\nUse qlippy --list-rules to inspect advisory rule policy.\nQargo manages Qleisli qrates. Install the Rust tools from a prebuilt GitHub release or with Cargo outside Qargo commands.";
 
 #[derive(Default)]
 pub(super) struct Options {
@@ -86,7 +86,7 @@ pub(super) fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
             if !["check", "build", "lint", "fmt", "test", "doc"].contains(&arg) {
                 let mut diagnostic = usage(format!("Unknown command: {arg}"));
                 diagnostic.suggestion = Some(if ["add", "remove", "update", "install", "publish"].contains(&arg) {
-                    "Qargo has no qrate registry or dependency management yet. Use a local Qargo.toml with check, build, lint, fmt, doc, or test. To install the Rust tools, use Cargo outside Qargo operations."
+                    "Qargo has no qrate registry or dependency management yet. Use a local Qargo.toml with check, build, lint, fmt, doc, or test. Install the Rust tools from a prebuilt GitHub release or with Cargo outside Qargo operations. See https://github.com/MGYamada/qargo#installation."
                 } else {
                     "Use qargo --help to see supported commands."
                 }.into());

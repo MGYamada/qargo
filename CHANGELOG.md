@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5 — Unreleased
+
+- Prepare Linux/macOS x86_64 and ARM64 binary bundles and a Cargo-free installer, with SHA-256 verification, version selection, user-prefix installation, and atomic bundle switching.
+- Add native Rust 1.85 distribution checks, archive and installation verification, and CI artifacts; retain independent source and crates.io package validation.
+- Keep Qleisli exactly at 0.2.1, Rust 1.85, manifest schema 2 with explicit edition "2026", and independent result schema version 1. Publication requires separate authorization.
+
 ## 0.1.4 — 2026-10-01
 
 - Update Qargo, all three standard tools, their qrate manifests, private development packages, lockfile, CI, documentation, and package/release verifiers together to 0.1.4.

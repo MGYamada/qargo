@@ -1,6 +1,6 @@
 # Qrate semantics and acceptance toolchains
 
-Status: design direction for a future toolchain selector. Qargo 0.1.4 continues to link exactly Qleisli 0.2.1 and supports manifest schema 2 and independent result schema 1.
+Status: design direction for a future toolchain selector. Qargo 0.1.5 continues to link exactly Qleisli 0.2.1 and supports manifest schema 2 and independent result schema 1.
 
 ## Current acceptance authority
 
