@@ -10,6 +10,7 @@ usage() {
     cat <<'EOF'
 Usage: sh install.sh [--version MAJOR.MINOR.PATCH] [--prefix PATH]
 Install qargo, qlippy, qlifmt, and qlidoc without Rust or Cargo.
+Supports Linux x86_64 and macOS x86_64/ARM64. Linux ARM64 is unavailable.
 The default is the latest formal release under $HOME/.local.
 PATH must be absolute. No sudo or shell configuration changes are made.
 Run again to update, or use --version to select a particular release.
@@ -114,7 +115,10 @@ main() {
     fi
     case "$arch" in x86_64|amd64) cpu=x86_64 ;; aarch64|arm64) cpu=aarch64 ;; *) fail "Unsupported CPU: $arch" ;; esac
     case "$os" in
-        Linux) target=$cpu-unknown-linux-musl ;;
+        Linux)
+            [ "$cpu" = x86_64 ] || fail "Linux ARM64 is unavailable with Qleisli 0.2.1; see https://github.com/MGYamada/qargo/issues/18."
+            target=$cpu-unknown-linux-musl
+            ;;
         Darwin) target=$cpu-apple-darwin ;;
         *) fail "Unsupported OS: $os" ;;
     esac

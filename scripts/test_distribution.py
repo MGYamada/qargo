@@ -75,13 +75,13 @@ class DistributionTests(unittest.TestCase):
                 binary_platform(invalid, TARGETS[0])
 
     def test_linux_requires_no_interpreter_or_dynamic_libraries(self):
-        for target in TARGETS[:2]:
+        for target in (target for target in TARGETS if target.endswith("linux-musl")):
             for option in ("interpreter", "dynamic"):
                 with self.assertRaises(RuntimeError):
                     binary_platform(executable(target, **{option: True}), target)
 
     def test_macos_requires_11_and_only_system_libraries(self):
-        for target in TARGETS[2:]:
+        for target in (target for target in TARGETS if target.endswith("apple-darwin")):
             binary_platform(executable(target, dependency="/usr/lib/libSystem.B.dylib"), target)
             for dependency in ("@rpath/development.dylib", "/opt/homebrew/lib/unavailable.dylib"):
                 with self.assertRaises(RuntimeError):
@@ -134,7 +134,7 @@ class DistributionTests(unittest.TestCase):
         expected = {bundle_name(target) + ".tar.gz" for target in TARGETS} | {"install.sh", "SHA256SUMS"}
         self.assertEqual({path.name for path in output.iterdir()}, expected)
         sums = (output / "SHA256SUMS").read_text().splitlines()
-        self.assertEqual(len(sums), 5)
+        self.assertEqual(len(sums), len(TARGETS) + 1)
         for line in sums:
             digest, name = line.split("  ")
             self.assertEqual(digest, hashlib.sha256((output / name).read_bytes()).hexdigest())

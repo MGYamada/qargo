@@ -209,7 +209,6 @@ class InstallerTests(unittest.TestCase):
     def test_all_platform_cpu_mappings_and_rosetta(self):
         for system, arch, target in (
             ("Linux", "x86_64", "x86_64-unknown-linux-musl"),
-            ("Linux", "aarch64", "aarch64-unknown-linux-musl"),
             ("Darwin", "x86_64", "x86_64-apple-darwin"),
             ("Darwin", "arm64", "aarch64-apple-darwin"),
         ):
@@ -220,6 +219,19 @@ class InstallerTests(unittest.TestCase):
                 self.assertIn(target, fixture.current())
         self.fixture.release(target="aarch64-apple-darwin")
         self.success(self.fixture.run(environment={"QARGO_TEST_OS": "Darwin", "QARGO_TEST_ARCH": "x86_64", "QARGO_TEST_ROSETTA": "1"}))
+
+    def test_linux_arm64_explains_checker_blocker_without_downloading_or_changing_installation(self):
+        self.fixture.release()
+        self.success(self.fixture.run())
+        previous = self.fixture.current()
+        requests = self.fixture.requests.read_bytes()
+        for arch in ("aarch64", "arm64"):
+            result = self.fixture.run(environment={"QARGO_TEST_OS": "Linux", "QARGO_TEST_ARCH": arch})
+            self.failure(result)
+            self.assertIn("Linux ARM64 is unavailable with Qleisli 0.2.1", result.stderr)
+            self.assertIn("/issues/18", result.stderr)
+            self.assertEqual(self.fixture.current(), previous)
+            self.assertEqual(self.fixture.requests.read_bytes(), requests)
 
     def test_unsupported_platform_cpu_and_invalid_arguments_do_not_download(self):
         for environment in ({"QARGO_TEST_OS": "Windows"}, {"QARGO_TEST_ARCH": "riscv64"}):

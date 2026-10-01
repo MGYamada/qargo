@@ -15,7 +15,6 @@ from verify_release import PRODUCT_VERSION, TOOLS, require, verify
 
 TARGETS = (
     "x86_64-unknown-linux-musl",
-    "aarch64-unknown-linux-musl",
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
 )
@@ -161,7 +160,7 @@ def collect(source_root, artifact_dir, output_dir):
     for name, data in sorted(candidates.items()):
         with (output_dir / name).open("xb") as output:
             output.write(data)
-    print("Collected four archives, install.sh, and SHA256SUMS. No release was published.")
+    print("Collected three archives, install.sh, and SHA256SUMS. No release was published.")
 
 
 def main():

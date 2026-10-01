@@ -1,0 +1,69 @@
+name: Verify published release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published version to verify
+        required: true
+        default: "0.1.5"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  published:
+    name: Published ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: macos-14
+            target: aarch64-apple-darwin
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      RELEASE_TARGET: ${{ matrix.target }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: v${{ inputs.version }}
+      - name: Download and validate the complete published asset set
+        shell: bash
+        run: |
+          [[ "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          assets="$RUNNER_TEMP/published-assets"
+          gh release download "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir "$assets"
+          python3 scripts/distribution.py collect --artifact-dir="$assets" --output-dir="$RUNNER_TEMP/validated-assets"
+          cmp "$assets/SHA256SUMS" "$RUNNER_TEMP/validated-assets/SHA256SUMS"
+          cmp "$assets/install.sh" install.sh
+          python3 scripts/distribution.py verify --archive="$assets/qargo-$RELEASE_VERSION-$RELEASE_TARGET.tar.gz" --target="$RELEASE_TARGET"
+      - name: Verify real versioned and latest installations without developer tools
+        shell: bash
+        run: |
+          traps="$RUNNER_TEMP/developer-traps"
+          mkdir -p "$traps"
+          for command in cargo rustc rustdoc python3 jq; do
+            printf '#!/bin/sh\nprintf started > "%s"\nexit 99\n' "$RUNNER_TEMP/unexpected-developer-tool" > "$traps/$command"
+            chmod +x "$traps/$command"
+          done
+          PATH="$traps:$PATH" sh "$RUNNER_TEMP/published-assets/install.sh" --version "$RELEASE_VERSION" --prefix "$RUNNER_TEMP/versioned prefix"
+          curl --proto '=https' --tlsv1.2 -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.sh" -o "$RUNNER_TEMP/latest-install.sh"
+          cmp "$RUNNER_TEMP/latest-install.sh" install.sh
+          PATH="$traps:$PATH" sh "$RUNNER_TEMP/latest-install.sh" --prefix "$RUNNER_TEMP/latest prefix"
+          test ! -e "$RUNNER_TEMP/unexpected-developer-tool"
+          python3 scripts/verify_release.py --bin-dir="$RUNNER_TEMP/versioned prefix/bin"
+          python3 scripts/verify_release.py --bin-dir="$RUNNER_TEMP/latest prefix/bin"
+          {
+            printf '### Published release verification\n\n'
+            printf 'Tag: `v%s`; commit: `%s`; target: `%s`\n\n' "$RELEASE_VERSION" "$(git rev-parse HEAD)" "$RELEASE_TARGET"
+            uname -a
+            if [[ '${{ runner.os }}' == 'macOS' ]]; then sw_vers; fi
+          } >> "$GITHUB_STEP_SUMMARY"

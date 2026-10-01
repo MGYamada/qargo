@@ -1,8 +1,8 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share candidate version 0.1.5, adding Cargo-free binary installation for Linux and macOS on x86_64 and ARM64. Version 0.1.5 is not yet published; the current published bundle is available through [crates.io 0.1.4](https://crates.io/crates/qargo/0.1.4) and the [GitHub 0.1.4 source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.4). Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share candidate version 0.1.5, adding Cargo-free binary installation for Linux x86_64 and macOS x86_64/ARM64. Version 0.1.5 is not yet published; the current published bundle is available through [crates.io 0.1.4](https://crates.io/crates/qargo/0.1.4) and the [GitHub 0.1.4 source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.4). Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
-Native ARM64 Linux verification is currently blocked by the pinned Qleisli 0.2.1 file loader ([issue #18](https://github.com/MGYamada/qargo/issues/18)). Assemble the four-target binary release only after every required target passes; changing the checker dependency requires a separate compatibility decision.
+Linux ARM64 is unsupported in 0.1.5 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
@@ -24,7 +24,7 @@ The following download commands become available after the 0.1.5 GitHub binary r
 curl --proto '=https' --tlsv1.2 -fsSL https://github.com/MGYamada/qargo/releases/latest/download/install.sh | sh
 ```
 
-The installer selects Linux/macOS and x86_64/ARM64, resolves the latest formal release once, verifies the archive's SHA-256 and inventory, and checks all four executable versions. Linux binaries link statically with musl. macOS binaries have deployment target 11.0 and use system libraries; native CI executes the Intel bundle on macOS 15 and the ARM64 bundle on macOS 14. Earlier macOS versions are not runtime-tested by CI.
+The installer selects Linux x86_64 or macOS x86_64/ARM64, resolves the latest formal release once, verifies the archive's SHA-256 and inventory, and checks all four executable versions. Linux binaries link statically with musl. macOS binaries have deployment target 11.0 and use system libraries; native CI executes the Intel bundle on macOS 15 and the ARM64 bundle on macOS 14. Earlier macOS versions are not runtime-tested by CI.
 
 The default prefix is `$HOME/.local`, with no sudo or shell configuration changes. If needed, add its bin directory to PATH:
 
@@ -154,7 +154,7 @@ All four tools support `--help`, `--version`, and `--format=json`. Independent v
 
 ## 0.1.x support and compatibility
 
-Linux and macOS are validated with Rust 1.85 and stable. Windows and Android are outside the supported release platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package. Prebuilt executable assets are not provided; Cargo compiles the installed executables. All Rust packages forbid unsafe code.
+Linux x86_64 and macOS are validated with Rust 1.85 and stable. Linux ARM64, Windows and Android are outside the supported 0.1.5 release platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package; version 0.1.5 adds prebuilt bundles for Linux x86_64 and both macOS architectures. All Rust packages forbid unsafe code.
 
 The public contract covers CLI commands, manifest schema 2, the independently versioned JSON result formats, and exit codes 0/1/2. Path options accept both equality and space-separated syntax, such as `--manifest-path=PATH` and `--manifest-path PATH`, including explicit tool paths and qlidoc's `--output`. Empty, missing, and repeated values are usage errors. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
 
