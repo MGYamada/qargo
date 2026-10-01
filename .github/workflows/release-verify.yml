@@ -59,8 +59,8 @@ jobs:
           cmp "$RUNNER_TEMP/latest-install.sh" install.sh
           PATH="$traps:$PATH" sh "$RUNNER_TEMP/latest-install.sh" --prefix "$RUNNER_TEMP/latest prefix"
           test ! -e "$RUNNER_TEMP/unexpected-developer-tool"
-          python3 scripts/verify_release.py --bin-dir="$RUNNER_TEMP/versioned prefix/bin"
-          python3 scripts/verify_release.py --bin-dir="$RUNNER_TEMP/latest prefix/bin"
+          python3 scripts/verify_release.py --source-root=. --bin-dir="$RUNNER_TEMP/versioned prefix/bin"
+          python3 scripts/verify_release.py --source-root=. --bin-dir="$RUNNER_TEMP/latest prefix/bin"
           {
             printf '### Published release verification\n\n'
             printf 'Tag: `v%s`; commit: `%s`; target: `%s`\n\n' "$RELEASE_VERSION" "$(git rev-parse HEAD)" "$RELEASE_TARGET"
