@@ -1,7 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.1.5 — 2026-10-01
 
+- Add Linux x86_64 and macOS x86_64/ARM64 binary bundles and a Cargo-free installer, with SHA-256 verification, version selection, user-prefix installation, and atomic bundle switching. Linux ARM64 is deferred because Qleisli 0.2.1's file loader uses incompatible flags on that architecture (#18); the installer reports this limitation before downloading or changing an installation.
+- Add native Rust 1.85 distribution checks, archive and installation verification, and CI artifacts; retain independent source and crates.io package validation.
+- Keep Qleisli exactly at 0.2.1, Rust 1.85, manifest schema 2 with explicit edition "2026", and independent result schema version 1. Publication requires separate authorization.
 - Bind selected-tool launch to captured executable bytes and host identity to the operating system's running image object, rejecting installation-path A/B/A redirection and changed macOS host images (#14).
 - Anchor qrate and standalone input capture to retained directory descriptors; reject root, ancestor, directory and file replacement during capture without following symlink redirection (#13).
 

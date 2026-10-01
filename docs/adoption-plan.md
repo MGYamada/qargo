@@ -1,6 +1,6 @@
 # Qargo tooling adoption plan
 
-Status: adopted implementation direction, 2026-09-30. This plan schedules future work; the [specification](specification.md) remains the implemented public contract for 0.1.4. No new command, manifest field, result field, audit format, or backend is implemented by this document.
+Status: adopted implementation direction, 2026-09-30. This plan schedules future work; the [specification](specification.md) remains the implemented public contract for 0.1.5. No new command, manifest field, result field, audit format, or backend is implemented by this document.
 
 ## Responsibility and order
 

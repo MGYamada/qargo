@@ -1,6 +1,6 @@
 [package]
 name = "qargo"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
@@ -10,7 +10,7 @@ publish = ["crates-io"]
 readme = "README.md"
 keywords = ["qleisli", "qrate", "lint", "format", "documentation"]
 categories = ["command-line-utilities", "development-tools"]
-include = ["/src/**", "/qrates/*/Qargo.toml", "/qrates/*/src/**", "/qrates/*/tests/**", "/qrates/*/docs/**", "/tests/**", "/docs/**", "/scripts/*.py", "/README.md", "/CHANGELOG.md", "/LICENSE", "/NOTICE", "/AGENTS.md", "!**/.DS_Store", "!**/__pycache__/**"]
+include = ["/src/**", "/qrates/*/Qargo.toml", "/qrates/*/src/**", "/qrates/*/tests/**", "/qrates/*/docs/**", "/tests/**", "/docs/**", "/scripts/*.py", "/install.sh", "/README.md", "/CHANGELOG.md", "/LICENSE", "/NOTICE", "/AGENTS.md", "!**/.DS_Store", "!**/__pycache__/**"]
 
 [lib]
 name = "qargo_tools"

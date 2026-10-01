@@ -13,7 +13,7 @@ import tempfile
 
 QRATES = ("qlippy", "qlifmt", "qlidoc")
 TOOLS = ("qargo", *QRATES)
-PRODUCT_VERSION = "0.1.4"
+PRODUCT_VERSION = "0.1.5"
 
 
 def require(condition, message):
@@ -184,7 +184,7 @@ def verify_qrate(qrate, binaries, tools, environment):
 def verify(source_root, bin_dir):
     source_root = source_root.resolve()
     bin_dir = bin_dir.resolve()
-    for label in ("Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "docs/specification.md", "docs/releasing.md", "docs/toolchains.md", "docs/ecosystem-policy.md", "AGENTS.md", *["rust/" + name + "/Cargo.toml" for name in QRATES]):
+    for label in ("Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "install.sh", "docs/specification.md", "docs/releasing.md", "docs/toolchains.md", "docs/ecosystem-policy.md", "AGENTS.md", *["rust/" + name + "/Cargo.toml" for name in QRATES]):
         require((source_root / label).is_file(), "Missing source-release input: " + label)
     for label in ("Cargo.toml", *["rust/" + name + "/Cargo.toml" for name in QRATES]):
         manifest = (source_root / label).read_text(encoding="utf-8")
@@ -230,6 +230,23 @@ def verify(source_root, bin_dir):
         for name in QRATES:
             verify_qrate(source_root / "qrates" / name, binaries, tools, environment)
             require(not any(marker.exists() for marker in markers.values()), "Runtime invoked developer Cargo or Rustdoc")
+
+        with tempfile.TemporaryDirectory(prefix="qargo-release-empty-") as directory:
+            root = Path(directory)
+            for name in ("src", "tests", "docs"):
+                (root / name).mkdir()
+            manifest = root / "Qargo.toml"
+            manifest.write_text('schema-version = 2\n[qrate]\nname = "empty"\nversion = "'
+                                + PRODUCT_VERSION + '"\nedition = "2026"\n[source]\nroot = "src"\n'
+                                '[tests]\nroot = "tests"\n[docs]\nroot = "docs"\n', encoding="utf-8")
+            for command in ("check", "build", "lint", "fmt", "doc"):
+                report = invoke(binaries["qargo"], [command, "--manifest-path", str(manifest)], environment)
+                require(report["result"]["source_count"] == 0, "Empty root acquired sources")
+                require(report["result"]["qleisli_check"] == {"status": "not_run", "reason": "no_sources"},
+                        "Empty root claimed Qleisli checking")
+            report = invoke(binaries["qargo"], ["test", "--manifest-path", str(manifest)], environment, expected_exit=1)
+            require(report["diagnostics"][0]["id"] == "backend_unavailable", "Empty qrate enabled QLT")
+            require(not any(marker.exists() for marker in markers.values()), "Empty runtime invoked Cargo or Rustdoc")
 
     print(f"Source verification passed: four {PRODUCT_VERSION} executables, three complete qrates, advisory rule catalog, both path-option forms, checked smoke sources, stable snapshots/builds, canonical formatting, deterministic Markdown, unavailable QLT, and no Cargo/Rustdoc invocation.")
 

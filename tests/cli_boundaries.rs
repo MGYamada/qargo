@@ -148,12 +148,16 @@ fn cargo_style_dependency_requests_include_actionable_diagnostics() {
             .unwrap()
             .contains("local Qargo.toml")
     );
+    let install = json(&qargo(&["install"]));
+    let suggestion = install["diagnostics"][0]["suggestion"].as_str().unwrap();
+    assert!(suggestion.contains("prebuilt GitHub release"));
+    assert!(suggestion.contains("#installation"));
     for table in ["dependencies", "dev-dependencies"] {
         let root = qrate();
         let manifest = root.path().join("Qargo.toml");
         fs::write(
             &manifest,
-            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.4\"\n"),
+            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.5\"\n"),
         )
         .unwrap();
         let output = qargo(&["check", "--manifest-path", manifest.to_str().unwrap()]);

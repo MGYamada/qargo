@@ -78,6 +78,7 @@ pub fn collect_tree(root: &Path, extension: Option<&str>) -> Result<Files, Diagn
 pub use anchored::InputDirectory;
 
 #[cfg(not(unix))]
+#[derive(Clone)]
 pub struct InputDirectory;
 
 #[cfg(not(unix))]
