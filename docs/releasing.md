@@ -1,6 +1,6 @@
 # Release checklist
 
-The crates.io package is named `qargo` and installs `qargo`, `qlippy`, `qlifmt`, and `qlidoc` together. The standard bundle and its three qrates share version 0.1.3. Keep Qleisli exactly at 0.2.1, Rust 1.85 as the MSRV, and unsafe code forbidden. Manifest schema 2 requires an explicit `edition = "2026"` under `[qrate]`; independent result schema versions remain 1. Keep every valid manifest, example, and fixture explicit about its edition. Cargo manifests retain Rust edition `"2024"`.
+The crates.io package is named `qargo` and installs `qargo`, `qlippy`, `qlifmt`, and `qlidoc` together. The standard bundle and its three qrates share version 0.1.4. Keep Qleisli exactly at 0.2.1, Rust 1.85 as the MSRV, and unsafe code forbidden. Manifest schema 2 requires an explicit `edition = "2026"` under `[qrate]`; independent result schema versions remain 1. Keep every valid manifest, example, and fixture explicit about its edition. Cargo manifests retain Rust edition `"2024"`.
 
 Cargo publication and GitHub source releases are separate actions. Obtain explicit authorization for the requested publication channel; updating versions or publication configuration does not authorize uploading, tagging, or creating a GitHub release.
 
@@ -33,9 +33,9 @@ On the clean candidate, validate crates.io packaging without skipping its build 
 cargo package --list -p qargo
 cargo package --locked -p qargo
 mkdir -p /path/to/temporary-package
-tar -xzf target/package/qargo-0.1.3.crate -C /path/to/temporary-package
-cargo install --locked --path /path/to/temporary-package/qargo-0.1.3 --bins --root /path/to/temporary-install
-python3 scripts/verify_package.py --source-root=. --crate=target/package/qargo-0.1.3.crate --bin-dir=/path/to/temporary-install/bin
+tar -xzf target/package/qargo-0.1.4.crate -C /path/to/temporary-package
+cargo install --locked --path /path/to/temporary-package/qargo-0.1.4 --bins --root /path/to/temporary-install
+python3 scripts/verify_package.py --source-root=. --crate=target/package/qargo-0.1.4.crate --bin-dir=/path/to/temporary-install/bin
 cargo publish --dry-run --locked -p qargo --registry crates-io
 ```
 
@@ -52,15 +52,15 @@ cargo publish --locked -p qargo --registry crates-io
 [Published crate versions cannot be replaced](https://doc.rust-lang.org/cargo/reference/publishing.html). Wait for registry availability and verify a fresh installation:
 
 ```sh
-cargo install qargo --version=0.1.3 --locked --bins --root /path/to/fresh-install
+cargo install qargo --version=0.1.4 --locked --bins --root /path/to/fresh-install
 ```
 
-Check all four version commands and run the package/runtime verifiers against that registry installation. All executables must report 0.1.3, and Qargo must discover its installed siblings. Record the publication result and candidate commit.
+Check all four version commands and run the package/runtime verifiers against that registry installation. All executables must report 0.1.4, and Qargo must discover its installed siblings. Record the publication result and candidate commit.
 
 ## Publish a GitHub source release when requested
 
-This step requires authorization for the GitHub release channel. Check the remote `v0.1.3` tag and release before creating either; do not force-push or replace existing release data.
+This step requires authorization for the GitHub release channel. Check the remote `v0.1.4` tag and release before creating either; do not force-push or replace existing release data.
 
-Create and push an annotated `v0.1.3` tag for the verified candidate and create a formal GitHub release titled `Qargo v0.1.3`, using the changelog entry as release notes. Publish with `--verify-tag --latest --prerelease=false --draft=false`. GitHub supplies source archives; do not attach prebuilt Rust executable assets. Confirm that the tag and source archive identify the verified candidate and include all three complete qrates without generated outputs. When the same version is also published on crates.io, retain that exact candidate commit for the tag; subsequent documentation updates must not move the tag or replace the package.
+Create and push an annotated `v0.1.4` tag for the verified candidate and create a formal GitHub release titled `Qargo v0.1.4`, using the changelog entry as release notes. Publish with `--verify-tag --latest --prerelease=false --draft=false`. GitHub supplies source archives; do not attach prebuilt Rust executable assets. Confirm that the tag and source archive identify the verified candidate and include all three complete qrates without generated outputs. When the same version is also published on crates.io, retain that exact candidate commit for the tag; subsequent documentation updates must not move the tag or replace the package.
 
 Reflect the release on the default branch through a pull request when repository rules require one. Preserve the verified candidate commits in the merge, satisfy all required checks, and update the README to link the published release and package.

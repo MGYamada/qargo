@@ -169,7 +169,7 @@ fn parse_failures_preserve_original_utf8_coordinates_and_do_not_publish() {
     assert_eq!(result["qleisli_check"]["reason"], "syntax_only");
     assert!(result["artifact_path"].is_null());
     assert_eq!(result["files"], serde_json::json!([]));
-    assert_eq!(result["tool"]["version"], "0.1.3");
+    assert_eq!(result["tool"]["version"], "0.1.4");
     let location = report.envelope.diagnostics[0].primary.as_ref().unwrap();
     assert_eq!(location.path, "invalid.qli");
     assert_eq!((location.line, location.column), (2, 1));
@@ -429,7 +429,7 @@ fn cli_is_one_json_envelope_with_portable_relative_paths_and_usage_exit_codes() 
         .unwrap();
     assert!(version.status.success());
     let version: Value = serde_json::from_slice(&version.stdout).unwrap();
-    assert_eq!(version["result"]["version"], "0.1.3");
+    assert_eq!(version["result"]["version"], "0.1.4");
     assert_eq!(version["result"]["qleisli_version"], "0.2.1");
     for args in [
         vec!["--format=json"],

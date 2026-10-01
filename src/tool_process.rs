@@ -34,7 +34,7 @@ mod unix {
     use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
     use rustix::process::{Pid, Signal, kill_process_group};
 
-    use crate::qargo::transport;
+    use crate::tool_response::transport;
 
     struct ToolChild {
         child: Child,

@@ -13,7 +13,7 @@ import tempfile
 
 QRATES = ("qlippy", "qlifmt", "qlidoc")
 TOOLS = ("qargo", *QRATES)
-PRODUCT_VERSION = "0.1.3"
+PRODUCT_VERSION = "0.1.4"
 
 
 def require(condition, message):

@@ -1,6 +1,6 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.3. The standard bundle is distributed through [crates.io](https://crates.io/crates/qargo/0.1.3) and a [GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.3) for Linux and macOS. Version 0.1.3 requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.4. The standard bundle is distributed through [crates.io](https://crates.io/crates/qargo/0.1.4) and a [GitHub source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.4) for Linux and macOS. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
@@ -14,10 +14,10 @@ The [tooling adoption plan](docs/adoption-plan.md) sets the implementation order
 
 ## Install from crates.io
 
-Rust 1.85 or newer is required. Install all four executables from version 0.1.3 together:
+Rust 1.85 or newer is required. Install all four executables from version 0.1.4 together:
 
 ```sh
-cargo install qargo --version=0.1.3 --locked --bins
+cargo install qargo --version=0.1.4 --locked --bins
 ```
 
 Cargo compiles the Rust tools during installation. The installed Qargo executable manages Qleisli qrates without invoking Cargo. The package includes all three engines and requires no private engine crates or repository checkout.
@@ -37,15 +37,17 @@ This builds `target/release/qargo`, `qlippy`, `qlifmt`, and `qlidoc`. Keep the e
 
 Rebuilding requires the complete repository layout, root `Cargo.toml` and `Cargo.lock`, and the three `rust/<tool>/Cargo.toml` developer manifests. A Qargo snapshot preserves declared qrate inputs but omits this external Cargo configuration; it is not a standalone Rust build package.
 
+Keep `Cargo.lock` in version control so development, CI, Rust 1.85 checks, and `cargo install --locked` use the recorded dependency versions. Build outputs, macOS `.DS_Store` files, and Python caches and bytecode are ignored.
+
 ## Manage a bundled qrate
 
-Qargo 0.1.3 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
+Qargo 0.1.4 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
 
 ```toml
 schema-version = 2
 [qrate]
 name = "example"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2026"
 [source]
 root = "src"

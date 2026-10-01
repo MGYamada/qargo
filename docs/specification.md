@@ -4,7 +4,7 @@ Status: public contract for the experimental 0.1.x releases; manifest schema ver
 
 Supported release platforms are Linux and macOS, validated with Rust 1.85 and stable. Windows and Android are outside the 0.1.x support contract. Starting with 0.1.1, distribution includes the complete GitHub source archive or tagged checkout and the qargo crates.io package, which must install all four executables. No prebuilt executable assets are provided. A crates.io package must build independently from its packaged sources and registry dependencies. Repository development uses Cargo manifests/lockfile outside the qrate snapshot. The published qargo package compiles the canonical qrate engine sources as internal modules, with no dependency on the three private development packages. Packaging and installation are verified independently of Git source archives.
 
-The documented CLI, independently versioned qargo.result, qlippy.result, qlifmt.result, and qlidoc.result formats (each version 1), and exit codes remain compatible within 0.1.x. Incompatible manifest/result changes require a new schema version, independently of product versions. Version 0.1.3 introduces manifest schema 2 to require an explicit Qleisli edition; schema-1 manifests must migrate and are rejected. Diagnostic prose and the internal Rust library API are not stable interfaces. Qargo, qlippy, qlifmt, and qlidoc must come from the same product release. The standard bundle consists of the three tool qrates, developed together at 0.1.3; Qargo still manages one qrate per operation.
+The documented CLI, independently versioned qargo.result, qlippy.result, qlifmt.result, and qlidoc.result formats (each version 1), and exit codes remain compatible within 0.1.x. Incompatible manifest/result changes require a new schema version, independently of product versions. Version 0.1.3 introduced manifest schema 2 to require an explicit Qleisli edition; schema-1 manifests must migrate and are rejected. Diagnostic prose and the internal Rust library API are not stable interfaces. Qargo, qlippy, qlifmt, and qlidoc must come from the same product release. The standard bundle consists of the three tool qrates, developed together at 0.1.4; Qargo still manages one qrate per operation.
 
 ## Boundaries
 
@@ -16,13 +16,13 @@ A qrate comprises Qargo.toml, a source root, a QLT test root, a documentation ro
 
 The semantic subject of a qrate is its local Qleisli modules, public declarations, and contracts checked by the selected Qleisli implementation. Its raw input identity is a provenance envelope and can also contain host-language sources, tests, and documentation. Including Rust in that envelope does not extend Qleisli checking to Rust or make the host engine part of a proved Qleisli interface. The standard tool qrates are management examples whose smoke interfaces do not describe or certify their Rust engines. Schema 2 provides local source management, an explicit language edition, and provenance; it does not promise registry identity, dependency compatibility, or a complete semantic package contract.
 
-In 0.1.3 the acceptance implementation is the linked Qleisli 0.2.1 ordinary checker. Qargo and qlippy record that linked version, finite-v0 profile, and actual host executable digest. A `qleisli` executable on PATH is not selected or consulted. The embedded standard library belongs to that linked checker distribution, not to an independently resolved qrate; local source identity excludes it and must be interpreted together with the recorded tool identity. This metadata identifies a processing implementation, not a proof. See [toolchain evolution](toolchains.md) for the future separation of qrate-selected acceptance toolchains and orchestration.
+In 0.1.4 the acceptance implementation is the linked Qleisli 0.2.1 ordinary checker. Qargo and qlippy record that linked version, finite-v0 profile, and actual host executable digest. A `qleisli` executable on PATH is not selected or consulted. The embedded standard library belongs to that linked checker distribution, not to an independently resolved qrate; local source identity excludes it and must be interpreted together with the recorded tool identity. This metadata identifies a processing implementation, not a proof. See [toolchain evolution](toolchains.md) for the future separation of qrate-selected acceptance toolchains and orchestration.
 
 ```toml
 schema-version = 2
 [qrate]
 name = "qlippy"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2026"
 [source]
 root = "src"
@@ -94,11 +94,11 @@ Possible future proofs of repetition or inverse identities do not make these sty
 
 ## Formatting and documentation
 
-qlifmt uses four-space indentation and a target line width of 100; indivisible syntax tokens or comments may exceed the target. It preserves syntax-token values, comments' exact content and order, doc-comment attachment, and LF/CRLF convention. All files are parsed and all candidates validated before the first write. No import reordering or configuration file is provided in 0.1.3. Type and ownership errors do not prevent formatting when syntax is valid. --check prints a human-readable diff (or places it in the JSON diff field), returns 1 on differences, and writes no source files.
+qlifmt uses four-space indentation and a target line width of 100; indivisible syntax tokens or comments may exceed the target. It preserves syntax-token values, comments' exact content and order, doc-comment attachment, and LF/CRLF convention. All files are parsed and all candidates validated before the first write. No import reordering or configuration file is provided in 0.1.4. Type and ownership errors do not prevent formatting when syntax is valid. --check prints a human-readable diff (or places it in the JSON diff field), returns 1 on differences, and writes no source files.
 
 qlidoc calls Qleisli 0.2.1's parse_documented_module and renders module docs, declaration signatures, and attached doc comments to Markdown. The default visibility policy includes only public declarations, following rustdoc's public/private selection convention; --document-private-items includes nonpublic declarations. It writes index.md plus modules/<relative-source-path-without-.qli>.md, including nested source paths. Handwritten qrate documentation remains an ordinary captured input rather than being rewritten. Documentation examples are not executed, and type-invalid but syntactically valid modules can be documented. Empty inputs produce an index without a Qleisli verification result.
 
-Complete documentation directories are staged and published atomically without replacing existing output. Exact repeated contents are validated and reused; conflicting contents, symlinks, and unsafe paths fail. Generated files cannot feed back into captured qrate inputs. Future HTML generation may adopt qlidoc-specific CSS, colors, and layout; visual compatibility with rustdoc is not required. HTML and styling are outside the 0.1.3 implementation.
+Complete documentation directories are staged and published atomically without replacing existing output. Exact repeated contents are validated and reused; conflicting contents, symlinks, and unsafe paths fail. Generated files cannot feed back into captured qrate inputs. Future HTML generation may adopt qlidoc-specific CSS, colors, and layout; visual compatibility with rustdoc is not required. HTML and styling are outside the 0.1.4 implementation.
 
 ## Snapshots, identity and artifacts
 
