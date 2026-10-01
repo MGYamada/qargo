@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Anchor qrate and standalone input capture to retained directory descriptors; reject root, ancestor, directory and file replacement during capture without following symlink redirection (#13).
+
 ## 0.1.4 — 2026-10-01
 
 - Update Qargo, all three standard tools, their qrate manifests, private development packages, lockfile, CI, documentation, and package/release verifiers together to 0.1.4.
