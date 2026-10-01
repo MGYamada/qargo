@@ -1,6 +1,6 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share candidate version 0.1.5, adding Cargo-free binary installation for Linux x86_64 and macOS x86_64/ARM64. Version 0.1.5 is not yet published; the current published bundle is available through [crates.io 0.1.4](https://crates.io/crates/qargo/0.1.4) and the [GitHub 0.1.4 source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.4). Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.5, available through [crates.io](https://crates.io/crates/qargo/0.1.5) and the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.5). Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
 Linux ARM64 is unsupported in 0.1.5 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
 
@@ -18,7 +18,7 @@ The [tooling adoption plan](docs/adoption-plan.md) sets the implementation order
 
 ### Install without Cargo
 
-The following download commands become available after the 0.1.5 GitHub binary release is published. Earlier source-only releases do not contain `install.sh` or binary assets. Rust and Cargo are unnecessary on the installing machine:
+Install all four executables from the GitHub binary release. Rust and Cargo are unnecessary on the installing machine:
 
 ```sh
 curl --proto '=https' --tlsv1.2 -fsSL https://github.com/MGYamada/qargo/releases/latest/download/install.sh | sh
@@ -61,7 +61,7 @@ rm -rf "$HOME/.local/lib/qargo"
 
 ### Install from crates.io
 
-Rust 1.85 or newer is required. After crates.io publication, install all four executables from version 0.1.5 together (use `--version=0.1.4` for the currently published version):
+Rust 1.85 or newer is required. Install all four executables from version 0.1.5 together:
 
 ```sh
 cargo install qargo --version=0.1.5 --locked --bins
