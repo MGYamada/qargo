@@ -1,6 +1,7 @@
 //! Pure Rust qlippy engine. Its source belongs to the qlippy qrate.
 
 pub mod adapter;
+pub mod executable;
 pub mod publication;
 pub mod qlippy;
 pub mod report;

@@ -4,16 +4,16 @@ use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use serde_json::{Value, json};
 
 use crate::PROFILE;
 use crate::adapter;
 use crate::report::{Diagnostic, Envelope, Report};
-use crate::snapshot::{self, Files, FrozenSources};
+use crate::snapshot::{Files, FrozenSources};
+use crate::tool_executable::SelectedExecutable;
 use crate::tool_process::bounded_output;
-use crate::tool_response::{lint_response, transport};
+use crate::tool_response::lint_response;
 
 mod cli;
 mod manifest;
@@ -237,8 +237,9 @@ fn lint(options: &Options) -> Result<Report, Diagnostic> {
             .sources
     };
     let tool_path = find_tool("qlippy", options.qlippy.as_deref())?;
-    let digest = snapshot::digest_path(&tool_path)?;
-    let mut command = Command::new(&tool_path);
+    let tool = SelectedExecutable::capture(&tool_path)?;
+    let digest = tool.digest();
+    let mut command = tool.command()?;
     command.arg(sources.root()).arg("--format=json");
     if options.deny_warnings {
         command.arg("--deny-warnings");
@@ -249,14 +250,10 @@ fn lint(options: &Options) -> Result<Report, Diagnostic> {
         &output.stdout,
         status,
         sources,
-        &digest,
+        digest,
         options.deny_warnings,
     )?;
-    if snapshot::digest_path(&tool_path)? != digest {
-        return Err(transport(
-            "The selected qlippy executable changed during execution.",
-        ));
-    }
+    tool.verify()?;
     if options.source.is_none() {
         if let Some(qrate) = &qrate {
             envelope.diagnostics = envelope
@@ -343,15 +340,16 @@ fn format_sources(options: &Options) -> Result<Report, Diagnostic> {
         )
     };
     let tool = find_tool("qlifmt", options.qlifmt.as_deref())?;
-    let digest = snapshot::digest_path(&tool)?;
-    let report = crate::bundled::format(sources, &original_root, &tool, &digest, options.check)?;
+    let tool = SelectedExecutable::capture(&tool)?;
+    let report = crate::bundled::format(sources, &original_root, &tool, options.check)?;
     source_tool_report(report, qrate.as_ref(), options.source.is_none())
 }
 
 fn document_qrate(options: &Options) -> Result<Report, Diagnostic> {
     let qrate = capture(options.manifest.as_deref())?;
     let tool = find_tool("qlidoc", options.qlidoc.as_deref())?;
-    let digest = snapshot::digest_path(&tool)?;
+    let tool = SelectedExecutable::capture(&tool)?;
+    let digest = tool.digest();
     let relative = format!(
         "target/qlidoc/{}/{}/{}",
         qrate.input_id.trim_start_matches("sha256:"),
@@ -365,7 +363,6 @@ fn document_qrate(options: &Options) -> Result<Report, Diagnostic> {
     let mut report = crate::bundled::document(
         &qrate.sources,
         &tool,
-        &digest,
         &qrate.directory.join(&relative),
         options.document_private_items,
     )?;

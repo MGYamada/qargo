@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Bind selected-tool launch to captured executable bytes and host identity to the operating system's running image object, rejecting installation-path A/B/A redirection and changed macOS host images (#14).
+
 ## 0.1.4 — 2026-10-01
 
 - Update Qargo, all three standard tools, their qrate manifests, private development packages, lockfile, CI, documentation, and package/release verifiers together to 0.1.4.

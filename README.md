@@ -22,6 +22,8 @@ cargo install qargo --version=0.1.4 --locked --bins
 
 Cargo compiles the Rust tools during installation. The installed Qargo executable manages Qleisli qrates without invoking Cargo. The package includes all three engines and requires no private engine crates or repository checkout.
 
+Source builds on macOS also require the Xcode command line developer tools, including Clang/libclang, for the safe running-image identity adapter. Runtime executable identity requirements and change handling are documented in the [executable identity contract](docs/executable-identity.md).
+
 ## Build from source
 
 Rust 1.85 or newer is required. The implementation links exactly Qleisli 0.2.1. Clone the repository, or extract a complete source archive, and start in its top-level directory:
