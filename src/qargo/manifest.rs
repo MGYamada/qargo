@@ -7,38 +7,10 @@ use std::path::{Component, Path, PathBuf};
 use serde::Deserialize;
 
 use crate::report::Diagnostic;
-use crate::snapshot::{self, Files, FrozenSources};
+use crate::snapshot::{self, Files, FrozenSources, InputDirectory};
 
 const MANIFEST_SCHEMA_VERSION: u32 = 2;
 const QLEISLI_EDITION: &str = "2026";
-
-#[cfg(unix)]
-type DirectoryIdentity = (u64, u64);
-#[cfg(not(unix))]
-type DirectoryIdentity = PathBuf;
-
-fn directory_identity(
-    path: &Path,
-    metadata: &fs::Metadata,
-) -> Result<DirectoryIdentity, Diagnostic> {
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        let _ = path;
-        Ok((metadata.dev(), metadata.ino()))
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = metadata;
-        fs::canonicalize(path).map_err(|error| {
-            Diagnostic::error(
-                "invalid_manifest",
-                "qargo",
-                format!("Cannot resolve declared directory: {error}"),
-            )
-        })
-    }
-}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -129,7 +101,10 @@ fn root_path(value: &str) -> Result<PathBuf, Diagnostic> {
     Ok(path.to_path_buf())
 }
 
-fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagnostic> {
+fn validate_manifest(
+    manifest: &Manifest,
+    directory: &InputDirectory,
+) -> Result<Vec<InputDirectory>, Diagnostic> {
     if manifest.schema_version != MANIFEST_SCHEMA_VERSION {
         let mut diagnostic = Diagnostic::error(
             "unsupported_manifest_version",
@@ -194,22 +169,9 @@ fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagno
     .into_iter()
     .map(|root| root_path(root))
     .collect::<Result<Vec<_>, _>>()?;
-    let target = directory.join("target");
-    let reserved_target = match fs::symlink_metadata(&target) {
-        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
-            Some(directory_identity(&target, &metadata)?)
-        }
-        Ok(_) => None,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => {
-            return Err(Diagnostic::error(
-                "invalid_manifest",
-                "qargo",
-                format!("Cannot inspect reserved target directory: {error}"),
-            ));
-        }
-    };
+    let reserved_target = directory.directory_identity_if_exists(std::ffi::OsStr::new("target"))?;
     let mut resolved_roots = Vec::new();
+    let mut held_roots = Vec::new();
     for (index, root) in roots.iter().enumerate() {
         if roots
             .iter()
@@ -222,27 +184,23 @@ fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagno
                 "Source, test and documentation roots must not overlap.",
             ));
         }
-        let mut path = directory.to_path_buf();
+        let mut held = directory.clone();
         let mut identities = Vec::new();
         for component in root.components() {
-            path.push(component.as_os_str());
-            let metadata = fs::symlink_metadata(&path).map_err(|e| {
+            held = held.child(component.as_os_str()).map_err(|error| {
                 Diagnostic::error(
                     "invalid_manifest",
                     "qargo",
-                    format!("Cannot inspect declared root {root:?}: {e}"),
+                    format!(
+                        "Cannot open declared root {root:?} without symlinks: {}",
+                        error.message
+                    ),
                 )
             })?;
-            if metadata.file_type().is_symlink() || !metadata.is_dir() {
-                return Err(Diagnostic::error(
-                    "invalid_manifest",
-                    "qargo",
-                    "Every declared root and its ancestors must be existing directories without symlinks.",
-                ));
-            }
-            identities.push(directory_identity(&path, &metadata)?);
+            identities.push(held.identity()?);
         }
         resolved_roots.push(identities);
+        held_roots.push(held);
     }
     // Compare filesystem objects after rejecting symlinks, not normalized spellings.
     for (index, identities) in resolved_roots.iter().enumerate() {
@@ -269,12 +227,37 @@ fn validate_manifest(manifest: &Manifest, directory: &Path) -> Result<(), Diagno
             ));
         }
     }
-    Ok(())
+    Ok(held_roots)
 }
 
 pub(super) fn capture(explicit: Option<&Path>) -> Result<CapturedQrate, Diagnostic> {
+    capture_with_hook(explicit, |_| {})
+}
+
+fn capture_with_hook(
+    explicit: Option<&Path>,
+    after_validation: impl FnOnce(&Path),
+) -> Result<CapturedQrate, Diagnostic> {
     let path = discover(explicit)?;
-    let raw = snapshot::read_regular(&path)?;
+    let directory = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .unwrap_or(Path::new("."));
+    let directory = fs::canonicalize(directory).map_err(|error| {
+        Diagnostic::error(
+            "invalid_manifest",
+            "qargo",
+            format!("Cannot resolve qrate directory: {error}"),
+        )
+    })?;
+    let held_directory = InputDirectory::open(&directory)?;
+    let raw = held_directory.read_regular(path.file_name().ok_or_else(|| {
+        Diagnostic::error(
+            "invalid_manifest",
+            "qargo",
+            "Manifest must name an ordinary file.",
+        )
+    })?)?;
     let text = std::str::from_utf8(&raw)
         .map_err(|_| Diagnostic::error("invalid_manifest", "qargo", "Qargo.toml must be UTF-8."))?;
     let parsed: toml::Value = toml::from_str(text).map_err(|e| {
@@ -303,25 +286,18 @@ pub(super) fn capture(explicit: Option<&Path>) -> Result<CapturedQrate, Diagnost
             format!("Invalid Qargo.toml: {e}"),
         )
     })?;
-    let directory = path
-        .parent()
-        .filter(|p| !p.as_os_str().is_empty())
-        .unwrap_or(Path::new("."));
-    let directory = fs::canonicalize(directory).map_err(|e| {
-        Diagnostic::error(
-            "invalid_manifest",
-            "qargo",
-            format!("Cannot resolve qrate directory: {e}"),
-        )
-    })?;
-    validate_manifest(&manifest, &directory)?;
+    let held_roots = validate_manifest(&manifest, &held_directory)?;
+    after_validation(&directory);
     let mut files = BTreeMap::from([("Qargo.toml".into(), raw)]);
-    for root in [
+    for (root, held) in [
         &manifest.source.root,
         &manifest.tests.root,
         &manifest.docs.root,
-    ] {
-        for (path, bytes) in snapshot::collect_tree(&directory.join(root), None)? {
+    ]
+    .into_iter()
+    .zip(&held_roots)
+    {
+        for (path, bytes) in held.collect(None)? {
             files.insert(format!("{root}/{path}"), bytes);
         }
     }
@@ -350,4 +326,34 @@ pub(super) fn capture(explicit: Option<&Path>) -> Result<CapturedQrate, Diagnost
         input_id,
         sources,
     })
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::symlink;
+
+    #[test]
+    fn validated_root_and_its_ancestor_cannot_be_redirected_before_capture() {
+        for replaced in ["inputs/src", "inputs", "tests", "docs"] {
+            let home = tempfile::tempdir().unwrap();
+            let outside = tempfile::tempdir().unwrap();
+            fs::create_dir_all(home.path().join("inputs/src")).unwrap();
+            fs::create_dir(home.path().join("tests")).unwrap();
+            fs::create_dir(home.path().join("docs")).unwrap();
+            fs::write(home.path().join("inputs/src/inside.qli"), "inside").unwrap();
+            fs::create_dir(outside.path().join("src")).unwrap();
+            fs::write(outside.path().join("outside.qli"), "outside").unwrap();
+            fs::write(outside.path().join("src/outside.qli"), "outside").unwrap();
+            fs::write(home.path().join("Qargo.toml"), "schema-version = 2\n[qrate]\nname = \"race\"\nversion = \"0.1.0\"\nedition = \"2026\"\n[source]\nroot = \"inputs/src\"\n[tests]\nroot = \"tests\"\n[docs]\nroot = \"docs\"\n").unwrap();
+            let result = capture_with_hook(Some(&home.path().join("Qargo.toml")), |directory| {
+                fs::rename(directory.join(replaced), directory.join("old")).unwrap();
+                symlink(outside.path(), directory.join(replaced)).unwrap();
+            });
+            assert!(
+                result.is_err(),
+                "captured a replaced declared root: {replaced}"
+            );
+        }
+    }
 }
