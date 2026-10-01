@@ -132,17 +132,10 @@ pub fn path_argument(
 
 /// Bind metadata to the executable actually running, not to a path or timestamp.
 pub fn tool_info(name: &str) -> Result<Value, Diagnostic> {
-    let executable = std::env::current_exe().map_err(|error| {
-        Diagnostic::error(
-            "tool_identity",
-            "tool",
-            format!("Cannot locate host executable: {error}"),
-        )
-    })?;
     Ok(json!({
         "name": name,
         "version": crate::VERSION,
-        "executable_sha256": crate::snapshot::digest_path(&executable)?,
+        "executable_sha256": crate::executable::running_digest()?,
         "qleisli_version": crate::QLEISLI_VERSION,
         "profile": crate::PROFILE,
     }))

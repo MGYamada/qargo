@@ -2,7 +2,6 @@
 
 use std::collections::BTreeSet;
 use std::path::Path;
-use std::process::Command;
 
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
@@ -10,6 +9,7 @@ use sha2::{Digest, Sha256};
 
 use crate::report::{Diagnostic, Envelope, Report};
 use crate::snapshot::{self, FrozenSources};
+use crate::tool_executable::SelectedExecutable;
 use crate::tool_process::{ToolOutput, bounded_output};
 use crate::tool_response::{
     DIAGNOSTIC_FIELDS, ENVELOPE_FIELDS, Response, Step, Tool, closed_object, location_valid,
@@ -145,31 +145,26 @@ fn decode<R: DeserializeOwned + Serialize>(
 }
 
 fn invoke(
-    path: &Path,
+    tool: &SelectedExecutable,
     sources: &FrozenSources,
-    digest: &str,
     extra: &[String],
 ) -> Result<ToolOutput, Diagnostic> {
-    let mut command = Command::new(path);
+    let mut command = tool.command()?;
     command.arg(sources.root()).arg("--format=json").args(extra);
     let output = bounded_output(&mut command)?;
-    if snapshot::digest_path(path)? != digest {
-        return Err(transport(
-            "The selected executable changed during execution.",
-        ));
-    }
+    tool.verify()?;
     Ok(output)
 }
 
 pub(crate) fn format(
     sources: &FrozenSources,
     original_root: &Path,
-    tool: &Path,
-    digest: &str,
+    tool: &SelectedExecutable,
     check: bool,
 ) -> Result<Report, Diagnostic> {
     // The child modifies a private copy; the parent alone updates user sources.
-    let output = invoke(tool, sources, digest, &[])?;
+    let digest = tool.digest();
+    let output = invoke(tool, sources, &[])?;
     let status = output.status;
     let mut envelope = decode::<FormatResult>(
         &output.stdout,
@@ -273,8 +268,7 @@ pub(crate) fn format(
 
 pub(crate) fn document(
     sources: &FrozenSources,
-    tool: &Path,
-    digest: &str,
+    tool: &SelectedExecutable,
     output: &Path,
     include_private: bool,
 ) -> Result<Report, Diagnostic> {
@@ -301,7 +295,8 @@ pub(crate) fn document(
     if include_private {
         args.push("--document-private-items".into());
     }
-    let output_capture = invoke(tool, sources, digest, &args)?;
+    let digest = tool.digest();
+    let output_capture = invoke(tool, sources, &args)?;
     let status = output_capture.status;
     let mut envelope = decode::<DocResult>(
         &output_capture.stdout,

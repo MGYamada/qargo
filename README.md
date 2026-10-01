@@ -2,6 +2,8 @@
 
 Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share candidate version 0.1.5, adding Cargo-free binary installation for Linux and macOS on x86_64 and ARM64. Version 0.1.5 is not yet published; the current published bundle is available through [crates.io 0.1.4](https://crates.io/crates/qargo/0.1.4) and the [GitHub 0.1.4 source release](https://github.com/MGYamada/qargo/releases/tag/v0.1.4). Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
+Native ARM64 Linux verification is currently blocked by the pinned Qleisli 0.2.1 file loader ([issue #18](https://github.com/MGYamada/qargo/issues/18)). Assemble the four-target binary release only after every required target passes; changing the checker dependency requires a separate compatibility decision.
+
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
 Each standard qrate ([qlippy](qrates/qlippy/Qargo.toml), [qlifmt](qrates/qlifmt/Qargo.toml), and [qlidoc](qrates/qlidoc/Qargo.toml)) contains its complete Rust engine, CLI, tests, and a short `src/smoke.qli` identity operation, with no `.qlt` files. Shared support belongs to qlippy. Qargo snapshots and identifies both `.rs` and `.qli` inputs, checks the `.qli` source, and leaves Rust compilation to developer Cargo configuration outside the qrates. Each engine also accepts external Qleisli sources. The published `qargo` crate compiles these same engine sources as internal modules; the three private workspace packages remain available for independent development.
@@ -66,6 +68,8 @@ cargo install qargo --version=0.1.5 --locked --bins
 ```
 
 Cargo compiles the Rust tools during installation. The installed Qargo executable manages Qleisli qrates without invoking Cargo. The package includes all three engines and requires no private engine crates or repository checkout.
+
+Source builds on macOS also require the Xcode command line developer tools, including Clang/libclang, for the safe running-image identity adapter. Runtime executable identity requirements and change handling are documented in the [executable identity contract](docs/executable-identity.md).
 
 ## Build from source
 

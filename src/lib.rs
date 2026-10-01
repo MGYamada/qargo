@@ -12,9 +12,10 @@ mod qlippy_support;
 
 mod bundled;
 pub mod qargo;
+mod tool_executable;
 mod tool_process;
 mod tool_response;
 pub use qlippy_support::{
-    PROFILE, QLEISLI_VERSION, VERSION, adapter, publication, qlippy, report, rules, snapshot,
-    source,
+    PROFILE, QLEISLI_VERSION, VERSION, adapter, executable, publication, qlippy, report, rules,
+    snapshot, source,
 };
