@@ -3,6 +3,7 @@
 ## Unreleased
 
 - Bind selected-tool launch to captured executable bytes and host identity to the operating system's running image object, rejecting installation-path A/B/A redirection and changed macOS host images (#14).
+- Anchor qrate and standalone input capture to retained directory descriptors; reject root, ancestor, directory and file replacement during capture without following symlink redirection (#13).
 
 ## 0.1.4 — 2026-10-01
 
