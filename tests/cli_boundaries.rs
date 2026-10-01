@@ -153,7 +153,7 @@ fn cargo_style_dependency_requests_include_actionable_diagnostics() {
         let manifest = root.path().join("Qargo.toml");
         fs::write(
             &manifest,
-            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.3\"\n"),
+            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.4\"\n"),
         )
         .unwrap();
         let output = qargo(&["check", "--manifest-path", manifest.to_str().unwrap()]);

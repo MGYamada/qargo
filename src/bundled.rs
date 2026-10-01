@@ -8,38 +8,14 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
-use crate::qargo::{bounded_output, closed_object, location_valid, transport};
 use crate::report::{Diagnostic, Envelope, Report};
 use crate::snapshot::{self, FrozenSources};
-use crate::{PROFILE, QLEISLI_VERSION, VERSION, qlidoc_engine, qlifmt_engine};
-
-#[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct Response<R> {
-    format: String,
-    version: u32,
-    command: String,
-    outcome: String,
-    diagnostics: Vec<Diagnostic>,
-    result: R,
-}
-
-#[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct Step {
-    status: String,
-    reason: Option<String>,
-}
-
-#[derive(Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
-struct Tool {
-    name: String,
-    version: String,
-    executable_sha256: String,
-    qleisli_version: String,
-    profile: String,
-}
+use crate::tool_process::{ToolOutput, bounded_output};
+use crate::tool_response::{
+    DIAGNOSTIC_FIELDS, ENVELOPE_FIELDS, Response, Step, Tool, closed_object, location_valid,
+    tool_matches, transport,
+};
+use crate::{qlidoc_engine, qlifmt_engine};
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -114,17 +90,8 @@ fn decode<R: DeserializeOwned + Serialize>(
         .map_err(|_| transport("Source tool returned incomplete JSON."))?;
     let _typed_shape = serde_json::to_value(typed)
         .map_err(|_| transport("Invalid typed source-tool response."))?;
-    if !closed_object(
-        &value,
-        &[
-            "format",
-            "version",
-            "command",
-            "outcome",
-            "diagnostics",
-            "result",
-        ],
-    ) || value["format"] != format!("{name}.result")
+    if !closed_object(&value, ENVELOPE_FIELDS)
+        || value["format"] != format!("{name}.result")
         || value["version"] != 1
         || value["command"] != command
     {
@@ -141,21 +108,7 @@ fn decode<R: DeserializeOwned + Serialize>(
         ));
     }
     let tool = &result["tool"];
-    if !closed_object(
-        tool,
-        &[
-            "name",
-            "version",
-            "executable_sha256",
-            "qleisli_version",
-            "profile",
-        ],
-    ) || tool["name"] != name
-        || tool["version"] != VERSION
-        || tool["executable_sha256"] != digest
-        || tool["qleisli_version"] != QLEISLI_VERSION
-        || tool["profile"] != PROFILE
-    {
+    if !tool_matches(tool, name, digest) {
         return Err(transport(
             "Source tool identity or profile is incompatible.",
         ));
@@ -164,17 +117,8 @@ fn decode<R: DeserializeOwned + Serialize>(
         .as_array()
         .ok_or_else(|| transport("Invalid source-tool diagnostics."))?;
     for diagnostic in diagnostics {
-        if !closed_object(
-            diagnostic,
-            &[
-                "id",
-                "category",
-                "severity",
-                "primary",
-                "message",
-                "suggestion",
-            ],
-        ) || diagnostic["severity"] != "error"
+        if !closed_object(diagnostic, DIAGNOSTIC_FIELDS)
+            || diagnostic["severity"] != "error"
             || !["qargo", "compiler", "tool"]
                 .contains(&diagnostic["category"].as_str().unwrap_or(""))
             || diagnostic["id"].as_str().is_none_or(str::is_empty)
@@ -205,7 +149,7 @@ fn invoke(
     sources: &FrozenSources,
     digest: &str,
     extra: &[String],
-) -> Result<(Vec<u8>, i32), Diagnostic> {
+) -> Result<ToolOutput, Diagnostic> {
     let mut command = Command::new(path);
     command.arg(sources.root()).arg("--format=json").args(extra);
     let output = bounded_output(&mut command)?;
@@ -225,9 +169,10 @@ pub(crate) fn format(
     check: bool,
 ) -> Result<Report, Diagnostic> {
     // The child modifies a private copy; the parent alone updates user sources.
-    let (bytes, status) = invoke(tool, sources, digest, &[])?;
+    let output = invoke(tool, sources, digest, &[])?;
+    let status = output.status;
     let mut envelope = decode::<FormatResult>(
-        &bytes,
+        &output.stdout,
         status,
         sources,
         "qlifmt",
@@ -272,6 +217,7 @@ pub(crate) fn format(
         // Child-side partial writes affected only the private copy.
         result["updated_files"] = json!([]);
         result["formatted_source_id"] = Value::Null;
+        output.accept();
         return Ok(Report {
             envelope,
             exit_code: 1,
@@ -289,6 +235,7 @@ pub(crate) fn format(
             "Formatter output differs from its reported source identity or changes.",
         ));
     }
+    output.accept();
     result["updated_files"] = json!([]);
     if check {
         result["diff"] = json!(qlifmt_engine::diff(&sources.files, &formatted));
@@ -354,9 +301,10 @@ pub(crate) fn document(
     if include_private {
         args.push("--document-private-items".into());
     }
-    let (bytes, status) = invoke(tool, sources, digest, &args)?;
+    let output_capture = invoke(tool, sources, digest, &args)?;
+    let status = output_capture.status;
     let mut envelope = decode::<DocResult>(
-        &bytes,
+        &output_capture.stdout,
         status,
         sources,
         "qlidoc",
@@ -401,6 +349,7 @@ pub(crate) fn document(
     }
     if status != 0 {
         result["artifact_path"] = Value::Null;
+        output_capture.accept();
         return Ok(Report {
             envelope,
             exit_code: 1,
@@ -444,6 +393,7 @@ pub(crate) fn document(
             "Document tool returned incorrect artifact identities.",
         ));
     }
+    output_capture.accept();
     // Publish from the captured, validated bytes, not another read of child files.
     result["artifact_path"] = json!(output.to_string_lossy());
     if let Err(diagnostic) = qlidoc_engine::publish(output, &expected) {

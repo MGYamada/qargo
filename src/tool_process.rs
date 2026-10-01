@@ -4,7 +4,23 @@ use std::process::Command;
 
 use crate::report::Diagnostic;
 
-pub(crate) fn bounded_output(command: &mut Command) -> Result<(Vec<u8>, i32), Diagnostic> {
+#[derive(Debug)]
+pub(crate) struct ToolOutput {
+    pub(crate) stdout: Vec<u8>,
+    pub(crate) status: i32,
+    #[cfg(unix)]
+    child: unix::ToolChild,
+}
+
+impl ToolOutput {
+    /// Disarm process-group cleanup only after transport acceptance.
+    pub(crate) fn accept(self) {
+        #[cfg(unix)]
+        self.child.accept();
+    }
+}
+
+pub(crate) fn bounded_output(command: &mut Command) -> Result<ToolOutput, Diagnostic> {
     #[cfg(unix)]
     {
         unix::capture(command, std::time::Duration::from_secs(30))
@@ -34,12 +50,19 @@ mod unix {
     use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
     use rustix::process::{Pid, Signal, kill_process_group};
 
-    use crate::qargo::transport;
+    use crate::tool_response::transport;
 
-    struct ToolChild {
+    #[derive(Debug)]
+    pub(super) struct ToolChild {
         child: Child,
         group: Pid,
         finished: bool,
+    }
+
+    impl ToolChild {
+        pub(super) fn accept(mut self) {
+            self.finished = true;
+        }
     }
 
     impl Drop for ToolChild {
@@ -107,7 +130,7 @@ mod unix {
     pub(super) fn capture(
         command: &mut Command,
         timeout: Duration,
-    ) -> Result<(Vec<u8>, i32), Diagnostic> {
+    ) -> Result<ToolOutput, Diagnostic> {
         command
             .process_group(0)
             .stdout(Stdio::piped())
@@ -193,8 +216,11 @@ mod unix {
         let code = status.code().ok_or_else(|| {
             execution_error("The selected tool was terminated without an exit code.")
         })?;
-        child.finished = true;
-        Ok((stdout, code))
+        Ok(ToolOutput {
+            stdout,
+            status: code,
+            child,
+        })
     }
 
     #[cfg(test)]
@@ -282,9 +308,10 @@ mod unix {
         fn normal_tool_stdout_and_exit_status_are_preserved() {
             let mut command = Command::new("sh");
             command.args(["-c", "printf response; exit 1"]);
-            let (stdout, status) = capture(&mut command, Duration::from_secs(2)).unwrap();
-            assert_eq!(stdout, b"response");
-            assert_eq!(status, 1);
+            let output = capture(&mut command, Duration::from_secs(2)).unwrap();
+            assert_eq!(output.stdout, b"response");
+            assert_eq!(output.status, 1);
+            output.accept();
         }
     }
 }

@@ -75,7 +75,7 @@ fn run(root: &Path, command: &str, report: &Value) -> qargo_tools::report::Repor
         for directory in ["tests", "docs"] {
             fs::create_dir(root.join(directory)).unwrap();
         }
-        fs::write(root.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.3\"\nedition = \"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+        fs::write(root.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.4\"\nedition = \"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
         args.push(format!("--manifest-path={}", root.join("Qargo.toml").display()).into());
     }
     qargo::run(&args)
@@ -118,5 +118,182 @@ fn child_failures_redact_private_paths_in_messages_and_suggestions() {
         if command == "fmt" {
             assert!(result.envelope.result.as_ref().unwrap()["formatted_source_id"].is_null());
         }
+    }
+}
+
+struct DetachedDescendant {
+    pid_path: std::path::PathBuf,
+}
+
+impl DetachedDescendant {
+    fn is_dead(&self) -> bool {
+        let pid = fs::read_to_string(&self.pid_path).unwrap();
+        let output = std::process::Command::new("ps")
+            .args(["-p", pid.trim(), "-o", "stat="])
+            .output()
+            .unwrap();
+        assert!(
+            output.stderr.is_empty(),
+            "Cannot inspect descendant: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let status = String::from_utf8(output.stdout).unwrap();
+        status.trim().is_empty() || status.trim().starts_with('Z')
+    }
+}
+
+impl Drop for DetachedDescendant {
+    fn drop(&mut self) {
+        if self.pid_path.exists() && !self.is_dead() {
+            let pid = fs::read_to_string(&self.pid_path).unwrap();
+            let _ = std::process::Command::new("kill")
+                .args(["-KILL", pid.trim()])
+                .status();
+        }
+    }
+}
+
+fn descendant_fixture(command: &str, rejection: &str) -> (tempfile::TempDir, DetachedDescendant) {
+    let root = tempfile::tempdir().unwrap();
+    for directory in ["sources", "tests", "docs"] {
+        fs::create_dir(root.path().join(directory)).unwrap();
+    }
+    fs::write(
+        root.path().join("sources/module.qli"),
+        "pub unitary fn f(q:Q<Bit>)->Q<Bit>{q}",
+    )
+    .unwrap();
+    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.4\"\nedition=\"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+    let pid_path = root.path().join("descendant.pid");
+    let script = root.path().join("tool");
+    let response = root.path().join("response.json");
+    let mutate = if rejection == "executable" {
+        "printf '#changed\\n' >> \"$0\"\n"
+    } else {
+        ""
+    };
+    fs::write(&script, format!("#!/bin/sh\nsleep 60 >/dev/null 2>&1 &\nprintf '%s' \"$!\" > {}\n{mutate}/bin/cat {}\nexit 1\n", quote(&pid_path), quote(&response))).unwrap();
+    fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
+    let frozen = FrozenSources::capture(&root.path().join("sources")).unwrap();
+    let name = match command {
+        "lint" => "qlippy",
+        "fmt" => "qlifmt",
+        _ => "qlidoc",
+    };
+    let mut result = json!({"source_count":1,"source_id":frozen.source_id,
+        "qleisli_check":if command == "lint" { json!({"status":"failed","reason":"compiler_error"}) } else { json!({"status":"not_run","reason":"syntax_only"}) },
+        "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(&script).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}});
+    if command == "fmt" {
+        result["formatted_source_id"] = Value::Null;
+        result["changed_files"] = json!([]);
+        result["updated_files"] = json!([]);
+        result["check"] = json!(false);
+        result["diff"] = json!("");
+    } else if command == "doc" {
+        result["document_private_items"] = json!(false);
+        result["artifact_path"] = Value::Null;
+        result["files"] = json!([]);
+    }
+    let mut report = json!({"format":format!("{name}.result"),"version":1,"command":command,"outcome":"error",
+        "diagnostics":[{"id":"type_mismatch","category":"compiler","severity":"error","primary":null,"message":"rejected","suggestion":null}],"result":result});
+    match rejection {
+        "schema" => report["unexpected"] = json!(true),
+        "identity" => report["result"]["tool"]["version"] = json!("0.0.0"),
+        "source" => report["result"]["source_id"] = json!("wrong source"),
+        "location" => {
+            report["diagnostics"][0]["primary"] =
+                json!({"path":"module.qli","start":0,"end":1,"line":2,"column":1})
+        }
+        "result" if command == "fmt" => report["result"]["check"] = json!(true),
+        "result" if command == "doc" => report["result"]["document_private_items"] = json!(true),
+        "result" => report["result"]["qleisli_check"]["reason"] = Value::Null,
+        _ => {}
+    }
+    let bytes = if rejection == "json" {
+        b"{invalid".to_vec()
+    } else {
+        serde_json::to_vec(&report).unwrap()
+    };
+    fs::write(response, bytes).unwrap();
+    (root, DetachedDescendant { pid_path })
+}
+
+fn run_descendant_tool(root: &Path, command: &str) -> qargo_tools::report::Report {
+    let name = match command {
+        "lint" => "qlippy",
+        "fmt" => "qlifmt",
+        _ => "qlidoc",
+    };
+    qargo::run(&[
+        command.into(),
+        format!("--manifest-path={}", root.join("Qargo.toml").display()).into(),
+        format!("--{name}={}", root.join("tool").display()).into(),
+    ])
+}
+
+#[test]
+fn transport_rejection_terminates_descendants_after_output_capture() {
+    use std::time::{Duration, Instant};
+    for command in ["lint", "fmt", "doc"] {
+        for rejection in [
+            "json",
+            "schema",
+            "identity",
+            "source",
+            "location",
+            "result",
+            "executable",
+        ] {
+            let (root, descendant) = descendant_fixture(command, rejection);
+            let report = run_descendant_tool(root.path(), command);
+            assert_eq!(
+                report.exit_code, 1,
+                "{command}: {rejection}: {:?}",
+                report.envelope
+            );
+            assert_eq!(
+                report.envelope.diagnostics[0].id, "invalid_tool_response",
+                "{command}: {rejection}: {:?}",
+                report.envelope
+            );
+            let deadline = Instant::now() + Duration::from_secs(3);
+            while !descendant.is_dead() && Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            assert!(
+                descendant.is_dead(),
+                "{command}: {rejection}: descendant survived transport rejection"
+            );
+        }
+    }
+}
+
+struct UnrelatedProcess(std::process::Child);
+
+impl Drop for UnrelatedProcess {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
+#[test]
+fn accepted_tool_failure_disarms_descendant_cleanup() {
+    let mut unrelated = UnrelatedProcess(
+        std::process::Command::new("sleep")
+            .arg("60")
+            .spawn()
+            .unwrap(),
+    );
+    for command in ["lint", "fmt", "doc"] {
+        let (root, descendant) = descendant_fixture(command, "accepted");
+        let report = run_descendant_tool(root.path(), command);
+        assert_eq!(report.exit_code, 1, "{:?}", report.envelope);
+        assert_eq!(report.envelope.diagnostics[0].id, "type_mismatch");
+        assert!(
+            !descendant.is_dead(),
+            "Accepted transport was cleaned up prematurely: {command}"
+        );
+        assert!(unrelated.0.try_wait().unwrap().is_none());
     }
 }

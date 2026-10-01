@@ -160,3 +160,49 @@ fn capture_rejects_source_and_non_source_symlinks() {
     symlink(other.path(), root.path().join("linked_directory")).unwrap();
     assert!(collect_tree(root.path(), None).is_err());
 }
+
+#[test]
+fn traversal_budget_counts_directories_at_the_entry_boundary() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("module.qli"), IDENTITY).unwrap();
+    for index in 0..4095 {
+        fs::create_dir(root.path().join(format!("directory-{index}"))).unwrap();
+    }
+    let captured = FrozenSources::capture(root.path()).unwrap();
+    assert_eq!(captured.count(), 1);
+    fs::create_dir(root.path().join("one-directory-too-many")).unwrap();
+    let diagnostic = FrozenSources::capture(root.path()).err().unwrap();
+    assert_eq!(diagnostic.id, "limit");
+    assert_eq!(diagnostic.message, "Input contains more than 4096 entries.");
+}
+
+#[test]
+fn traversal_budget_counts_extension_filtered_files_at_the_entry_boundary() {
+    let root = tempfile::tempdir().unwrap();
+    fs::write(root.path().join("module.qli"), IDENTITY).unwrap();
+    for index in 0..4095 {
+        fs::write(root.path().join(format!("ignored-{index}.txt")), "ignored").unwrap();
+    }
+    let captured = FrozenSources::capture(root.path()).unwrap();
+    assert_eq!(captured.count(), 1);
+    fs::write(root.path().join("one-file-too-many.txt"), "ignored").unwrap();
+    let diagnostic = FrozenSources::capture(root.path()).err().unwrap();
+    assert_eq!(diagnostic.id, "limit");
+    assert_eq!(diagnostic.message, "Input contains more than 4096 entries.");
+}
+
+#[test]
+fn traversal_depth_limit_retains_the_64_directory_boundary() {
+    let root = tempfile::tempdir().unwrap();
+    let mut directory = root.path().to_path_buf();
+    for _ in 0..64 {
+        directory.push("nested");
+        fs::create_dir(&directory).unwrap();
+    }
+    fs::write(directory.join("module.qli"), IDENTITY).unwrap();
+    assert_eq!(FrozenSources::capture(root.path()).unwrap().count(), 1);
+    fs::create_dir(directory.join("too-deep")).unwrap();
+    let diagnostic = FrozenSources::capture(root.path()).err().unwrap();
+    assert_eq!(diagnostic.id, "limit");
+    assert_eq!(diagnostic.message, "Input directory depth exceeds 64.");
+}

@@ -1,7 +1,7 @@
 # Developer-only Rust configuration. Qargo never reads or executes this.
 [package]
 name = "qlifmt-engine"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
