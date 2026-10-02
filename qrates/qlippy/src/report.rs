@@ -130,15 +130,44 @@ pub fn path_argument(
     }
 }
 
+/// A captured running-image identity. Revalidate it before accepting tool effects.
+#[derive(Serialize)]
+pub struct ToolIdentity {
+    name: String,
+    version: &'static str,
+    executable_sha256: String,
+    qleisli_version: &'static str,
+    profile: &'static str,
+}
+
+impl ToolIdentity {
+    pub fn capture(name: &str) -> Result<Self, Diagnostic> {
+        Ok(Self {
+            name: name.into(),
+            version: crate::VERSION,
+            executable_sha256: crate::executable::running_digest()?,
+            qleisli_version: crate::QLEISLI_VERSION,
+            profile: crate::PROFILE,
+        })
+    }
+
+    pub fn verify(&self) -> Result<(), Diagnostic> {
+        if crate::executable::running_digest()? != self.executable_sha256 {
+            return Err(crate::executable::identity_error(
+                "Running executable identity changed during the operation.",
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn to_value(&self) -> Value {
+        json!(self)
+    }
+}
+
 /// Bind metadata to the executable actually running, not to a path or timestamp.
 pub fn tool_info(name: &str) -> Result<Value, Diagnostic> {
-    Ok(json!({
-        "name": name,
-        "version": crate::VERSION,
-        "executable_sha256": crate::executable::running_digest()?,
-        "qleisli_version": crate::QLEISLI_VERSION,
-        "profile": crate::PROFILE,
-    }))
+    Ok(ToolIdentity::capture(name)?.to_value())
 }
 
 pub fn coordinates(source: &str, offset: usize) -> (usize, usize) {

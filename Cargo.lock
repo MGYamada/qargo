@@ -258,7 +258,7 @@ dependencies = [
 
 [[package]]
 name = "qargo"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "libc",
  "libproc",
@@ -279,7 +279,7 @@ checksum = "7fe5ad5a9b795a0e5790646cca124e0d9e41762ad2be8759ab50641d895279c1"
 
 [[package]]
 name = "qlidoc-engine"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "qleisli",
  "qlippy-engine",
@@ -290,7 +290,7 @@ dependencies = [
 
 [[package]]
 name = "qlifmt-engine"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "qleisli",
  "qlippy-engine",
@@ -301,7 +301,7 @@ dependencies = [
 
 [[package]]
 name = "qlippy-engine"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "libc",
  "libproc",

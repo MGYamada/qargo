@@ -1,13 +1,14 @@
 //! Validate closed child-tool responses against frozen sources and tool identities.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value;
+use std::path::Path;
 
 use crate::report::{Diagnostic, Envelope};
 use crate::snapshot::{Files, FrozenSources};
 use crate::{PROFILE, QLEISLI_VERSION, VERSION};
 
-pub(crate) const ENVELOPE_FIELDS: &[&str] = &[
+pub(super) const ENVELOPE_FIELDS: &[&str] = &[
     "format",
     "version",
     "command",
@@ -15,7 +16,7 @@ pub(crate) const ENVELOPE_FIELDS: &[&str] = &[
     "diagnostics",
     "result",
 ];
-pub(crate) const DIAGNOSTIC_FIELDS: &[&str] = &[
+pub(super) const DIAGNOSTIC_FIELDS: &[&str] = &[
     "id",
     "category",
     "severity",
@@ -28,7 +29,7 @@ pub(crate) const DIAGNOSTIC_FIELDS: &[&str] = &[
 // also require explicit nullable fields, which serde otherwise permits missing.
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct Response<R> {
+pub(super) struct Response<R> {
     format: String,
     version: u32,
     command: String,
@@ -39,14 +40,14 @@ pub(crate) struct Response<R> {
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct Step {
+pub(super) struct Step {
     status: String,
     reason: Option<String>,
 }
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct Tool {
+pub(super) struct Tool {
     name: String,
     version: String,
     executable_sha256: String,
@@ -63,13 +64,13 @@ struct LintResult {
     tool: Tool,
 }
 
-pub(crate) fn closed_object(value: &Value, fields: &[&str]) -> bool {
+pub(super) fn closed_object(value: &Value, fields: &[&str]) -> bool {
     value.as_object().is_some_and(|object| {
         object.len() == fields.len() && fields.iter().all(|field| object.contains_key(*field))
     })
 }
 
-pub(crate) fn tool_matches(tool: &Value, name: &str, digest: &str) -> bool {
+pub(super) fn tool_matches(tool: &Value, name: &str, digest: &str) -> bool {
     closed_object(
         tool,
         &[
@@ -96,7 +97,7 @@ fn step_valid(step: &Value, source_count: usize) -> bool {
         }
 }
 
-pub(crate) fn transport(message: impl Into<String>) -> Diagnostic {
+pub(super) fn transport(message: impl Into<String>) -> Diagnostic {
     Diagnostic::error("invalid_tool_response", "tool", message)
 }
 
@@ -126,7 +127,7 @@ fn bundled_sources() -> Option<&'static Files> {
         .as_ref()
 }
 
-pub(crate) fn location_valid(location: &Value, sources: &FrozenSources, compiler: bool) -> bool {
+pub(super) fn location_valid(location: &Value, sources: &FrozenSources, compiler: bool) -> bool {
     if location.is_null() {
         return compiler;
     }
@@ -166,7 +167,7 @@ pub(crate) fn location_valid(location: &Value, sources: &FrozenSources, compiler
     let bytes = if compiler && path.starts_with("std://") {
         bundled_sources().and_then(|sources| sources.get(path))
     } else {
-        sources.files.get(path)
+        sources.files().get(path)
     };
     let Some(bytes) = bytes else {
         return false;
@@ -181,7 +182,7 @@ pub(crate) fn location_valid(location: &Value, sources: &FrozenSources, compiler
     line == expected_line && column == expected_column
 }
 
-pub(crate) fn lint_response(
+pub(super) fn lint_response(
     bytes: &[u8],
     status: i32,
     sources: &FrozenSources,
@@ -262,7 +263,7 @@ pub(crate) fn lint_response(
         result,
         &["source_count", "source_id", "qleisli_check", "tool"],
     ) || result["source_count"].as_u64() != Some(sources.count() as u64)
-        || result["source_id"] != sources.source_id
+        || result["source_id"] != sources.source_id()
         || !step_valid(&result["qleisli_check"], sources.count())
     {
         return Err(transport(
@@ -299,6 +300,99 @@ pub(crate) fn lint_response(
         .map_err(|_| transport("qlippy returned malformed typed diagnostics."))
 }
 
+pub(super) fn redact(envelope: &mut Envelope, paths: &[&Path]) {
+    for diagnostic in &mut envelope.diagnostics {
+        for path in paths {
+            let prefix = path.to_string_lossy();
+            diagnostic.message = diagnostic.message.replace(prefix.as_ref(), "<private>");
+            if let Some(suggestion) = diagnostic.suggestion.as_mut() {
+                *suggestion = suggestion
+                    .replace(prefix.as_ref(), "<private>")
+                    .into_boxed_str();
+            }
+        }
+    }
+}
+
+pub(super) fn valid_digest(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|hex| {
+        hex.len() == 64
+            && hex
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
+pub(super) fn syntax_response<R: DeserializeOwned + Serialize>(
+    bytes: &[u8],
+    status: i32,
+    sources: &FrozenSources,
+    name: &str,
+    command: &str,
+    digest: &str,
+    fields: &[&str],
+) -> Result<Envelope, Diagnostic> {
+    // The typed pass also rejects duplicate keys throughout the closed schema.
+    let typed: Response<R> = serde_json::from_slice(bytes).map_err(|_| {
+        transport("Source tool returned repeated fields, unsupported fields or invalid types.")
+    })?;
+    let value: Value = serde_json::from_slice(bytes)
+        .map_err(|_| transport("Source tool returned incomplete JSON."))?;
+    let _typed_shape = serde_json::to_value(typed)
+        .map_err(|_| transport("Invalid typed source-tool response."))?;
+    if !closed_object(&value, ENVELOPE_FIELDS)
+        || value["format"] != format!("{name}.result")
+        || value["version"] != 1
+        || value["command"] != command
+    {
+        return Err(transport("Source tool returned an incompatible envelope."));
+    }
+    let result = &value["result"];
+    if !closed_object(result, fields)
+        || result["source_count"].as_u64() != Some(sources.count() as u64)
+        || result["source_id"] != sources.source_id()
+        || result["qleisli_check"] != qlippy_engine::source::syntax_step(sources.count())
+    {
+        return Err(transport(
+            "Source tool did not bind its result to the captured inputs and syntax-only processing.",
+        ));
+    }
+    let tool = &result["tool"];
+    if !tool_matches(tool, name, digest) {
+        return Err(transport(
+            "Source tool identity or profile is incompatible.",
+        ));
+    }
+    let diagnostics = value["diagnostics"]
+        .as_array()
+        .ok_or_else(|| transport("Invalid source-tool diagnostics."))?;
+    for diagnostic in diagnostics {
+        if !closed_object(diagnostic, DIAGNOSTIC_FIELDS)
+            || diagnostic["severity"] != "error"
+            || !["qargo", "compiler", "tool"]
+                .contains(&diagnostic["category"].as_str().unwrap_or(""))
+            || diagnostic["id"].as_str().is_none_or(str::is_empty)
+            || !diagnostic["primary"].is_null()
+                && !location_valid(&diagnostic["primary"], sources, false)
+        {
+            return Err(transport(
+                "Source-tool diagnostics do not match the original source bytes.",
+            ));
+        }
+    }
+    if !(status == 0 && value["outcome"] == "ok" && diagnostics.is_empty()
+        || status == 1 && value["outcome"] == "error" && !diagnostics.is_empty())
+    {
+        return Err(transport(
+            "Source-tool exit code, outcome and diagnostics are inconsistent.",
+        ));
+    }
+    let mut envelope: Envelope =
+        serde_json::from_value(value).map_err(|_| transport("Invalid source-tool envelope."))?;
+    envelope.format = "qargo.result".into();
+    Ok(envelope)
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
@@ -317,7 +411,7 @@ mod tests {
         let warning = json!({"id":"unused_import","category":"lint","severity":"warning", "primary":{"path":"module.qli","start":0,"end":1,"line":1,"column":1},"message":"advice","suggestion":null});
         let compiler = json!({"id":"type_mismatch","category":"compiler","severity":"error","primary":null,"message":"rejected","suggestion":null});
         let mut response = json!({"format":"qlippy.result","version":1,"command":"lint","outcome":"error","diagnostics":[warning],
-            "result":{"source_count":1,"source_id":sources.source_id,"qleisli_check":{"status":"failed","reason":"compiler_error"},
+            "result":{"source_count":1,"source_id":sources.source_id(),"qleisli_check":{"status":"failed","reason":"compiler_error"},
             "tool":{"name":"qlippy","version":VERSION,"executable_sha256":"digest","qleisli_version":QLEISLI_VERSION,"profile":PROFILE}}});
         assert!(
             lint_response(

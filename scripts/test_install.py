@@ -236,15 +236,15 @@ class InstallerTests(unittest.TestCase):
     def test_unsupported_platform_cpu_and_invalid_arguments_do_not_download(self):
         for environment in ({"QARGO_TEST_OS": "Windows"}, {"QARGO_TEST_ARCH": "riscv64"}):
             self.failure(self.fixture.run(environment=environment))
-        for args in (("--version", "01.1.5"), ("--version", "v0.1.5"),
-                     ("--version", "0.1.5/evil"), ("--version",),
-                     ("--version", "0.1.5", "--version=0.1.5"),
+        for args in (("--version", "01.1.6"), ("--version", "v0.1.6"),
+                     ("--version", "0.1.6/evil"), ("--version",),
+                     ("--version", "0.1.6", "--version=0.1.6"),
                      ("--prefix", "/tmp/duplicate"), ("--unknown",)):
             self.failure(self.fixture.run(*args))
         self.assertFalse(self.fixture.requests.exists())
 
     def test_unknown_latest_tag(self):
-        self.failure(self.fixture.run(environment={"QARGO_TEST_LATEST_TAG": "v0.1.5-rc1"}))
+        self.failure(self.fixture.run(environment={"QARGO_TEST_LATEST_TAG": "v0.1.6-rc1"}))
         self.assertFalse(self.fixture.prefix.exists())
 
     def test_download_failure_and_checksum_mismatch(self):

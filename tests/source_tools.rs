@@ -14,7 +14,7 @@ fn qrate() -> tempfile::TempDir {
     for directory in ["src", "tests", "docs"] {
         fs::create_dir(root.path().join(directory)).unwrap();
     }
-    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.5\"\nedition = \"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.6\"\nedition = \"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
     fs::write(root.path().join("src/module.qli"), SOURCE).unwrap();
     root
 }
@@ -186,11 +186,11 @@ fn script(root: &Path, body: &str) -> PathBuf {
 #[cfg(unix)]
 fn response(tool: &Path, sources: &FrozenSources, command: &str) -> Value {
     let name = if command == "fmt" { "qlifmt" } else { "qlidoc" };
-    let mut result = json!({"source_count":sources.count(), "source_id":sources.source_id,
+    let mut result = json!({"source_count":sources.count(), "source_id":sources.source_id(),
         "qleisli_check":{"status":"not_run","reason":"syntax_only"},
         "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(tool).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}});
     if command == "fmt" {
-        result["formatted_source_id"] = json!(sources.source_id);
+        result["formatted_source_id"] = json!(sources.source_id());
         result["changed_files"] = json!([]);
         result["updated_files"] = json!([]);
         result["check"] = json!(false);
@@ -300,7 +300,7 @@ fn formatter_cannot_change_tokens_or_add_files_to_the_user_root() {
 fn concurrent_source_changes_are_preserved_instead_of_overwritten() {
     let root = qrate();
     let sources = FrozenSources::capture(&root.path().join("src")).unwrap();
-    let formatted = qargo_tools::qlifmt_engine::format_files(&sources.files).unwrap();
+    let formatted = qargo_tools::qlifmt_engine::format_files(sources.files()).unwrap();
     let tools = tempfile::tempdir().unwrap();
     let candidate = tools.path().join("candidate.qli");
     let response_path = tools.path().join("response.json");

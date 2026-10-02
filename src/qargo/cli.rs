@@ -5,26 +5,28 @@ use std::path::PathBuf;
 
 use crate::report::{Diagnostic, path_argument};
 
+use super::request::{QrateOperation, Request, SourceSelection};
+
 pub(super) const HELP: &str = "qargo check|build|test [--manifest-path=PATH] [--format=json]\nqargo lint [source-root] [--manifest-path=PATH] [--qlippy=PATH] [--deny-warnings] [--format=json]\nqargo fmt [source-root] [--manifest-path=PATH] [--qlifmt=PATH] [--check] [--format=json]\nqargo doc [--manifest-path=PATH] [--qlidoc=PATH] [--document-private-items] [--format=json]\nqargo --help|--version [--format=json]\nPath options also accept --option PATH.\nStandalone source roots and --manifest-path are mutually exclusive.\nUse qlippy --list-rules to inspect advisory rule policy.\nQargo manages Qleisli qrates. Install the Rust tools from a prebuilt GitHub release or with Cargo outside Qargo commands.";
 
 #[derive(Default)]
-pub(super) struct Options {
-    pub(super) command: String,
-    pub(super) manifest: Option<PathBuf>,
-    pub(super) source: Option<PathBuf>,
-    pub(super) qlippy: Option<PathBuf>,
-    pub(super) qlifmt: Option<PathBuf>,
-    pub(super) qlidoc: Option<PathBuf>,
-    pub(super) deny_warnings: bool,
-    pub(super) check: bool,
-    pub(super) document_private_items: bool,
+struct Options {
+    command: String,
+    manifest: Option<PathBuf>,
+    source: Option<PathBuf>,
+    qlippy: Option<PathBuf>,
+    qlifmt: Option<PathBuf>,
+    qlidoc: Option<PathBuf>,
+    deny_warnings: bool,
+    check: bool,
+    document_private_items: bool,
 }
 
 fn usage(message: impl Into<String>) -> Diagnostic {
     Diagnostic::error("invalid_arguments", "usage", message)
 }
 
-pub(super) fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
+pub(super) fn parse(args: &[OsString]) -> Result<Request, Diagnostic> {
     let mut options = Options::default();
     let mut format_seen = false;
     let mut remaining = args.iter();
@@ -124,5 +126,38 @@ pub(super) fn parse(args: &[OsString]) -> Result<Options, Diagnostic> {
     if ["help", "version"].contains(&options.command.as_str()) && options.manifest.is_some() {
         return Err(usage("--manifest-path requires a qrate command."));
     }
-    Ok(options)
+    let input = match options.source {
+        Some(root) => SourceSelection::Standalone(root),
+        None => SourceSelection::Qrate {
+            manifest: options.manifest.clone(),
+        },
+    };
+    Ok(match options.command.as_str() {
+        "help" => Request::Help,
+        "version" => Request::Version,
+        "check" | "build" | "test" => Request::Qrate {
+            operation: match options.command.as_str() {
+                "check" => QrateOperation::Check,
+                "build" => QrateOperation::Build,
+                _ => QrateOperation::Test,
+            },
+            manifest: options.manifest,
+        },
+        "lint" => Request::Lint {
+            input,
+            executable: options.qlippy,
+            deny_warnings: options.deny_warnings,
+        },
+        "fmt" => Request::Format {
+            input,
+            executable: options.qlifmt,
+            check: options.check,
+        },
+        "doc" => Request::Document {
+            manifest: options.manifest,
+            executable: options.qlidoc,
+            include_private: options.document_private_items,
+        },
+        _ => return Err(usage("Unsupported command.")),
+    })
 }

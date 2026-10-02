@@ -38,11 +38,33 @@ pub(super) struct Root {
 }
 
 pub(super) struct CapturedQrate {
-    pub(super) directory: PathBuf,
-    pub(super) manifest: Manifest,
-    pub(super) files: Files,
-    pub(super) input_id: String,
-    pub(super) sources: FrozenSources,
+    directory: PathBuf,
+    manifest: Manifest,
+    files: Files,
+    input_id: String,
+    sources: FrozenSources,
+}
+
+impl CapturedQrate {
+    pub(super) fn directory(&self) -> &Path {
+        &self.directory
+    }
+
+    pub(super) fn manifest(&self) -> &Manifest {
+        &self.manifest
+    }
+
+    pub(super) fn files(&self) -> &Files {
+        &self.files
+    }
+
+    pub(super) fn input_id(&self) -> &str {
+        &self.input_id
+    }
+
+    pub(super) fn sources(&self) -> &FrozenSources {
+        &self.sources
+    }
 }
 
 fn discover(explicit: Option<&Path>) -> Result<PathBuf, Diagnostic> {

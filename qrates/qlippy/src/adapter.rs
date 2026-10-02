@@ -8,13 +8,35 @@ use qleisli::frontend::project::{ModuleOrigin, Project, SourcePolicy};
 use serde_json::{Value, json};
 
 use crate::report::{Diagnostic, Location};
-use crate::snapshot::{FrozenSources, portable_relative};
+use crate::snapshot::{FrozenSources, SourceStage, portable_relative};
 
 pub struct CheckedSources {
-    pub project: Option<Project>,
-    pub source_count: usize,
-    pub qleisli_check: Value,
-    pub module_index: Value,
+    project: Option<Project>,
+    source_count: usize,
+    module_index: Value,
+    _stage: Option<SourceStage>,
+}
+
+impl CheckedSources {
+    pub fn project(&self) -> Option<&Project> {
+        self.project.as_ref()
+    }
+
+    pub fn source_count(&self) -> usize {
+        self.source_count
+    }
+
+    pub fn qleisli_check(&self) -> Value {
+        if self.project.is_some() {
+            json!({"status":"passed", "reason":null})
+        } else {
+            json!({"status":"not_run", "reason":"no_sources"})
+        }
+    }
+
+    pub fn module_index(&self) -> &Value {
+        &self.module_index
+    }
 }
 
 pub fn check(sources: &FrozenSources) -> Result<CheckedSources, Diagnostic> {
@@ -22,14 +44,15 @@ pub fn check(sources: &FrozenSources) -> Result<CheckedSources, Diagnostic> {
         return Ok(CheckedSources {
             project: None,
             source_count: 0,
-            qleisli_check: json!({"status":"not_run", "reason":"no_sources"}),
             module_index: json!([]),
+            _stage: None,
         });
     }
-    check_project_with_policy(sources.root(), SourcePolicy::default())
-        .map_err(|diagnostic| compiler_diagnostic(diagnostic, sources.root()))?;
-    let project = Project::load_with_policy(sources.root(), SourcePolicy::default())
-        .map_err(|diagnostic| compiler_diagnostic(diagnostic, sources.root()))?;
+    let stage = sources.stage()?;
+    check_project_with_policy(stage.root(), SourcePolicy::default())
+        .map_err(|diagnostic| compiler_diagnostic(diagnostic, stage.root()))?;
+    let project = Project::load_with_policy(stage.root(), SourcePolicy::default())
+        .map_err(|diagnostic| compiler_diagnostic(diagnostic, stage.root()))?;
     let mut modules = Vec::new();
     for module in project
         .modules
@@ -47,7 +70,7 @@ pub fn check(sources: &FrozenSources) -> Result<CheckedSources, Diagnostic> {
         if declarations.is_empty() {
             continue;
         }
-        let path = portable_relative(module.path.strip_prefix(sources.root()).map_err(|_| {
+        let path = portable_relative(module.path.strip_prefix(stage.root()).map_err(|_| {
             Diagnostic::error(
                 "project",
                 "compiler",
@@ -59,8 +82,8 @@ pub fn check(sources: &FrozenSources) -> Result<CheckedSources, Diagnostic> {
     Ok(CheckedSources {
         project: Some(project),
         source_count: sources.count(),
-        qleisli_check: json!({"status":"passed", "reason":null}),
         module_index: json!(modules),
+        _stage: Some(stage),
     })
 }
 

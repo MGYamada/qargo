@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.6 — Unreleased
+
+- Establish Qargo's first principles: Exact, Immutable, Bound, Explicit, Independent. Refactor orchestration into typed requests, immutable captured subjects, bound checking/tool validation, and explicit effects. Give each checker/tool its own materialized sources and accept child transport through one guarded execution boundary before source updates or artifact publication.
+- Capture the orchestrator identity before child execution and revalidate it before response acceptance, so host-identity rejection prevents parent-side formatting writes and documentation publication.
+- Update Qargo, all three standard tools, their qrate manifests, private development packages, lockfile, CI, documentation, and package/release verifiers together to 0.1.6. Keep installation examples on the published 0.1.5 release until publication.
+- Adopt a qleisliup compatibility plan covering offline proxy execution, complete same-release bundles, executable and checker identities, explicit failure, and a coordinated exact linked-Qleisli update for the manager's initial production language distribution. Keep external-checker integration dependent on its own upstream and Qargo contracts.
+- Preserve exact Qleisli 0.2.1, Rust 1.85, manifest schema 2 with explicit edition "2026", independent result schema version 1, syntax-only formatting/documentation, and unavailable QLT execution. Publication requires separate authorization.
+
 ## 0.1.5 — 2026-10-01
 
 - Add Linux x86_64 and macOS x86_64/ARM64 binary bundles and a Cargo-free installer, with SHA-256 verification, version selection, user-prefix installation, and atomic bundle switching. Linux ARM64 is deferred because Qleisli 0.2.1's file loader uses incompatible flags on that architecture (#18); the installer reports this limitation before downloading or changing an installation.

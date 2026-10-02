@@ -50,7 +50,7 @@ jobs:
           python3 "$release_source_dir/scripts/test_install.py"
           python3 "$release_source_dir/scripts/test_distribution.py"
           python3 "$release_source_dir/scripts/distribution.py" build --source-root="$release_source_dir" --bin-dir="$release_source_dir/target/${{ matrix.target }}/release" --target='${{ matrix.target }}' --output-dir="$RUNNER_TEMP/binary-assets"
-          python3 "$release_source_dir/scripts/distribution.py" verify --source-root="$release_source_dir" --archive="$RUNNER_TEMP/binary-assets/qargo-0.1.5-${{ matrix.target }}.tar.gz" --target='${{ matrix.target }}'
+          python3 "$release_source_dir/scripts/distribution.py" verify --source-root="$release_source_dir" --archive="$RUNNER_TEMP/binary-assets/qargo-0.1.6-${{ matrix.target }}.tar.gz" --target='${{ matrix.target }}'
       - name: Record tested environment
         shell: bash
         run: |
@@ -83,7 +83,7 @@ jobs:
         run: python3 scripts/distribution.py collect --artifact-dir="$RUNNER_TEMP/binary-inputs" --output-dir="$RUNNER_TEMP/release-assets"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: qargo-0.1.5-release-assets
+          name: qargo-0.1.6-release-assets
           path: ${{ runner.temp }}/release-assets/*
           if-no-files-found: error
           compression-level: 0

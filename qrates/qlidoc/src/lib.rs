@@ -126,21 +126,21 @@ pub fn run(args: &[OsString]) -> Report {
     };
     let mut result = json!({
         "source_count":input.sources.count(),
-        "source_id":input.sources.source_id,
+        "source_id":input.sources.source_id(),
         "qleisli_check":syntax_step(input.sources.count()),
         "tool":tool,
         "document_private_items":opts.include_private,
         "artifact_path":null,
         "files":[],
     });
-    let rendered = match render_files(&input.sources.files, opts.include_private) {
+    let rendered = match render_files(input.sources.files(), opts.include_private) {
         Ok(files) => files,
         Err(error) => return bound_failure(error, result),
     };
     let output = opts.output.unwrap_or_else(|| {
         PathBuf::from("target")
             .join("qlidoc")
-            .join(input.sources.source_id.trim_start_matches("sha256:"))
+            .join(input.sources.source_id().trim_start_matches("sha256:"))
             .join(
                 tool["executable_sha256"]
                     .as_str()

@@ -575,11 +575,22 @@ pub fn materialize(files: &Files) -> Result<TempDir, Diagnostic> {
     Ok(directory)
 }
 
+/// Captured source bytes and their identity, independent of any working copy.
 pub struct FrozenSources {
-    pub files: Files,
-    pub source_id: String,
+    files: Files,
+    source_id: String,
+}
+
+/// A disposable working copy. Mutating it cannot change its captured subject.
+pub struct SourceStage {
     _directory: TempDir,
     canonical_root: PathBuf,
+}
+
+impl SourceStage {
+    pub fn root(&self) -> &Path {
+        &self.canonical_root
+    }
 }
 
 impl FrozenSources {
@@ -621,20 +632,28 @@ impl FrozenSources {
             }
         }
         let source_id = digest_files("qleisli.source.v1", &files);
-        let directory = materialize(&files)?;
+        Ok(Self { files, source_id })
+    }
+
+    pub fn files(&self) -> &Files {
+        &self.files
+    }
+
+    pub fn source_id(&self) -> &str {
+        &self.source_id
+    }
+
+    /// Materialize a fresh copy for one checker or tool invocation.
+    pub fn stage(&self) -> Result<SourceStage, Diagnostic> {
+        let directory = materialize(&self.files)?;
         let canonical_root = fs::canonicalize(directory.path())
             .map_err(|error| input_error(format!("Cannot resolve private snapshot: {error}")))?;
-        Ok(Self {
-            files,
-            source_id,
+        Ok(SourceStage {
             _directory: directory,
             canonical_root,
         })
     }
 
-    pub fn root(&self) -> &Path {
-        &self.canonical_root
-    }
     pub fn count(&self) -> usize {
         self.files.len()
     }

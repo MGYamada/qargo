@@ -132,3 +132,55 @@ fn replacing_the_host_path_never_reports_the_replacement_digest() {
     assert_eq!(digest_path(&original).unwrap(), expected);
     assert_ne!(digest_path(&qargo).unwrap(), expected);
 }
+
+#[cfg(target_os = "macos")]
+#[test]
+fn a_rejected_host_identity_prevents_an_otherwise_valid_format_write() {
+    let root = tempfile::tempdir().unwrap();
+    let sources = root.path().join("src");
+    fs::create_dir(&sources).unwrap();
+    let original_bytes = b"pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
+    fs::write(sources.join("module.qli"), original_bytes).unwrap();
+    let inputs = Files::from([("module.qli".into(), original_bytes.to_vec())]);
+    let formatted = qargo_tools::qlifmt_engine::format_files(&inputs).unwrap();
+    assert_ne!(inputs, formatted);
+    let candidate = root.path().join("formatted.qli");
+    fs::write(&candidate, &formatted["module.qli"]).unwrap();
+
+    let qargo = root.path().join("qargo");
+    fs::copy(env!("CARGO_BIN_EXE_qargo"), &qargo).unwrap();
+    let tool = root.path().join("formatter");
+    let response = root.path().join("response.json");
+    fs::write(&tool, format!(
+        "#!/bin/sh\n/bin/cp {} \"$1/module.qli\"\n/bin/mv {} {}\n/bin/cp /usr/bin/true {}\n/bin/cat {}\n",
+        quote(&candidate), quote(&qargo), quote(&root.path().join("running-qargo")),
+        quote(&qargo), quote(&response),
+    )).unwrap();
+    fs::set_permissions(&tool, fs::Permissions::from_mode(0o700)).unwrap();
+    fs::write(&response, serde_json::to_vec(&json!({
+        "format":"qlifmt.result","version":1,"command":"fmt","outcome":"ok","diagnostics":[],
+        "result":{
+            "source_count":1,"source_id":digest_files("qleisli.source.v1", &inputs),
+            "qleisli_check":{"status":"not_run","reason":"syntax_only"},
+            "tool":{"name":"qlifmt","version":qargo_tools::VERSION,
+                "executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"},
+            "formatted_source_id":digest_files("qleisli.source.v1", &formatted),
+            "changed_files":["module.qli"],"updated_files":["module.qli"],"check":false,"diff":""
+        }
+    })).unwrap()).unwrap();
+    let output = Command::new(qargo)
+        .arg("fmt")
+        .arg(&sources)
+        .arg(format!("--qlifmt={}", tool.display()))
+        .arg("--format=json")
+        .output()
+        .unwrap();
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(report["diagnostics"][0]["id"], "tool_identity");
+    assert!(report["result"].is_null());
+    assert_eq!(
+        fs::read(sources.join("module.qli")).unwrap(),
+        original_bytes
+    );
+}
