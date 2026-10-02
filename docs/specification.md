@@ -126,6 +126,15 @@ Complete documentation directories are staged and published atomically without r
 
 ## Snapshots, identity and artifacts
 
+Each directory capture records a sorted, descriptor-anchored entry inventory
+before reading its children and repeats that inventory before acceptance. Entry
+names, types, device/inode identities, and file metadata must agree; directory
+metadata is also checked across both passes. Additions, removals, and replacements
+observed during capture fail, including entries excluded by a source-extension
+filter. The validation pass does not consume the 4096-entry traversal budget a
+second time. These checks detect concurrent changes; they do not provide a
+filesystem-wide atomic snapshot or lock out other writers.
+
 Selected-tool executable identity uses one captured executable object for hashing and launch across explicit, sibling and PATH selection. Linux/Android use sealed anonymous executable snapshots; macOS uses verified private read-only copies. Host identity uses the running image object on Linux/Android and kernel vnode identity with conservative post-launch change rejection on macOS. Unsupported facilities/platforms fail explicitly. The [executable identity contract](executable-identity.md) specifies platform requirements, capture limits, private-stage validation and host-change handling.
 
 Capture original bytes once, using sorted UTF-8 relative paths; reject symlinks and nonregular input files. Each input-tree traversal scans at most 4096 filesystem entries below its selected root, including directories and files skipped by an extension filter. The selected root itself does not count as an entry. Captured files are limited to 1 MiB each and 16 MiB total per tree, with directory depth at most 64 below the root. Qrate capture additionally limits the combined manifest and three root inventories to 4096 captured files and 16 MiB; an in-memory source snapshot also permits at most 4096 captured files and 16 MiB. Traversal entries and captured files are separate budgets, even though both count limits are 4096. Ignored files contribute to traversal safety but not captured bytes or source identity. Qleisli's own default source budget also remains in force. Identity uses SHA-256 with domain separation and length framing of paths/bytes. Input capture on Unix holds the qrate directory and all validated root ancestors open with close-on-exec descriptors; directory descent, enumeration and ordinary-file reads use those descriptors, `openat` and no-follow checks. Compare device/inode identities at inspection/open boundaries and revalidate retained names before and after reads or enumeration, rejecting replacement rather than following a renamed path. Parent aliases such as `/tmp` remain allowed when selecting an external root. Unsupported platforms fail explicitly. Qrate identity covers raw manifest bytes and all files in the three declared roots. Standalone source identity covers .qli files relative to their source root, independent of qrate location. Hidden directory markers are ordinary qrate inputs, never .qli sources.

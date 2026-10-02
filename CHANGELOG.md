@@ -2,6 +2,7 @@
 
 ## 0.1.6 — Unreleased
 
+- Reject directory-content changes during input capture by comparing two bounded descriptor-anchored inventories and directory metadata, including extension-filtered entries. Preserve the logical traversal budget and existing replacement checks (#20).
 - Establish Qargo's first principles: Exact, Immutable, Bound, Explicit, Independent. Refactor orchestration into typed requests, immutable captured subjects, bound checking/tool validation, and explicit effects. Give each checker/tool its own materialized sources and accept child transport through one guarded execution boundary before source updates or artifact publication.
 - Capture the orchestrator identity before child execution and revalidate it before response acceptance, so host-identity rejection prevents parent-side formatting writes and documentation publication.
 - Update Qargo, all three standard tools, their qrate manifests, private development packages, lockfile, CI, documentation, and package/release verifiers together to 0.1.6. Keep installation examples on the published 0.1.5 release until publication.
