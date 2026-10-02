@@ -8,6 +8,12 @@ The documented CLI, independently versioned qargo.result, qlippy.result, qlifmt.
 
 ## Binary distribution and installation
 
+Published-release verification requires exactly the supported target archives,
+`install.sh`, and `SHA256SUMS` as top-level regular files. Missing, extra, linked,
+or nested assets fail before checksum and runtime validation. The inventory is
+derived from the requested release version and supported target list. Collection
+of nested GitHub Actions artifacts is a separate operation and remains supported.
+
 Binary targets are `x86_64-unknown-linux-musl`, `x86_64-apple-darwin`, and `aarch64-apple-darwin`. Linux ARM64 is unsupported until issue #18 is resolved through an approved checker compatibility decision. Linux executables link statically, without a dynamic loader or library dependency. macOS executables have deployment target 11.0 and depend only on system libraries. Native CI executes Linux x86_64 on Ubuntu 24.04, Intel macOS on macOS 15, and ARM64 macOS on macOS 14; deployment metadata alone is not an execution test on macOS 11.0. Record the actual tested OS and compiler in each candidate's CI summary.
 
 Each `qargo-<version>-<target>.tar.gz` contains exactly six regular files under a matching directory: `bin/qargo`, `bin/qlippy`, `bin/qlifmt`, `bin/qlidoc`, `LICENSE`, and `NOTICE`. Executables have mode 0755; notices have mode 0644. Archives contain no links, directory entries, generated outputs, or source qrate snapshots. Source releases and the crate preserve the canonical qrate sources separately. The archive builder normalizes ownership and timestamps. Each release includes the same candidate's `install.sh` and `SHA256SUMS`, listing SHA-256 values for all three archives and the installer.

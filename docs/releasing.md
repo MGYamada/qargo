@@ -87,6 +87,21 @@ Check all four version commands and run the package/runtime verifiers against th
 
 ## Publish a GitHub source and binary release when requested
 
+The published-release workflow first uses its own revision's inventory verifier
+with the requested tag version. It requires exactly the three supported binary
+archives, `install.sh`, and `SHA256SUMS` at the download root, with no extra files,
+nested directories, or symlinks. The tagged candidate's archive, checksum,
+installer, and runtime verifiers then run as before. Keeping the inventory
+verifier separate allows this check to cover older tags that predate it.
+Local inventory-only inspection uses:
+
+```sh
+python3 scripts/distribution.py verify-published-assets --artifact-dir=/path/to/downloaded-assets --version=0.1.6
+```
+
+This inventory check does not replace content/checksum or runtime validation.
+The `collect` command continues to accept nested Actions artifact directories.
+
 This step requires authorization for the GitHub release channel. Check the remote `v0.1.6` tag and release before creating either; do not force-push or replace existing release data.
 
 Create and push an annotated `v0.1.6` tag for the verified candidate and create a formal GitHub release titled `Qargo v0.1.6`, using the changelog entry as release notes. Attach all five files from that candidate's verified `qargo-0.1.6-release-assets` artifact at creation, then publish with `--verify-tag --latest --prerelease=false --draft=false`. Never expose a formal/latest release with only some supported target assets, or overwrite an existing tag/release/asset. GitHub also supplies source archives. Confirm that the tag and source archive identify the verified candidate and include all three complete qrates without generated outputs. When the same version is also published on crates.io, retain that exact candidate commit for the tag; subsequent documentation updates must not move the tag or replace the package.

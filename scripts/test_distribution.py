@@ -10,7 +10,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from distribution import TARGETS, archive_files, binary_platform, build, bundle_name, collect
+from distribution import (TARGETS, archive_files, binary_platform, build, bundle_name,
+                          collect, verify_published_assets)
 from verify_release import TOOLS
 
 
@@ -148,6 +149,72 @@ class DistributionTests(unittest.TestCase):
         source.unlink()
         with self.assertRaises(RuntimeError):
             collect(self.source, inputs, self.root / "incomplete")
+
+    def published(self):
+        inputs = self.root / "inputs"
+        for target in TARGETS:
+            self.bundle(target, inputs / target)
+        published = self.root / "published"
+        collect(self.source, inputs, published)
+        return published
+
+    def test_published_inventory_accepts_exact_release(self):
+        published = self.published()
+        verify_published_assets(published)
+        # All existing archive, platform, installer and checksum checks still apply.
+        collected = self.root / "collected"
+        collect(self.source, published, collected)
+        self.assertEqual((published / "SHA256SUMS").read_bytes(),
+                         (collected / "SHA256SUMS").read_bytes())
+
+    def test_published_inventory_rejects_extra_asset_before_collection(self):
+        published = self.published()
+        (published / "unexpected-extra.tar.gz").write_bytes(b"unexpected")
+        with self.assertRaisesRegex(RuntimeError, "unexpected-extra"):
+            verify_published_assets(published)
+
+    def test_published_inventory_rejects_every_missing_asset(self):
+        published = self.published()
+        for asset in published.iterdir():
+            with self.subTest(asset=asset.name):
+                content = asset.read_bytes()
+                asset.unlink()
+                with self.assertRaisesRegex(RuntimeError, "missing:"):
+                    verify_published_assets(published)
+                asset.write_bytes(content)
+
+    def test_published_inventory_rejects_nested_duplicates(self):
+        published = self.published()
+        nested = published / "duplicate"
+        nested.mkdir()
+        name = bundle_name(TARGETS[0]) + ".tar.gz"
+        (nested / name).write_bytes((published / name).read_bytes())
+        with self.assertRaisesRegex(RuntimeError, "unexpected: duplicate"):
+            verify_published_assets(published)
+
+    def test_published_inventory_rejects_links_and_directories(self):
+        published = self.published()
+        asset = published / "install.sh"
+        asset.unlink()
+        asset.symlink_to(self.source / "install.sh")
+        with self.assertRaisesRegex(RuntimeError, "regular files"):
+            verify_published_assets(published)
+        asset.unlink()
+        asset.mkdir()
+        with self.assertRaisesRegex(RuntimeError, "regular files"):
+            verify_published_assets(published)
+
+    def test_published_inventory_uses_the_requested_tag_version(self):
+        published = self.published()
+        for target in TARGETS:
+            (published / (bundle_name(target) + ".tar.gz")).rename(
+                published / (bundle_name(target, "0.1.5") + ".tar.gz"))
+        verify_published_assets(published, "0.1.5")
+        with self.assertRaises(RuntimeError):
+            verify_published_assets(published)
+        for invalid in ("v0.1.5", "../0.1.5", "0.01.5", "0.1.5\n"):
+            with self.subTest(version=invalid), self.assertRaisesRegex(RuntimeError, "canonical"):
+                verify_published_assets(published, invalid)
 
 
 if __name__ == "__main__":
