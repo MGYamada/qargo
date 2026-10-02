@@ -104,7 +104,7 @@ pub fn run(args: &[OsString]) -> Report {
     let sources = &input.sources;
     let result = json!({
         "source_count": sources.count(),
-        "source_id": sources.source_id,
+        "source_id": sources.source_id(),
         "qleisli_check": syntax_step(sources.count()),
         "tool": tool,
         "formatted_source_id": null,
@@ -114,16 +114,16 @@ pub fn run(args: &[OsString]) -> Report {
         "diff": "",
     });
     let mut report = Report::ok(FORMAT, "fmt", result);
-    let formatted = match format_files(&sources.files) {
+    let formatted = match format_files(sources.files()) {
         Ok(files) => files,
         Err(error) => return bound_failure(report, error),
     };
-    let changed = changed_files(&sources.files, &formatted);
+    let changed = changed_files(sources.files(), &formatted);
     let result = report.envelope.result.as_mut().expect("bound result");
     result["formatted_source_id"] = json!(digest_files("qleisli.source.v1", &formatted));
     result["changed_files"] = json!(changed);
     if options.check && !changed.is_empty() {
-        result["diff"] = json!(diff(&sources.files, &formatted));
+        result["diff"] = json!(diff(sources.files(), &formatted));
         return bound_failure(
             report,
             Diagnostic::error(
@@ -136,7 +136,7 @@ pub fn run(args: &[OsString]) -> Report {
     if !options.check {
         if directory_input {
             match collect_tree(&root, Some("qli")) {
-                Ok(current) if current == sources.files => {}
+                Ok(current) if current == *sources.files() => {}
                 Ok(_) => {
                     return bound_failure(
                         report,
@@ -150,7 +150,7 @@ pub fn run(args: &[OsString]) -> Report {
                 Err(error) => return bound_failure(report, error),
             }
         }
-        match apply_files(&input.original_root, &sources.files, &formatted) {
+        match apply_files(&input.original_root, sources.files(), &formatted) {
             Ok(updated) => result["updated_files"] = json!(updated),
             Err(failure) => {
                 result["updated_files"] = json!(failure.updated_files);

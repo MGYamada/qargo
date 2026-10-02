@@ -124,18 +124,21 @@ fn analyze(sources: &FrozenSources, deny_warnings: bool) -> Report {
     };
     let checked = match adapter::check(sources) {
         Ok(checked) => checked,
+        Err(diagnostic) if diagnostic.category != "compiler" => {
+            return Report::fail(FORMAT, "lint", diagnostic, 1);
+        }
         Err(diagnostic) => {
             let mut report = Report::fail(FORMAT, "lint", diagnostic, 1);
             report.envelope.result = Some(json!({
                 "source_count": sources.count(),
-                "source_id": sources.source_id,
+                "source_id": sources.source_id(),
                 "qleisli_check": {"status":"failed", "reason":"compiler_error"},
                 "tool": tool,
             }));
             return report;
         }
     };
-    let diagnostics = match checked.project.as_ref() {
+    let diagnostics = match checked.project() {
         Some(project) => match lint_project(project, sources) {
             Ok(diagnostics) => diagnostics,
             Err(diagnostic) => return Report::fail(FORMAT, "lint", diagnostic, 1),
@@ -147,9 +150,9 @@ fn analyze(sources: &FrozenSources, deny_warnings: bool) -> Report {
         FORMAT,
         "lint",
         json!({
-            "source_count": checked.source_count,
-            "source_id": sources.source_id,
-            "qleisli_check": checked.qleisli_check,
+            "source_count": checked.source_count(),
+            "source_id": sources.source_id(),
+            "qleisli_check": checked.qleisli_check(),
             "tool": tool,
         }),
     );
@@ -176,7 +179,7 @@ fn lint_project(project: &Project, sources: &FrozenSources) -> Result<Vec<Diagno
             .ok_or_else(|| {
                 Diagnostic::error("snapshot_mismatch", "tool", "Invalid checked source path.")
             })?;
-        if sources.files.get(&path).map(Vec::as_slice) != Some(module.source.as_bytes()) {
+        if sources.files().get(&path).map(Vec::as_slice) != Some(module.source.as_bytes()) {
             return Err(Diagnostic::error(
                 "snapshot_mismatch",
                 "tool",
@@ -519,7 +522,7 @@ mod tests {
         assert_eq!(report.envelope.diagnostics[0].id, "unused_import");
         assert_eq!(
             report.envelope.result.as_ref().unwrap()["source_id"],
-            frozen.source_id
+            frozen.source_id()
         );
     }
 

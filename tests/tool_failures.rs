@@ -38,7 +38,7 @@ fn fixture(command: &str, dynamic_paths: bool) -> (tempfile::TempDir, Value) {
     fs::write(&script, format!("#!/bin/sh\n{body}\nexit 1\n")).unwrap();
     fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
     let name = if command == "fmt" { "qlifmt" } else { "qlidoc" };
-    let mut result = json!({"source_count":1,"source_id":frozen.source_id,
+    let mut result = json!({"source_count":1,"source_id":frozen.source_id(),
         "qleisli_check":{"status":"not_run","reason":"syntax_only"},
         "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(&script).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}});
     if command == "fmt" {
@@ -75,7 +75,7 @@ fn run(root: &Path, command: &str, report: &Value) -> qargo_tools::report::Repor
         for directory in ["tests", "docs"] {
             fs::create_dir(root.join(directory)).unwrap();
         }
-        fs::write(root.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.5\"\nedition = \"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+        fs::write(root.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.6\"\nedition = \"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
         args.push(format!("--manifest-path={}", root.join("Qargo.toml").display()).into());
     }
     qargo::run(&args)
@@ -163,7 +163,7 @@ fn descendant_fixture(command: &str, rejection: &str) -> (tempfile::TempDir, Det
         "pub unitary fn f(q:Q<Bit>)->Q<Bit>{q}",
     )
     .unwrap();
-    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.5\"\nedition=\"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.6\"\nedition=\"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
     let pid_path = root.path().join("descendant.pid");
     let script = root.path().join("tool");
     let response = root.path().join("response.json");
@@ -180,7 +180,7 @@ fn descendant_fixture(command: &str, rejection: &str) -> (tempfile::TempDir, Det
         "fmt" => "qlifmt",
         _ => "qlidoc",
     };
-    let mut result = json!({"source_count":1,"source_id":frozen.source_id,
+    let mut result = json!({"source_count":1,"source_id":frozen.source_id(),
         "qleisli_check":if command == "lint" { json!({"status":"failed","reason":"compiler_error"}) } else { json!({"status":"not_run","reason":"syntax_only"}) },
         "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(&script).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}});
     if command == "fmt" {

@@ -118,6 +118,7 @@ impl InputDirectory {
 
 #[cfg(unix)]
 mod anchored {
+    use std::collections::BTreeMap;
     use std::ffi::{OsStr, OsString};
     use std::fs::File;
     use std::io::Read;
@@ -164,6 +165,13 @@ mod anchored {
             && a.st_mtime_nsec == b.st_mtime_nsec
             && a.st_ctime == b.st_ctime
             && a.st_ctime_nsec == b.st_ctime_nsec
+    }
+
+    #[derive(Clone, Copy, PartialEq)]
+    enum CapturePoint {
+        DirectoryOpened,
+        EntryInspected,
+        DirectoryEnumerated,
     }
 
     impl InputDirectory {
@@ -329,7 +337,7 @@ mod anchored {
         fn collect_with_hook(
             &self,
             extension: Option<&str>,
-            hook: &mut impl FnMut(&Path, bool),
+            hook: &mut impl FnMut(&Path, CapturePoint),
         ) -> Result<Files, Diagnostic> {
             let mut state = Capture {
                 files: Files::new(),
@@ -341,12 +349,47 @@ mod anchored {
             Ok(state.files)
         }
 
+        fn inventory(
+            &self,
+            relative: &Path,
+            remaining: usize,
+            inspected: &mut impl FnMut(&Path),
+        ) -> Result<BTreeMap<OsString, Stat>, Diagnostic> {
+            let mut inventory = BTreeMap::new();
+            let mut entries = Dir::read_from(&self.0.fd).map_err(io_error)?;
+            while let Some(entry) = entries.read() {
+                let entry = entry.map_err(io_error)?;
+                let name = OsStr::from_bytes(entry.file_name().to_bytes());
+                if name == "." || name == ".." {
+                    continue;
+                }
+                if inventory.len() >= remaining {
+                    return Err(Diagnostic::error(
+                        "limit",
+                        "qargo",
+                        "Input contains more than 4096 entries.",
+                    ));
+                }
+                let path = relative.join(name);
+                portable_relative(&path)?;
+                let expected = self.stat(name)?;
+                if entry.ino() != expected.st_ino {
+                    return Err(input_error("Input entry changed during enumeration."));
+                }
+                if inventory.insert(name.to_owned(), expected).is_some() {
+                    return Err(input_error("Repeated input entry during enumeration."));
+                }
+                inspected(&path);
+            }
+            Ok(inventory)
+        }
+
         fn walk(
             &self,
             relative: &Path,
             depth: usize,
             state: &mut Capture<'_>,
-            hook: &mut impl FnMut(&Path, bool),
+            hook: &mut impl FnMut(&Path, CapturePoint),
         ) -> Result<(), Diagnostic> {
             if depth > DIRECTORY_DEPTH {
                 return Err(Diagnostic::error(
@@ -355,33 +398,21 @@ mod anchored {
                     "Input directory depth exceeds 64.",
                 ));
             }
-            hook(relative, true);
+            hook(relative, CapturePoint::DirectoryOpened);
             self.validate()?;
-            let mut entries = Dir::read_from(&self.0.fd).map_err(io_error)?;
-            while let Some(entry) = entries.read() {
-                let entry = entry.map_err(io_error)?;
-                let name = OsStr::from_bytes(entry.file_name().to_bytes());
-                if name == "." || name == ".." {
-                    continue;
-                }
-                state.visited += 1;
-                if state.visited > SCANNED_ENTRY_COUNT {
-                    return Err(Diagnostic::error(
-                        "limit",
-                        "qargo",
-                        "Input contains more than 4096 entries.",
-                    ));
-                }
+            let before = fs::fstat(&self.0.fd).map_err(io_error)?;
+            let remaining = SCANNED_ENTRY_COUNT - state.visited;
+            let inventory = self.inventory(relative, remaining, &mut |path| {
+                hook(path, CapturePoint::EntryInspected);
+            })?;
+            state.visited += inventory.len();
+            hook(relative, CapturePoint::DirectoryEnumerated);
+            for (name, expected) in &inventory {
                 let path = relative.join(name);
                 let label = portable_relative(&path)?;
-                let expected = self.stat(name)?;
-                if entry.ino() != expected.st_ino {
-                    return Err(input_error("Input entry changed during enumeration."));
-                }
-                hook(&path, false);
                 match FileType::from_raw_mode(expected.st_mode) {
                     FileType::Directory => {
-                        self.child_checked(name, &expected)?
+                        self.child_checked(name, expected)?
                             .walk(&path, depth + 1, state, hook)?
                     }
                     FileType::RegularFile => {
@@ -390,7 +421,7 @@ mod anchored {
                         }) {
                             continue;
                         }
-                        let bytes = self.read_checked(name, &expected)?;
+                        let bytes = self.read_checked(name, expected)?;
                         state.total += bytes.len();
                         if state.total > TOTAL_BYTES {
                             return Err(Diagnostic::error(
@@ -414,6 +445,21 @@ mod anchored {
                         )));
                     }
                 }
+            }
+            // Reopen enumeration through the same held descriptor. Verification
+            // does not consume the logical entry budget a second time.
+            let after = self.inventory(relative, remaining, &mut |_| {})?;
+            if inventory.len() != after.len()
+                || inventory.iter().any(|(name, expected)| {
+                    !after
+                        .get(name)
+                        .is_some_and(|actual| unchanged_file(expected, actual))
+                })
+                || !unchanged_file(&before, &fs::fstat(&self.0.fd).map_err(io_error)?)
+            {
+                return Err(input_error(
+                    "Input directory contents changed during capture.",
+                ));
             }
             self.validate()
         }
@@ -465,10 +511,10 @@ mod anchored {
         #[test]
         fn nested_directory_and_file_swaps_are_rejected_at_each_boundary() {
             for (entry, opened, symlink_swap) in [
-                ("nested", false, true),
-                ("nested", true, true),
-                ("nested/a.qli", false, true),
-                ("nested/a.qli", false, false),
+                ("nested", CapturePoint::EntryInspected, true),
+                ("nested", CapturePoint::DirectoryOpened, true),
+                ("nested/a.qli", CapturePoint::EntryInspected, true),
+                ("nested/a.qli", CapturePoint::EntryInspected, false),
             ] {
                 let home = tempfile::tempdir().unwrap();
                 let outside = tempfile::tempdir().unwrap();
@@ -500,6 +546,69 @@ mod anchored {
                 assert!(swapped);
                 assert!(result.is_err(), "accepted a replacement at {entry}");
             }
+        }
+
+        #[test]
+        fn insertion_during_or_after_enumeration_is_rejected() {
+            for point in [
+                CapturePoint::EntryInspected,
+                CapturePoint::DirectoryEnumerated,
+            ] {
+                for inserted in ["added.qli", "ignored.txt"] {
+                    let home = tempfile::tempdir().unwrap();
+                    fs::write(home.path().join("a.qli"), "inside").unwrap();
+                    let root = InputDirectory::open(home.path()).unwrap();
+                    let mut changed = false;
+                    let result = root.collect_with_hook(Some("qli"), &mut |_, observed| {
+                        if !changed && observed == point {
+                            fs::write(home.path().join(inserted), "added").unwrap();
+                            changed = true;
+                        }
+                    });
+                    assert!(changed);
+                    assert_eq!(result.unwrap_err().id, "input");
+                }
+            }
+        }
+
+        #[test]
+        fn deletion_of_an_enumerated_but_unread_entry_is_rejected() {
+            for removed in ["a.qli", "ignored.txt", "empty"] {
+                let home = tempfile::tempdir().unwrap();
+                fs::write(home.path().join("a.qli"), "inside").unwrap();
+                fs::write(home.path().join("ignored.txt"), "ignored").unwrap();
+                fs::create_dir(home.path().join("empty")).unwrap();
+                let root = InputDirectory::open(home.path()).unwrap();
+                let mut changed = false;
+                let result = root.collect_with_hook(Some("qli"), &mut |path, point| {
+                    if !changed
+                        && path == Path::new("")
+                        && point == CapturePoint::DirectoryEnumerated
+                    {
+                        if removed == "empty" {
+                            fs::remove_dir(home.path().join(removed)).unwrap();
+                        } else {
+                            fs::remove_file(home.path().join(removed)).unwrap();
+                        }
+                        changed = true;
+                    }
+                });
+                assert!(changed);
+                assert_eq!(result.unwrap_err().id, "input");
+            }
+        }
+
+        #[test]
+        fn stable_inventory_verification_does_not_spend_the_entry_budget_twice() {
+            let home = tempfile::tempdir().unwrap();
+            for index in 0..SCANNED_ENTRY_COUNT {
+                fs::write(home.path().join(format!("{index}.qli")), "inside").unwrap();
+            }
+            let root = InputDirectory::open(home.path()).unwrap();
+            assert_eq!(
+                root.collect(Some("qli")).unwrap().len(),
+                SCANNED_ENTRY_COUNT
+            );
         }
     }
 }
@@ -575,11 +684,22 @@ pub fn materialize(files: &Files) -> Result<TempDir, Diagnostic> {
     Ok(directory)
 }
 
+/// Captured source bytes and their identity, independent of any working copy.
 pub struct FrozenSources {
-    pub files: Files,
-    pub source_id: String,
+    files: Files,
+    source_id: String,
+}
+
+/// A disposable working copy. Mutating it cannot change its captured subject.
+pub struct SourceStage {
     _directory: TempDir,
     canonical_root: PathBuf,
+}
+
+impl SourceStage {
+    pub fn root(&self) -> &Path {
+        &self.canonical_root
+    }
 }
 
 impl FrozenSources {
@@ -621,20 +741,28 @@ impl FrozenSources {
             }
         }
         let source_id = digest_files("qleisli.source.v1", &files);
-        let directory = materialize(&files)?;
+        Ok(Self { files, source_id })
+    }
+
+    pub fn files(&self) -> &Files {
+        &self.files
+    }
+
+    pub fn source_id(&self) -> &str {
+        &self.source_id
+    }
+
+    /// Materialize a fresh copy for one checker or tool invocation.
+    pub fn stage(&self) -> Result<SourceStage, Diagnostic> {
+        let directory = materialize(&self.files)?;
         let canonical_root = fs::canonicalize(directory.path())
             .map_err(|error| input_error(format!("Cannot resolve private snapshot: {error}")))?;
-        Ok(Self {
-            files,
-            source_id,
+        Ok(SourceStage {
             _directory: directory,
             canonical_root,
         })
     }
 
-    pub fn root(&self) -> &Path {
-        &self.canonical_root
-    }
     pub fn count(&self) -> usize {
         self.files.len()
     }

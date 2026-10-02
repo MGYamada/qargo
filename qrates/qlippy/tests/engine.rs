@@ -61,7 +61,7 @@ fn rule_catalog_is_machine_readable_and_independent_of_checking() {
     assert_eq!(envelope.command, "list-rules");
     let result = envelope.result.unwrap();
     assert_eq!(result["catalog_version"], 1);
-    assert_eq!(result["tool"]["version"], "0.1.5");
+    assert_eq!(result["tool"]["version"], "0.1.6");
     assert!(result.get("qleisli_check").is_none());
     assert!(result.get("verified").is_none());
     let groups: Vec<_> = result["groups"]

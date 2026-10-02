@@ -9,7 +9,7 @@ use crate::report::Diagnostic;
 
 const EXECUTABLE_BYTES: u64 = 256 << 20;
 
-pub(crate) struct SelectedExecutable {
+pub(super) struct SelectedExecutable {
     digest: String,
     path: PathBuf,
     #[cfg(unix)]
@@ -23,7 +23,7 @@ pub(crate) struct SelectedExecutable {
 }
 
 impl SelectedExecutable {
-    pub(crate) fn capture(path: &Path) -> Result<Self, Diagnostic> {
+    pub(super) fn capture(path: &Path) -> Result<Self, Diagnostic> {
         #[cfg(any(target_os = "linux", target_os = "android", target_os = "macos"))]
         {
             use std::fs::OpenOptions;
@@ -192,16 +192,16 @@ impl SelectedExecutable {
         }
     }
 
-    pub(crate) fn digest(&self) -> &str {
+    pub(super) fn digest(&self) -> &str {
         &self.digest
     }
 
-    pub(crate) fn command(&self) -> Result<Command, Diagnostic> {
+    pub(super) fn command(&self) -> Result<Command, Diagnostic> {
         self.verify()?;
         Ok(Command::new(&self.path))
     }
 
-    pub(crate) fn verify(&self) -> Result<(), Diagnostic> {
+    pub(super) fn verify(&self) -> Result<(), Diagnostic> {
         #[cfg(any(target_os = "linux", target_os = "android"))]
         {
             use rustix::fs::{SealFlags, fcntl_get_seals};
@@ -283,7 +283,7 @@ mod tests {
         fs::rename(&original, root.path().join("A")).unwrap();
         fs::write(&original, "#!/bin/sh\nprintf 'B'\n").unwrap();
         fs::set_permissions(&original, fs::Permissions::from_mode(0o700)).unwrap();
-        let output = crate::tool_process::bounded_output(&mut command).unwrap();
+        let output = crate::tools::process::bounded_output(&mut command).unwrap();
         fs::remove_file(&original).unwrap();
         fs::rename(root.path().join("A"), &original).unwrap();
         tool.verify().unwrap();
@@ -322,7 +322,7 @@ mod tests {
         fs::rename(&tool.path, stage.join("A")).unwrap();
         fs::write(&tool.path, "#!/bin/sh\nprintf 'B'\n").unwrap();
         fs::set_permissions(&tool.path, fs::Permissions::from_mode(0o500)).unwrap();
-        let output = crate::tool_process::bounded_output(&mut command).unwrap();
+        let output = crate::tools::process::bounded_output(&mut command).unwrap();
         fs::remove_file(&tool.path).unwrap();
         fs::rename(stage.join("A"), &tool.path).unwrap();
         tool.stage

@@ -1,8 +1,16 @@
 # Qargo
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.5, available through [crates.io](https://crates.io/crates/qargo/0.1.5) and the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.5). Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+**Exact. Immutable. Bound. Explicit. Independent.**
 
-Linux ARM64 is unsupported in 0.1.5 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
+Qargo captures declared inputs, binds results to those bytes and the actual tools,
+and applies only validated effects. The [first principles and architecture](docs/architecture.md)
+define these responsibilities and their implementation boundaries.
+
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.6 in this checkout.
+
+**0.1.6 is an unpublished candidate.** The latest published version is 0.1.5, available through [crates.io](https://crates.io/crates/qargo/0.1.5) and the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.5). The download and registry installation examples below use that published version. Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+
+Linux ARM64 is unsupported in 0.1.6 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
@@ -13,6 +21,8 @@ A qrate's semantic surface is its Qleisli modules and contracts; its raw input i
 The [ecosystem policy](docs/ecosystem-policy.md) puts a curated stdlib at the center. Future extensions require trusted sources, authenticated publisher namespaces, and fixed identities. Public registry and automatic semver resolution are deferred; arbitrary qrate build hooks, native procedural macros, dependency-install scripts, and global feature unification will not be introduced. Cargo's command structure does not determine Qleisli's governance.
 
 The [tooling adoption plan](docs/adoption-plan.md) sets the implementation order for local diagnostic explanations, compatibility comparisons, documentation examples, and scoped review records. Upstream toolchain, structured-repair, and QLT protocols determine their later integration.
+
+The [qleisliup compatibility plan](docs/toolchains.md#qleisliup-compatibility-plan) starts with offline proxy execution of a complete Qargo bundle, then coordinates an exact linked-Qleisli update with the manager's initial production language distribution. Qargo and qlippy currently use their linked Qleisli 0.2.1 checker. That library update can precede external-checker integration, which requires a separate upstream protocol and Qargo contract. Qargo does not read `qleisli-toolchain.toml` or manager state in this release.
 
 ## Installation
 
@@ -90,13 +100,13 @@ Keep `Cargo.lock` in version control so development, CI, Rust 1.85 checks, and `
 
 ## Manage a bundled qrate
 
-Qargo 0.1.5 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
+Qargo 0.1.6 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
 
 ```toml
 schema-version = 2
 [qrate]
 name = "example"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2026"
 [source]
 root = "src"
@@ -154,7 +164,7 @@ All four tools support `--help`, `--version`, and `--format=json`. Independent v
 
 ## 0.1.x support and compatibility
 
-Linux x86_64 and macOS are validated with Rust 1.85 and stable. Linux ARM64, Windows and Android are outside the supported 0.1.5 release platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package; version 0.1.5 adds prebuilt bundles for Linux x86_64 and both macOS architectures. All Rust packages forbid unsafe code.
+Linux x86_64 and macOS are validated with Rust 1.85 and stable. Linux ARM64, Windows and Android are outside the supported 0.1.6 release platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package; version 0.1.5 adds prebuilt bundles for Linux x86_64 and both macOS architectures. All Rust packages forbid unsafe code.
 
 The public contract covers CLI commands, manifest schema 2, the independently versioned JSON result formats, and exit codes 0/1/2. Path options accept both equality and space-separated syntax, such as `--manifest-path=PATH` and `--manifest-path PATH`, including explicit tool paths and qlidoc's `--output`. Empty, missing, and repeated values are usage errors. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
 

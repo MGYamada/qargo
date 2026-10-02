@@ -6,7 +6,7 @@ on:
       version:
         description: Published version to verify
         required: true
-        default: "0.1.5"
+        default: "0.1.6"
         type: string
 
 permissions:
@@ -35,12 +35,18 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           ref: v${{ inputs.version }}
+      - name: Check out the workflow's inventory verifier
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.sha }}
+          path: .release-verifier
       - name: Download and validate the complete published asset set
         shell: bash
         run: |
           [[ "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
           assets="$RUNNER_TEMP/published-assets"
           gh release download "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir "$assets"
+          python3 .release-verifier/scripts/distribution.py verify-published-assets --artifact-dir="$assets" --version="$RELEASE_VERSION"
           python3 scripts/distribution.py collect --artifact-dir="$assets" --output-dir="$RUNNER_TEMP/validated-assets"
           cmp "$assets/SHA256SUMS" "$RUNNER_TEMP/validated-assets/SHA256SUMS"
           cmp "$assets/install.sh" install.sh

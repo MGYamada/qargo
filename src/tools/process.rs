@@ -5,22 +5,22 @@ use std::process::Command;
 use crate::report::Diagnostic;
 
 #[derive(Debug)]
-pub(crate) struct ToolOutput {
-    pub(crate) stdout: Vec<u8>,
-    pub(crate) status: i32,
+pub(super) struct ToolOutput {
+    pub(super) stdout: Vec<u8>,
+    pub(super) status: i32,
     #[cfg(unix)]
     child: unix::ToolChild,
 }
 
 impl ToolOutput {
     /// Disarm process-group cleanup only after transport acceptance.
-    pub(crate) fn accept(self) {
+    pub(super) fn accept(self) {
         #[cfg(unix)]
         self.child.accept();
     }
 }
 
-pub(crate) fn bounded_output(command: &mut Command) -> Result<ToolOutput, Diagnostic> {
+pub(super) fn bounded_output(command: &mut Command) -> Result<ToolOutput, Diagnostic> {
     #[cfg(unix)]
     {
         unix::capture(command, std::time::Duration::from_secs(30))
@@ -50,7 +50,7 @@ mod unix {
     use rustix::fs::{OFlags, fcntl_getfl, fcntl_setfl};
     use rustix::process::{Pid, Signal, kill_process_group};
 
-    use crate::tool_response::transport;
+    use crate::tools::response::transport;
 
     #[derive(Debug)]
     pub(super) struct ToolChild {

@@ -519,7 +519,7 @@ fn closed_child_schema_identity_and_coordinates_are_checked() {
     let digest = qargo_tools::snapshot::digest_path(&tool_path).unwrap();
     let valid = json!({
         "format":"qlippy.result","version":1,"command":"lint","outcome":"ok","diagnostics":[],
-        "result":{"source_count":1,"source_id":frozen.source_id,"qleisli_check":{"status":"passed","reason":null},
+        "result":{"source_count":1,"source_id":frozen.source_id(),"qleisli_check":{"status":"passed","reason":null},
           "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest,"qleisli_version":"0.2.1","profile":"finite-v0"}}
     });
     let args = [

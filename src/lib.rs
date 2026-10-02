@@ -10,11 +10,8 @@ pub mod qlifmt_engine;
 #[path = "../qrates/qlippy/src/lib.rs"]
 mod qlippy_support;
 
-mod bundled;
 pub mod qargo;
-mod tool_executable;
-mod tool_process;
-mod tool_response;
+mod tools;
 pub use qlippy_support::{
     PROFILE, QLEISLI_VERSION, VERSION, adapter, executable, publication, qlippy, report, rules,
     snapshot, source,

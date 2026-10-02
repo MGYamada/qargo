@@ -6,6 +6,7 @@ import gzip
 import hashlib
 import io
 from pathlib import Path
+import re
 import struct
 import tarfile
 import tempfile
@@ -20,9 +21,25 @@ TARGETS = (
 )
 
 
-def bundle_name(target):
+def bundle_name(target, version=PRODUCT_VERSION):
     require(target in TARGETS, "Unsupported distribution target")
-    return f"qargo-{PRODUCT_VERSION}-{target}"
+    return f"qargo-{version}-{target}"
+
+
+def verify_published_assets(artifact_dir, version=PRODUCT_VERSION):
+    """Require the exact flat release inventory before archive/checksum verification."""
+    require(re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version),
+            "Expected a canonical release version")
+    expected = {bundle_name(target, version) + ".tar.gz" for target in TARGETS}
+    expected.update({"install.sh", "SHA256SUMS"})
+    entries = list(artifact_dir.iterdir())
+    actual = {entry.name for entry in entries}
+    require(actual == expected,
+            "Incorrect published asset inventory; missing: " + ", ".join(sorted(expected - actual))
+            + "; unexpected: " + ", ".join(sorted(actual - expected)))
+    require(all(entry.is_file() and not entry.is_symlink() for entry in entries),
+            "Published assets must be regular files, without links or nested directories")
+    print(f"Published asset inventory passed for {version}: {len(expected)} regular files.")
 
 
 def binary_platform(content, target):
@@ -166,6 +183,9 @@ def collect(source_root, artifact_dir, output_dir):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
+    inventory = commands.add_parser("verify-published-assets")
+    inventory.add_argument("--artifact-dir", type=Path, required=True)
+    inventory.add_argument("--version", default=PRODUCT_VERSION)
     for command in ("build", "verify", "collect"):
         child = commands.add_parser(command)
         child.add_argument("--source-root", type=Path, default=Path(__file__).resolve().parent.parent)
@@ -180,7 +200,9 @@ def main():
         if command != "verify":
             child.add_argument("--output-dir", type=Path, required=True)
     args = parser.parse_args()
-    if args.command == "build":
+    if args.command == "verify-published-assets":
+        verify_published_assets(args.artifact_dir, args.version)
+    elif args.command == "build":
         build(args.source_root.resolve(), args.bin_dir.resolve(), args.target, args.output_dir)
     elif args.command == "verify":
         verify_archive(args.source_root.resolve(), args.archive, args.target)

@@ -1,6 +1,6 @@
 # Qargo tooling adoption plan
 
-Status: adopted implementation direction, 2026-09-30. This plan schedules future work; the [specification](specification.md) remains the implemented public contract for 0.1.5. No new command, manifest field, result field, audit format, or backend is implemented by this document.
+Status: adopted implementation direction, 2026-09-30; qleisliup coordination updated 2026-10-02. This plan schedules future work; the [specification](specification.md) remains the implemented public contract for 0.1.6. No new command, manifest field, result field, audit format, or backend is implemented by this document.
 
 ## Responsibility and order
 
@@ -42,6 +42,8 @@ Compare accepted/rejected outcomes, diagnostic IDs and source spans, exit conven
 Version migrations are explicit scenario transitions. For example, 0.1.2 uses manifest schema 1 and 0.1.3 requires schema 2; compare their declared supported inputs and test the migration/rejection separately rather than call the intentional boundary a checker regression. Unexplained previously valid rejection and unintended acceptance of a known-invalid input both fail the comparison.
 
 Initial comparisons run on Linux and macOS with the existing Rust 1.85/stable support matrix. Admit external curated snapshots only with pinned identities, license/provenance, and declared edition/profile/namespace compatibility. Do not imply that a newer Qleisli stdlib works with Qargo's older linked checker merely because its manifest is valid.
+
+Start [qleisliup compatibility](toolchains.md#qleisliup-compatibility-plan) with offline local-link/proxy comparisons of prepared bundles and explicit component identities. Coordinate a separately implemented exact Qleisli library update with the manager's first production language distribution, aligning the standalone compiler, stdlib, and linked Qargo checker after compatibility checks. This linked-library update does not require an external-checker protocol. Migration to externally selected acceptance remains a later integration with its own upstream and Qargo contracts.
 
 Completion requires a deterministic report binding scenario inputs, both bundles, actual outcomes, intentional migrations, and exclusions. These are regression observations and metadata; they do not establish mathematical correctness. Keep the existing source-archive and packaged-installation checks as separate release requirements.
 

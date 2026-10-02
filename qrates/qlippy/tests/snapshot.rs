@@ -7,16 +7,39 @@ use qargo_tools::snapshot::{Files, FrozenSources, collect_tree, digest_files, ma
 const IDENTITY: &str = "pub unitary fn identity(q: Q<Bit>) -> Q<Bit> { q }\n";
 
 #[test]
+fn changed_working_copies_cannot_change_the_subject_or_later_checks() {
+    let sources = FrozenSources::from_files(Files::from([(
+        "library.qli".into(),
+        IDENTITY.as_bytes().to_vec(),
+    )]))
+    .unwrap();
+    let original_id = sources.source_id().to_owned();
+    let first = sources.stage().unwrap();
+    fs::write(first.root().join("library.qli"), "invalid syntax").unwrap();
+    fs::write(first.root().join("extra.qli"), "invalid syntax").unwrap();
+
+    let second = sources.stage().unwrap();
+    assert_ne!(first.root(), second.root());
+    assert_eq!(collect_tree(second.root(), None).unwrap(), *sources.files());
+    assert_eq!(sources.source_id(), original_id);
+    assert_eq!(sources.files()["library.qli"], IDENTITY.as_bytes());
+    let checked = adapter::check(&sources).unwrap();
+    assert_eq!(checked.qleisli_check()["status"], "passed");
+    assert_eq!(checked.source_count(), 1);
+    assert_eq!(checked.module_index()[0]["path"], "library.qli");
+}
+
+#[test]
 fn empty_capture_has_no_compiler_or_bundled_module_claim() {
     let root = tempfile::tempdir().unwrap();
     fs::write(root.path().join(".gitkeep"), b"").unwrap();
     let sources = FrozenSources::capture(root.path()).unwrap();
     let checked = adapter::check(&sources).unwrap();
-    assert_eq!(checked.source_count, 0);
-    assert!(checked.project.is_none());
-    assert_eq!(checked.qleisli_check["status"], "not_run");
-    assert_eq!(checked.qleisli_check["reason"], "no_sources");
-    assert_eq!(checked.module_index, serde_json::json!([]));
+    assert_eq!(checked.source_count(), 0);
+    assert!(checked.project().is_none());
+    assert_eq!(checked.qleisli_check()["status"], "not_run");
+    assert_eq!(checked.qleisli_check()["reason"], "no_sources");
+    assert_eq!(checked.module_index(), &serde_json::json!([]));
 }
 
 #[test]
@@ -25,17 +48,17 @@ fn frozen_bytes_survive_mutation_and_deletion_of_original_inputs() {
     let file = root.path().join("library.qli");
     fs::write(&file, IDENTITY).unwrap();
     let sources = FrozenSources::capture(root.path()).unwrap();
-    let original_id = sources.source_id.clone();
+    let original_id = sources.source_id().to_owned();
     fs::write(&file, "unitary fn broken(q: Q<Bit>) -> Q<Bit> { q; q }").unwrap();
     let changed = FrozenSources::capture(root.path()).unwrap();
-    assert_ne!(changed.source_id, original_id);
+    assert_ne!(changed.source_id(), original_id);
     assert!(adapter::check(&changed).is_err());
     fs::remove_file(file).unwrap();
     let checked = adapter::check(&sources).unwrap();
-    assert_eq!(checked.qleisli_check["status"], "passed");
-    assert_eq!(checked.module_index[0]["path"], "library.qli");
+    assert_eq!(checked.qleisli_check()["status"], "passed");
+    assert_eq!(checked.module_index()[0]["path"], "library.qli");
     assert_eq!(
-        checked.module_index[0]["declarations"][0]["name"],
+        checked.module_index()[0]["declarations"][0]["name"],
         "identity"
     );
 }
@@ -49,12 +72,12 @@ fn identity_is_portable_order_independent_and_byte_exact() {
     let right = materialize(&files).unwrap();
     let a = FrozenSources::capture(left.path()).unwrap();
     let b = FrozenSources::capture(right.path()).unwrap();
-    assert_eq!(a.source_id, b.source_id);
-    assert_eq!(a.files, b.files);
+    assert_eq!(a.source_id(), b.source_id());
+    assert_eq!(a.files(), b.files());
     fs::write(right.path().join("a.qli"), IDENTITY.replace('\n', "\r\n")).unwrap();
     assert_ne!(
-        a.source_id,
-        FrozenSources::capture(right.path()).unwrap().source_id
+        a.source_id(),
+        FrozenSources::capture(right.path()).unwrap().source_id()
     );
     let mut renamed = files.clone();
     let bytes = renamed.remove("a.qli").unwrap();
@@ -77,7 +100,7 @@ fn private_items_and_bundled_modules_do_not_enter_public_index() {
         format!("{IDENTITY}unitary fn hidden(q: Q<Bit>) -> Q<Bit> {{ q }}").into_bytes(),
     );
     let sources = FrozenSources::from_files(files).unwrap();
-    let index = adapter::check(&sources).unwrap().module_index;
+    let index = adapter::check(&sources).unwrap().module_index().clone();
     assert_eq!(index.as_array().unwrap().len(), 1);
     assert_eq!(index[0]["declarations"].as_array().unwrap().len(), 1);
     assert_eq!(index[0]["name"], "library");
