@@ -119,7 +119,7 @@ def capture_native(toolchain):
         require(host == "x86_64-unknown-linux-gnu", "Only native Linux x86_64 GNU development builds are admitted")
         compiler = Path("/usr/bin/gcc").resolve()
         require(compiler.is_file(), "Linux extraction verification requires system GCC")
-        roots = [Path(name) for name in ("/usr/include", "/usr/lib/gcc", "/usr/lib/x86_64-linux-gnu",
+        roots = [Path(name) for name in ("/usr/include", "/usr/lib/gcc", "/usr/libexec/gcc", "/usr/lib/x86_64-linux-gnu",
                                         "/lib/x86_64-linux-gnu", "/usr/lib64", "/lib64",
                                         "/etc/ld.so.cache", "/etc/ld.so.conf", "/etc/ld.so.conf.d",
                                         "/etc/ssl/openssl.cnf", "/etc/ssl/certs/ca-certificates.crt", "/etc/gitconfig",
@@ -205,6 +205,15 @@ def audit_linux_access(trace, roots):
     """Reject every observed unrecorded read/launch, reporting the full set."""
     import re
     violations = set()
+    pending = {}
+
+    def check_executable(label):
+        path = Path(label)
+        if not path.is_absolute():
+            violations.add("Relative build executable requires an explicit capture rule: " + str(path))
+        elif not any(path.resolve().is_relative_to(root) for root in roots):
+            violations.add("Unrecorded build executable: " + str(path))
+
     for line in trace.splitlines():
         # -yy annotates successful opened descriptors with resolved paths.
         # Failed probes cannot supply compilation bytes.
@@ -214,15 +223,26 @@ def audit_linux_access(trace, roots):
             if not (any(path.is_relative_to(root) for root in roots)
                     or path.is_relative_to("/proc") or path.is_relative_to("/dev")):
                 violations.add("Unrecorded native/project read: " + str(path))
-        # Audit attempts too: concurrent strace output can split execve's
-        # entry and successful return over separate lines.
+        # Failed flavor probes (for example emcc) execute no bytes. Match
+        # unfinished/resumed syscalls by PID so successful launches stay audited.
         executed = re.search(r'execve\("([^"]+)"', line)
+        pid = re.match(r"\s*(?:\[pid\s+(\d+)\]|(\d+))", line)
+        pid = next((value for value in pid.groups() if value), "main") if pid else "main"
         if executed:
-            path = Path(executed[1])
-            if not path.is_absolute():
-                violations.add("Relative build executable requires an explicit capture rule: " + str(path))
-            elif not any(path.resolve().is_relative_to(root) for root in roots):
-                violations.add("Unrecorded build executable: " + str(path))
+            label = executed[1]
+            if "<unfinished ...>" in line:
+                require(pid not in pending, "Overlapping executable trace entries")
+                pending[pid] = label
+            elif not re.search(r"= -1 ", line):
+                check_executable(label)
+        elif "<... execve resumed>" in line:
+            require(pid in pending, "Executable trace resumed without its entry")
+            label = pending.pop(pid)
+            if not re.search(r"= -1 ", line):
+                check_executable(label)
+    # An incomplete trace cannot excuse an unrecorded launch attempt.
+    for label in pending.values():
+        check_executable(label)
     require(not violations, "\n".join(sorted(violations)))
 
 

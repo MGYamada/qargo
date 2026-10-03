@@ -72,6 +72,22 @@ class ProjectBoundaryTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "Invalid unified cgroup path"):
             linux_resource_inputs(cgroup, sys)
 
+    def test_linux_exec_audit_distinguishes_failed_probes_and_interleaved_launches(self):
+        allowed = self.root / "compiler"
+        trace = (
+            '10 execve("/absent/emcc", [], []) = -1 ENOENT (No such file)\n'
+            '11 execve("/absent/emcc", [], []) <unfinished ...>\n'
+            f'12 execve("{allowed}", [], []) <unfinished ...>\n'
+            '11 <... execve resumed>) = -1 ENOENT (No such file)\n'
+            '12 <... execve resumed>) = 0\n'
+        )
+        audit_linux_access(trace, [self.root])
+        with self.assertRaisesRegex(RuntimeError, "Unrecorded build executable"):
+            audit_linux_access(trace.replace('11 <... execve resumed>) = -1 ENOENT (No such file)',
+                                             '11 <... execve resumed>) = 0'), [self.root])
+        with self.assertRaisesRegex(RuntimeError, "resumed without its entry"):
+            audit_linux_access('77 <... execve resumed>) = 0', [self.root])
+
     def test_relocation_and_excluded_build_cache_preserve_identity(self):
         before = self.identity()
         for label in ("target/old.rs", ".git/config", "rust/qlippy/target/binary", "__pycache__/noise.pyc"):
