@@ -88,6 +88,21 @@ class ProjectBoundaryTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "resumed without its entry"):
             audit_linux_access('77 <... execve resumed>) = 0', [self.root])
 
+    def test_linux_directory_descriptors_do_not_admit_file_contents(self):
+        trace = (
+            '10 open("/", O_RDONLY|O_DIRECTORY) = 3</>\n'
+            '11 openat(3</>, "outside", O_RDONLY|O_DIRECTORY <unfinished ...>\n'
+            '12 openat(3</>, "outside", O_RDONLY <unfinished ...>\n'
+            '11 <... openat resumed>) = 4</outside>\n'
+            '12 <... openat resumed>) = -1 ENOENT (No such file)\n'
+        )
+        audit_linux_access(trace, [self.root])
+        with self.assertRaisesRegex(RuntimeError, "Unrecorded native/project read: /outside"):
+            audit_linux_access(trace.replace('12 <... openat resumed>) = -1 ENOENT (No such file)',
+                                             '12 <... openat resumed>) = 5</outside>'), [self.root])
+        with self.assertRaisesRegex(RuntimeError, "Open trace resumed without its entry"):
+            audit_linux_access('77 <... openat resumed>) = 0', [self.root])
+
     def test_relocation_and_excluded_build_cache_preserve_identity(self):
         before = self.identity()
         for label in ("target/old.rs", ".git/config", "rust/qlippy/target/binary", "__pycache__/noise.pyc"):

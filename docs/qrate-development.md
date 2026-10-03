@@ -75,7 +75,10 @@ the supplied Qargo to validate original/relocated qrate input and source IDs.
 On macOS the Cargo commands run in a dedicated Seatbelt sandbox that permits
 reads from captured inputs and writes only to fresh build/test state. On Linux,
 `strace` is required to audit successful opens and executable launches against
-the admitted paths. Unrecorded native reads fail verification. CI also makes the
+the admitted paths. Directory-only descriptors permit path traversal; subsequent
+file-content opens remain audited. Failed executable probes supply no executable
+bytes, and interleaved syscall entries/returns are matched by process identity.
+Unrecorded native reads fail verification. CI also makes the
 original checkout unreadable while running the copied verifier.
 
 Native build records bind the actual Rust installation, compiler/helper binaries,

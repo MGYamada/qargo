@@ -158,6 +158,7 @@ def capture_native(toolchain):
 def verify_native_unchanged(native, toolchain):
     for label, expected in native["inventories"].items():
         root = toolchain if label == "rust-toolchain" else Path(label)
+        print("Rechecking native input: " + str(root), flush=True)
         require(external_tree(root) == expected, "Native inputs changed during verification: " + label)
 
 
@@ -206,6 +207,7 @@ def audit_linux_access(trace, roots):
     import re
     violations = set()
     pending = {}
+    pending_opens = {}
 
     def check_executable(label):
         path = Path(label)
@@ -215,10 +217,23 @@ def audit_linux_access(trace, roots):
             violations.add("Unrecorded build executable: " + str(path))
 
     for line in trace.splitlines():
+        pid = re.match(r"\s*(?:\[pid\s+(\d+)\]|(\d+))", line)
+        pid = next((value for value in pid.groups() if value), "main") if pid else "main"
+        if re.search(r"\bopen(?:at2?)?\(", line) and "<unfinished ...>" in line:
+            require(pid not in pending_opens, "Overlapping open trace entries")
+            pending_opens[pid] = line
+            continue
+        if re.search(r"<\.\.\. open(?:at2?)? resumed>", line):
+            require(pid in pending_opens, "Open trace resumed without its entry")
+            line = pending_opens.pop(pid) + " " + line
         # -yy annotates successful opened descriptors with resolved paths.
         # Failed probes cannot supply compilation bytes.
         opened = re.search(r"= \d+<(/[^>]*)>", line)
-        if opened:
+        flags = re.search(r'"\s*,\s*(?:\{flags=)?([A-Z0-9_|]+)', line)
+        directory_only = flags and "O_DIRECTORY" in flags[1].split("|")
+        # Directory capabilities support path traversal but supply no file
+        # contents. Every later content open is independently traced.
+        if opened and not directory_only:
             path = Path(opened[1].removesuffix(" (deleted)"))
             if not (any(path.is_relative_to(root) for root in roots)
                     or path.is_relative_to("/proc") or path.is_relative_to("/dev")):
@@ -226,8 +241,6 @@ def audit_linux_access(trace, roots):
         # Failed flavor probes (for example emcc) execute no bytes. Match
         # unfinished/resumed syscalls by PID so successful launches stay audited.
         executed = re.search(r'execve\("([^"]+)"', line)
-        pid = re.match(r"\s*(?:\[pid\s+(\d+)\]|(\d+))", line)
-        pid = next((value for value in pid.groups() if value), "main") if pid else "main"
         if executed:
             label = executed[1]
             if "<unfinished ...>" in line:

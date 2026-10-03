@@ -64,6 +64,9 @@ jobs:
           python3 "$release_source_dir/scripts/verify_package.py" --source-root="$release_source_dir" --crate="$release_source_dir/target/package/qargo-0.1.7.crate" --bin-dir="$package_install_dir/bin"
 
   independent-qrate:
+    # The push run verifies the exact candidate for same-repository PRs.
+    # Fork PRs still require their own extraction run.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     name: Extracted ${{ matrix.component }} / ${{ matrix.os }} / Rust ${{ matrix.toolchain }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40

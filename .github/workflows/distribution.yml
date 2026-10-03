@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   binary:
+    # Same-repository PR assets are already built from the exact push commit.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     name: ${{ matrix.target }} / Rust 1.85.0
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
