@@ -57,6 +57,8 @@ cargo publish --dry-run --locked -p qargo --registry crates-io
 
 The `Cargo-free binary distribution` workflow builds native Rust 1.85.0 bundles for Linux x86_64 on Ubuntu 24.04 and macOS x86_64/ARM64 on macOS 15/14 respectively. Linux installs the distribution's musl-tools and links statically; macOS sets `MACOSX_DEPLOYMENT_TARGET=11.0`. The verifier checks executable architecture, rejects ELF dynamic loaders/libraries, and checks Mach-O deployment metadata and system-only library dependencies. The CI summary records the exact candidate commit, tested OS, and compiler. macOS 11.0 is a deployment target, not a CI-tested host.
 
+The workflow runs for every pull request, pushes to `main` and `v*` tags, and manual dispatches. Feature-branch pushes do not start a duplicate native build. Configure the default branch's required status checks to include `Native distribution verified`, with GitHub Actions as its source, alongside the four bundle OS/toolchain checks. This final job always evaluates both the native build matrix and complete asset collection, and fails if either failed, was cancelled, or was skipped. Register it after its first successful run; the workflow name itself is not the status-check name. The manually dispatched extraction and published-release workflows are separate release requirements, not PR status checks.
+
 For a native macOS ARM64 candidate, the equivalent local preparation is:
 
 ```sh

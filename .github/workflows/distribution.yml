@@ -2,6 +2,8 @@ name: Cargo-free binary distribution
 
 on:
   push:
+    branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -10,8 +12,6 @@ permissions:
 
 jobs:
   binary:
-    # Same-repository PR assets are already built from the exact push commit.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     name: ${{ matrix.target }} / Rust 1.85.0
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
@@ -69,6 +69,24 @@ jobs:
           path: ${{ runner.temp }}/binary-assets/*.tar.gz
           if-no-files-found: error
           compression-level: 0
+
+  verified:
+    name: Native distribution verified
+    if: ${{ always() }}
+    needs: [binary, assets]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require successful native builds and complete release assets
+        env:
+          BINARY_RESULT: ${{ needs.binary.result }}
+          ASSETS_RESULT: ${{ needs.assets.result }}
+        shell: bash
+        run: |
+          if [[ "$BINARY_RESULT" != success || "$ASSETS_RESULT" != success ]]; then
+            printf 'Native distribution verification failed: binary=%s, assets=%s\n' "$BINARY_RESULT" "$ASSETS_RESULT" >&2
+            exit 1
+          fi
 
   assets:
     name: Assemble verified release assets (no publication)
