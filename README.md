@@ -8,7 +8,7 @@ define these responsibilities and their implementation boundaries.
 
 Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.6 in this checkout.
 
-**0.1.6 is prepared for publication on 2026-10-03.** The versioned download and registry installation examples below target 0.1.6 and become available when publication completes. The latest verified release is still [0.1.5 on crates.io](https://crates.io/crates/qargo/0.1.5) and [GitHub](https://github.com/MGYamada/qargo/releases/tag/v0.1.5). Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+**0.1.6 is published and verified.** Install it through [crates.io](https://crates.io/crates/qargo/0.1.6) or the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.6). The download and registry installation examples below use this release. Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
 Linux ARM64 is unsupported in 0.1.6 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
 
