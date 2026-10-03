@@ -2,7 +2,11 @@
 
 The crates.io package is named `qargo` and installs `qargo`, `qlippy`, `qlifmt`, and `qlidoc` together. The standard bundle and its three qrates share version 0.1.7 for distribution convenience under [QRATEBOUNDARY.md](../QRATEBOUNDARY.md); the tools remain ordinary independent qrates. Keep Qleisli exactly at 0.2.1, Rust 1.85 as the MSRV, and unsafe code forbidden. Manifest schema 2 requires an explicit `edition = "2026"` under `[qrate]`; independent result schema versions remain 1. Keep every valid manifest, example, and fixture explicit about its edition. Cargo manifests retain Rust edition `"2024"`.
 
-**0.1.7 is an unpublished candidate.** The historical validation below applies to the published releases, not this candidate.
+**0.1.7 is published and verified.** It was published on 2026-10-03 (UTC) to [crates.io](https://crates.io/crates/qargo/0.1.7) and [GitHub](https://github.com/MGYamada/qargo/releases/tag/v0.1.7) from verified commit `cb9646a281fce4c6b5388c3e08f7ed3785922482`. The annotated tag and published crate retain that commit; subsequent workflow scheduling and documentation updates must not move or replace either.
+
+The [source/package and full independent-extraction matrix](https://github.com/MGYamada/qargo/actions/runs/37131993827), [native distribution and complete asset collection](https://github.com/MGYamada/qargo/actions/runs/37131993854), and [published-release verification](https://github.com/MGYamada/qargo/actions/runs/37137055113) all passed. The independent matrix covered all three components on Linux/macOS with Rust 1.85 and stable before its scheduling was separated from routine CI. It remains a mandatory manual gate for future releases.
+
+All three native archives, `install.sh`, and `SHA256SUMS` were attached before the GitHub release became formal/latest. Real versioned/latest installations passed on Linux x86_64 and macOS x86_64/ARM64. A fresh crates.io installation passed package/runtime verification, and the registry archive matched the dry-run package byte-for-byte (SHA-256 `b5ea8100cd28648822837e3248477c09579d931d0e5ff26d0fb58be287299cb1`). The GitHub source archive matched all 101 tracked files at the tagged commit.
 
 Cargo publication and GitHub source/binary releases are separate actions. Obtain explicit authorization for the requested publication channel; updating versions or publication configuration does not authorize uploading, tagging, or creating a GitHub release. Do not advertise a candidate's downloads as available until publication succeeds.
 

@@ -1,6 +1,6 @@
 # Prepare Qrates and Their Rust Environments for Independent Repositories
 
-Status: implementation contract for the 0.1.7 candidate, revised 2026-10-03 under
+Status: implemented for 0.1.7, with on-demand release verification under
 [QRATEBOUNDARY.md](../QRATEBOUNDARY.md). This policy supersedes the earlier
 proposal for independently advancing standard-tool versions and mixed-version
 bundles. The independent Cargo environments, extraction tooling, identity records

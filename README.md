@@ -6,13 +6,13 @@ Qargo captures declared inputs, binds results to those bytes and the actual tool
 and applies only validated effects. The [first principles and architecture](docs/architecture.md)
 define these responsibilities and their implementation boundaries.
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.7 in this checkout for bundle convenience. The three tool qrates retain independent boundaries and have no privileged qrate status; see [QRATEBOUNDARY.md](QRATEBOUNDARY.md).
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.7 for bundle convenience. The three tool qrates retain independent boundaries and have no privileged qrate status; see [QRATEBOUNDARY.md](QRATEBOUNDARY.md).
 
-**0.1.7 is an unpublished candidate.** It includes independent Rust environments and extraction verification; see the [development instructions](docs/qrate-development.md) and [extraction contract](docs/qrate-extraction-plan.md).
+Version 0.1.7 includes independent Rust environments and extraction verification; see the [development instructions](docs/qrate-development.md) and [extraction contract](docs/qrate-extraction-plan.md).
 
-**0.1.6 is published and verified.** Install it through [crates.io](https://crates.io/crates/qargo/0.1.6) or the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.6). The download and registry installation examples below use this release. Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+**0.1.7 is published and verified.** Install it through [crates.io](https://crates.io/crates/qargo/0.1.7) or the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.7). The download and registry installation examples below use this release. Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
-Linux ARM64 is unsupported in 0.1.6 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
+Linux ARM64 is unsupported in 0.1.7 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
@@ -48,20 +48,20 @@ qargo --version
 Run the installer again to update all four tools together. Download the script for inspection, select a version, or choose a different absolute prefix:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/MGYamada/qargo/releases/download/v0.1.6/install.sh -o install.sh
-sh install.sh --version 0.1.6 --prefix "$HOME/.local"
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/MGYamada/qargo/releases/download/v0.1.7/install.sh -o install.sh
+sh install.sh --version 0.1.7 --prefix "$HOME/.local"
 ```
 
 POSIX shell, curl, tar, `sha256sum` or `shasum`, and standard Unix utilities are required. Python/jq are unnecessary. Unsupported environments and missing release assets fail explicitly. Existing unrelated commands are preserved; choose another prefix if its `bin/qargo`, `bin/qlippy`, `bin/qlifmt`, or `bin/qlidoc` already belongs to another installation.
 
 Bundles are stored under `lib/qargo/releases/`; the common `lib/qargo/current` link selects one version for all four command links. Updates preserve older bundles and switch only after validation. An interrupted install can leave a `.install-lock` directory under `lib/qargo`; after confirming that no installer is running, remove that empty lock with `rmdir` and retry.
 
-For manual installation, download the matching `qargo-0.1.6-<target>.tar.gz` and `SHA256SUMS` from the same release. For example, verify and extract the Apple Silicon archive:
+For manual installation, download the matching `qargo-0.1.7-<target>.tar.gz` and `SHA256SUMS` from the same release. For example, verify and extract the Apple Silicon archive:
 
 ```sh
-awk '$2 == "qargo-0.1.6-aarch64-apple-darwin.tar.gz"' SHA256SUMS | shasum -a 256 -c -
-tar -xzf qargo-0.1.6-aarch64-apple-darwin.tar.gz
-export PATH="$PWD/qargo-0.1.6-aarch64-apple-darwin/bin:$PATH"
+awk '$2 == "qargo-0.1.7-aarch64-apple-darwin.tar.gz"' SHA256SUMS | shasum -a 256 -c -
+tar -xzf qargo-0.1.7-aarch64-apple-darwin.tar.gz
+export PATH="$PWD/qargo-0.1.7-aarch64-apple-darwin/bin:$PATH"
 ```
 
 On Linux use `sha256sum -c -` instead. Keep all four executables together. To uninstall an installer-managed default-prefix bundle, remove its four command links and managed directory:
@@ -73,10 +73,10 @@ rm -rf "$HOME/.local/lib/qargo"
 
 ### Install from crates.io
 
-Rust 1.85 or newer is required. Install all four executables from version 0.1.6 together:
+Rust 1.85 or newer is required. Install all four executables from version 0.1.7 together:
 
 ```sh
-cargo install qargo --version=0.1.6 --locked --bins
+cargo install qargo --version=0.1.7 --locked --bins
 ```
 
 Cargo compiles the Rust tools during installation. The installed Qargo executable manages Qleisli qrates without invoking Cargo. The package includes all three engines and requires no private engine crates or repository checkout.
