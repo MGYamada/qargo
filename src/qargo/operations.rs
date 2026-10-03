@@ -146,7 +146,10 @@ pub(super) fn execute(request: &Request) -> Result<Report, Diagnostic> {
                 if *include_private { "all" } else { "public" },
             );
             let report = plan.publish(qrate.held_directory(), Path::new(&relative));
-            Ok(CapturedSubject::Qrate(qrate).bind_report(report, orchestrator.to_value()))
+            Ok(
+                CapturedSubject::Qrate(Box::new(qrate))
+                    .bind_report(report, orchestrator.to_value()),
+            )
         }
     }
 }

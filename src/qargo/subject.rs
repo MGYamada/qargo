@@ -10,7 +10,7 @@ use super::manifest::{self, CapturedQrate};
 use super::request::SourceSelection;
 
 pub(super) enum CapturedSubject {
-    Qrate(CapturedQrate),
+    Qrate(Box<CapturedQrate>),
     Standalone {
         sources: FrozenSources,
         original_root: InputDirectory,
@@ -20,9 +20,9 @@ pub(super) enum CapturedSubject {
 impl CapturedSubject {
     pub(super) fn capture(selection: &SourceSelection) -> Result<Self, Diagnostic> {
         match selection {
-            SourceSelection::Qrate { manifest } => {
-                Ok(Self::Qrate(manifest::capture(manifest.as_deref())?))
-            }
+            SourceSelection::Qrate { manifest } => Ok(Self::Qrate(Box::new(manifest::capture(
+                manifest.as_deref(),
+            )?))),
             SourceSelection::Standalone(root) => {
                 let original_root = InputDirectory::open(root)?;
                 let sources = FrozenSources::from_files(original_root.collect(Some("qli"))?)?;

@@ -18,7 +18,8 @@ from qrate_project import identity, require
 
 def output(command):
     search = str(Path(command[0]).parent) + ":/usr/bin:/bin"
-    return subprocess.check_output([str(part) for part in command], env={"PATH": search, "LC_ALL": "C", "OPENSSL_CONF": "/dev/null"}).decode().strip()
+    return subprocess.check_output([str(part) for part in command], env={"PATH": search, "LC_ALL": "C", "OPENSSL_CONF": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_SYSTEM": "/dev/null", "GIT_CONFIG_GLOBAL": "/dev/null"}).decode().strip()
 
 
 def file_digest(path):
@@ -69,6 +70,25 @@ def external_tree(root):
     return sorted(result, key=lambda entry: entry["path"].encode())
 
 
+def linux_resource_inputs(cgroup=Path("/proc/self/cgroup"), root=Path("/sys/fs/cgroup")):
+    """Capture the cgroup CPU limits queried by Rust's parallelism detection."""
+    paths = []
+    for line in cgroup.read_text().splitlines():
+        hierarchy, controllers, relative = line.split(":", 2)
+        if hierarchy != "0" or controllers:
+            continue
+        relative = Path(relative.lstrip("/"))
+        require(".." not in relative.parts, "Invalid unified cgroup path")
+        directory = root / relative
+        for ancestor in (directory, *directory.parents):
+            if not ancestor.is_relative_to(root):
+                break
+            control = ancestor / "cpu.max"
+            if control.is_file():
+                paths.append(control)
+    return paths
+
+
 def capture_native(toolchain):
     toolchain = toolchain.resolve()
     rustc = toolchain / "bin/rustc"
@@ -102,8 +122,10 @@ def capture_native(toolchain):
         roots = [Path(name) for name in ("/usr/include", "/usr/lib/gcc", "/usr/lib/x86_64-linux-gnu",
                                         "/lib/x86_64-linux-gnu", "/usr/lib64", "/lib64",
                                         "/etc/ld.so.cache", "/etc/ld.so.conf", "/etc/ld.so.conf.d",
-                                        "/etc/ssl/openssl.cnf", "/etc/ssl/certs/ca-certificates.crt") if Path(name).exists()]
+                                        "/etc/ssl/openssl.cnf", "/etc/ssl/certs/ca-certificates.crt",
+                                        "/sys/kernel/mm/transparent_hugepage/enabled") if Path(name).exists()]
         roots += [Path("/usr/bin") / name for name in ("gcc", "as", "ld", "ar", "ranlib", "objcopy", "strip", "env", "uname", "sh", "strace")]
+        roots += linux_resource_inputs()
         roots = list(dict.fromkeys(path.resolve() for path in roots))
         env = {}
     else:
@@ -119,7 +141,8 @@ def capture_native(toolchain):
                 "RUSTDOC": str(toolchain / "bin/rustdoc"),
                 "RUSTFLAGS": "-C linker=" + str(compiler), "RUSTDOCFLAGS": "-D warnings",
                 "PATH": str(toolchain / "bin") + ":/usr/bin:/bin", "LC_ALL": "C", "TZ": "UTC",
-                "OPENSSL_CONF": "/dev/null"})
+                "OPENSSL_CONF": "/dev/null", "GIT_CONFIG_NOSYSTEM": "1",
+                "GIT_CONFIG_SYSTEM": "/dev/null", "GIT_CONFIG_GLOBAL": "/dev/null"})
     print("Capturing Rust toolchain, native tools, SDK/headers and system libraries...", flush=True)
     inventories = {"rust-toolchain": external_tree(toolchain)}
     for root in roots:

@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import unittest
 
-from capture_build import audit_linux_access, build_binding, external_tree, generated_inputs
+from capture_build import audit_linux_access, build_binding, external_tree, generated_inputs, linux_resource_inputs
 from qrate_project import QRATES, audit, audit_metadata, audit_vendor, copy_tree, extract, sha256, snapshot
 from verify_qrate import isolated_config
 from verify_release import verify_versions
@@ -57,6 +57,20 @@ class ProjectBoundaryTests(unittest.TestCase):
         self.assertIn("Unrecorded build executable: /unrecorded/compiler", str(rejected.exception))
         with self.assertRaisesRegex(RuntimeError, "Relative build executable"):
             audit_linux_access('execve("compiler", [], []) = 0', [self.root])
+
+    def test_linux_resource_capture_includes_the_process_cgroup_and_ancestors(self):
+        cgroup = self.root / "proc-cgroup"
+        cgroup.write_text("0::/system.slice/runner.service\n")
+        sys = self.root / "cgroup"
+        child = sys / "system.slice/runner.service"
+        child.mkdir(parents=True)
+        expected = [child / "cpu.max", child.parent / "cpu.max", sys / "cpu.max"]
+        for path in expected:
+            path.write_text("200000 100000\n")
+        self.assertEqual(linux_resource_inputs(cgroup, sys), expected)
+        cgroup.write_text("0::/../../outside\n")
+        with self.assertRaisesRegex(RuntimeError, "Invalid unified cgroup path"):
+            linux_resource_inputs(cgroup, sys)
 
     def test_relocation_and_excluded_build_cache_preserve_identity(self):
         before = self.identity()
