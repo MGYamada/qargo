@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 
 use crate::qlifmt_engine;
 use crate::report::{Diagnostic, Report, ToolIdentity};
-use crate::snapshot::{self, Files, FrozenSources};
+use crate::snapshot::{self, Files, FrozenSources, InputDirectory};
 
 use super::response::{Step, Tool, redact, syntax_response, transport};
 
@@ -93,6 +93,7 @@ pub(crate) fn prepare<'a>(
             result["check"] = json!(check);
             let candidate = if status != 0 {
                 // Partial child writes belong only to its disposable working copy.
+                result["changed_files"] = json!([]);
                 result["updated_files"] = json!([]);
                 result["formatted_source_id"] = Value::Null;
                 None
@@ -127,7 +128,7 @@ pub(crate) fn prepare<'a>(
 }
 
 impl FormatPlan<'_> {
-    pub(crate) fn apply(mut self, original_root: &Path) -> Result<Report, Diagnostic> {
+    pub(crate) fn apply(mut self, original_root: &InputDirectory) -> Result<Report, Diagnostic> {
         let Some(formatted) = self.candidate else {
             return Ok(self.report);
         };
@@ -143,7 +144,7 @@ impl FormatPlan<'_> {
                     "Source files require formatting.",
                 ));
             }
-        } else if snapshot::collect_tree(original_root, Some("qli"))? != *self.sources.files() {
+        } else if original_root.collect(Some("qli"))? != *self.sources.files() {
             envelope.outcome = "error".into();
             envelope.diagnostics.push(Diagnostic::error(
                 "input_changed",
@@ -151,7 +152,7 @@ impl FormatPlan<'_> {
                 "Source inputs changed before formatting could be applied.",
             ));
         } else {
-            match qlifmt_engine::apply_files(original_root, self.sources.files(), &formatted) {
+            match qlifmt_engine::apply_captured(original_root, self.sources.files(), &formatted) {
                 Ok(updated) => result["updated_files"] = json!(updated),
                 Err(failure) => {
                     result["updated_files"] = json!(failure.updated_files);

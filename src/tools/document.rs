@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 
 use crate::qlidoc_engine;
 use crate::report::{Diagnostic, Report, ToolIdentity};
-use crate::snapshot::{self, Files, FrozenSources};
+use crate::snapshot::{self, Files, FrozenSources, InputDirectory};
 
 use super::response::{Step, Tool, redact, syntax_response, transport, valid_digest};
 
@@ -124,6 +124,7 @@ pub(crate) fn prepare(
             }
             let files = if status != 0 {
                 result["artifact_path"] = Value::Null;
+                result["files"] = json!([]);
                 None
             } else {
                 let reported = result["artifact_path"]
@@ -183,14 +184,19 @@ impl DocumentPlan {
         &self.tool_digest
     }
 
-    pub(crate) fn publish(mut self, output: &Path) -> Report {
+    pub(crate) fn publish(mut self, root: &InputDirectory, output: &Path) -> Report {
         if let Some(files) = self.files {
             let envelope = &mut self.report.envelope;
-            envelope.result.as_mut().expect("validated result")["artifact_path"] =
-                json!(output.to_string_lossy());
-            if let Err(diagnostic) = qlidoc_engine::publish(output, &files) {
-                envelope.outcome = "error".into();
-                envelope.diagnostics.push(diagnostic);
+            envelope.result.as_mut().expect("validated result")["artifact_path"] = Value::Null;
+            match qlidoc_engine::publish_at(root, output, &files) {
+                Ok(()) => {
+                    envelope.result.as_mut().expect("validated result")["artifact_path"] =
+                        json!(output.to_string_lossy());
+                }
+                Err(diagnostic) => {
+                    envelope.outcome = "error".into();
+                    envelope.diagnostics.push(diagnostic);
+                }
             }
             self.report.exit_code = u8::from(envelope.outcome == "error");
         }

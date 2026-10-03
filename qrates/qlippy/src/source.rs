@@ -1,17 +1,18 @@
 //! Syntax-only tools share bounded capture and original-source coordinates.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use qleisli::frontend::parser::ParseError;
 use serde_json::{Value, json};
 
-use crate::report::{Diagnostic, Location, coordinates};
-use crate::snapshot::{Files, FrozenSources, portable_relative, read_regular};
+use crate::support::report::{Diagnostic, Location, coordinates};
+use crate::support::snapshot::{Files, FrozenSources, InputDirectory, portable_relative};
 
 pub struct SourceInput {
     pub sources: FrozenSources,
-    pub original_root: PathBuf,
+    pub original_root: InputDirectory,
+    pub directory_input: bool,
 }
 
 /// Capture a selected .qli file or source directory without resolving file links.
@@ -31,17 +32,12 @@ pub fn capture_source(path: &Path) -> Result<SourceInput, Diagnostic> {
         ));
     }
     if metadata.is_dir() {
-        let sources = FrozenSources::capture(path)?;
-        let original_root = fs::canonicalize(path).map_err(|error| {
-            Diagnostic::error(
-                "input",
-                "qargo",
-                format!("Cannot resolve source root: {error}"),
-            )
-        })?;
+        let original_root = InputDirectory::open(path)?;
+        let sources = FrozenSources::from_files(original_root.collect(Some("qli"))?)?;
         return Ok(SourceInput {
             sources,
             original_root,
+            directory_input: true,
         });
     }
     if !metadata.is_file() || path.extension().and_then(|value| value.to_str()) != Some("qli") {
@@ -55,22 +51,24 @@ pub fn capture_source(path: &Path) -> Result<SourceInput, Diagnostic> {
         .parent()
         .filter(|value| !value.as_os_str().is_empty())
         .unwrap_or(Path::new("."));
-    let original_root = fs::canonicalize(parent).map_err(|error| {
+    let parent = fs::canonicalize(parent).map_err(|error| {
         Diagnostic::error(
             "input",
             "qargo",
             format!("Cannot resolve source parent: {error}"),
         )
     })?;
+    let original_root = InputDirectory::open(&parent)?;
     let name = path
         .file_name()
         .ok_or_else(|| Diagnostic::error("input", "qargo", "Source file has no name."))?;
     let label = portable_relative(Path::new(name))?;
     let mut files = Files::new();
-    files.insert(label, read_regular(&original_root.join(name))?);
+    files.insert(label, original_root.read_regular(name)?);
     Ok(SourceInput {
         sources: FrozenSources::from_files(files)?,
         original_root,
+        directory_input: false,
     })
 }
 

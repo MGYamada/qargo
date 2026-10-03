@@ -9,11 +9,31 @@ from pathlib import Path
 import re
 import subprocess
 import tempfile
+import tomllib
+
+from qrate_project import audit
 
 
 QRATES = ("qlippy", "qlifmt", "qlidoc")
 TOOLS = ("qargo", *QRATES)
-PRODUCT_VERSION = "0.1.6"
+# Release orchestration reads one authority; component declarations stay literal.
+PRODUCT_VERSION = tomllib.loads((Path(__file__).resolve().parents[1] / "Cargo.toml").read_text())["package"]["version"]
+
+
+def verify_versions(root, expected=None):
+    release = tomllib.loads((root / "Cargo.toml").read_text())["package"]["version"]
+    require(isinstance(release, str), "Root release version must be literal")
+    if expected is not None:
+        require(release == expected, "Distribution expectation differs from root release version")
+    for name in QRATES:
+        for label, section in ((f"qrates/{name}/Qargo.toml", "qrate"), (f"rust/{name}/Cargo.toml", "package")):
+            data = tomllib.loads((root / label).read_text())
+            require(data[section]["version"] == release, "Release version mismatch: " + label)
+        if name != "qlippy":
+            data = tomllib.loads((root / f"rust/{name}/Cargo.toml").read_text())
+            require(data["dependencies"]["qlippy-engine"]["version"] == "=" + release,
+                    "Support dependency selection differs from the release")
+    return release
 
 
 def require(condition, message):
@@ -184,7 +204,9 @@ def verify_qrate(qrate, binaries, tools, environment):
 def verify(source_root, bin_dir):
     source_root = source_root.resolve()
     bin_dir = bin_dir.resolve()
-    for label in ("Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "install.sh", "docs/specification.md", "docs/releasing.md", "docs/toolchains.md", "docs/ecosystem-policy.md", "AGENTS.md", *["rust/" + name + "/Cargo.toml" for name in QRATES]):
+    verify_versions(source_root, PRODUCT_VERSION)
+    audit(source_root)
+    for label in ("Cargo.toml", "Cargo.lock", "LICENSE", "NOTICE", "README.md", "CHANGELOG.md", "install.sh", "docs/specification.md", "docs/releasing.md", "docs/toolchains.md", "docs/ecosystem-policy.md", "docs/qrate-extraction-plan.md", "docs/qrate-development.md", "AGENTS.md", "QRATEBOUNDARY.md", *["rust/" + name + "/" + file for name in QRATES for file in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml")]):
         require((source_root / label).is_file(), "Missing source-release input: " + label)
     for label in ("Cargo.toml", *["rust/" + name + "/Cargo.toml" for name in QRATES]):
         manifest = (source_root / label).read_text(encoding="utf-8")

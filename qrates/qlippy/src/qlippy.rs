@@ -92,13 +92,13 @@ pub fn run(args: &[OsString]) -> Report {
         return Report::ok(FORMAT, "help", json!({ "help": HELP }));
     }
     if options.version {
-        return match tool_info("qlippy") {
+        return match tool_info("qlippy", super::VERSION) {
             Ok(tool) => Report::ok(FORMAT, "version", json!({ "tool": tool })),
             Err(diagnostic) => Report::fail(FORMAT, "version", diagnostic, 1),
         };
     }
     if options.list_rules {
-        return match tool_info("qlippy") {
+        return match tool_info("qlippy", super::VERSION) {
             Ok(tool) => {
                 let mut catalog = rules::catalog();
                 catalog["tool"] = tool;
@@ -118,7 +118,7 @@ pub fn run(args: &[OsString]) -> Report {
 }
 
 fn analyze(sources: &FrozenSources, deny_warnings: bool) -> Report {
-    let tool = match tool_info("qlippy") {
+    let tool = match tool_info("qlippy", super::VERSION) {
         Ok(tool) => tool,
         Err(diagnostic) => return Report::fail(FORMAT, "lint", diagnostic, 1),
     };

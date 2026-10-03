@@ -38,18 +38,15 @@ pub(super) struct Root {
 }
 
 pub(super) struct CapturedQrate {
-    directory: PathBuf,
     manifest: Manifest,
     files: Files,
     input_id: String,
     sources: FrozenSources,
+    held_directory: InputDirectory,
+    held_source: InputDirectory,
 }
 
 impl CapturedQrate {
-    pub(super) fn directory(&self) -> &Path {
-        &self.directory
-    }
-
     pub(super) fn manifest(&self) -> &Manifest {
         &self.manifest
     }
@@ -64,6 +61,14 @@ impl CapturedQrate {
 
     pub(super) fn sources(&self) -> &FrozenSources {
         &self.sources
+    }
+
+    pub(super) fn held_directory(&self) -> &InputDirectory {
+        &self.held_directory
+    }
+
+    pub(super) fn held_source(&self) -> &InputDirectory {
+        &self.held_source
     }
 }
 
@@ -342,11 +347,12 @@ fn capture_with_hook(
     let sources = FrozenSources::from_files(sources)?;
     let input_id = snapshot::digest_files("qargo.qrate.v1", &files);
     Ok(CapturedQrate {
-        directory,
         manifest,
         files,
         input_id,
         sources,
+        held_directory,
+        held_source: held_roots[0].clone(),
     })
 }
 

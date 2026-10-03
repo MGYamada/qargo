@@ -5,8 +5,8 @@
 
 use std::path::Path;
 
-use qlippy_engine::report::Diagnostic;
-use qlippy_engine::snapshot::Files;
+use qlippy_engine::support::report::Diagnostic;
+use qlippy_engine::support::snapshot::{Files, InputDirectory};
 
 use super::{changed_files, validate_formatted};
 
@@ -46,6 +46,17 @@ pub fn apply_files(
     original: &Files,
     formatted: &Files,
 ) -> Result<Vec<String>, ApplyFailure> {
+    let root = InputDirectory::open(root).map_err(|error| failure(error, &[]))?;
+    apply_captured(&root, original, formatted)
+}
+
+/// Apply only through the directory object retained when the inputs were captured.
+pub fn apply_captured(
+    root: &InputDirectory,
+    original: &Files,
+    formatted: &Files,
+) -> Result<Vec<String>, ApplyFailure> {
+    root.verify().map_err(|error| failure(error, &[]))?;
     validate_formatted(original, formatted).map_err(|diagnostic| failure(diagnostic, &[]))?;
     if original.is_empty() {
         return Ok(Vec::new());
@@ -54,38 +65,30 @@ pub fn apply_files(
 }
 
 #[cfg(unix)]
-fn apply(root: &Path, original: &Files, formatted: &Files) -> Result<Vec<String>, ApplyFailure> {
+fn apply(
+    root: &InputDirectory,
+    original: &Files,
+    formatted: &Files,
+) -> Result<Vec<String>, ApplyFailure> {
     apply_with_hook(root, original, formatted, |_, _| {})
 }
 
 #[cfg(unix)]
 fn apply_with_hook(
-    root: &Path,
+    root: &InputDirectory,
     original: &Files,
     formatted: &Files,
     mut before_replace: impl FnMut(&str, usize),
 ) -> Result<Vec<String>, ApplyFailure> {
-    use std::fs::{self, File};
+    use std::fs::File;
     use std::io::{Read, Write};
     use std::sync::atomic::{AtomicU64, Ordering};
 
-    use rustix::fs::{AtFlags, Mode, OFlags, fstat, open, openat, renameat, unlinkat};
+    use rustix::fs::{AtFlags, Mode, OFlags, fstat, openat, renameat, unlinkat};
 
     static SERIAL: AtomicU64 = AtomicU64::new(0);
     let directory_flags = OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC;
-    let metadata =
-        fs::symlink_metadata(root).map_err(|error| failure(io_error("root", error), &[]))?;
-    if !metadata.is_dir() || metadata.file_type().is_symlink() {
-        return Err(failure(
-            io_error("root", "Source root must be an ordinary directory."),
-            &[],
-        ));
-    }
-    let root_file = File::from(
-        open(root, directory_flags, Mode::empty())
-            .map_err(|error| failure(io_error("root", error), &[]))?,
-    );
-    let root_identity = fstat(&root_file).map_err(|error| failure(io_error("root", error), &[]))?;
+    let root_file = root.held_file().map_err(|error| failure(error, &[]))?;
 
     fn parent(root: &File, label: &str, flags: OFlags) -> Result<(File, String), Diagnostic> {
         let mut directory = root.try_clone().map_err(|error| io_error(label, error))?;
@@ -119,7 +122,7 @@ fn apply_with_hook(
             return Err(io_error(label, "Source must be an ordinary file."));
         }
         let mut bytes = Vec::new();
-        file.take(qlippy_engine::snapshot::FILE_BYTES + 1)
+        file.take(qlippy_engine::support::snapshot::FILE_BYTES + 1)
             .read_to_end(&mut bytes)
             .map_err(|error| io_error(label, error))?;
         Ok(bytes)
@@ -199,16 +202,8 @@ fn apply_with_hook(
     let mut updated = Vec::new();
     for mut candidate in staged {
         before_replace(&candidate.label, updated.len());
-        let new_root = File::from(
-            open(root, directory_flags, Mode::empty())
-                .map_err(|error| failure(io_error("root", error), &updated))?,
-        );
-        let identity =
-            fstat(&new_root).map_err(|error| failure(io_error("root", error), &updated))?;
-        if identity.st_dev != root_identity.st_dev || identity.st_ino != root_identity.st_ino {
-            return Err(failure(changed("root"), &updated));
-        }
-        let (fresh_parent, _) = parent(&new_root, &candidate.label, directory_flags)
+        root.verify().map_err(|error| failure(error, &updated))?;
+        let (fresh_parent, _) = parent(&root_file, &candidate.label, directory_flags)
             .map_err(|error| failure(error, &updated))?;
         let old_parent = fstat(&candidate.parent)
             .map_err(|error| failure(io_error(&candidate.label, error), &updated))?;
@@ -242,6 +237,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn byte_identical_directory_replacement_is_rejected_before_any_write() {
+        for single_file in [false, true] {
+            let home = tempfile::tempdir().unwrap();
+            let root = home.path().join("src");
+            let old = home.path().join("old");
+            let source = b"pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
+            std::fs::create_dir(&root).unwrap();
+            std::fs::write(root.join("module.qli"), source).unwrap();
+            let selected = if single_file {
+                root.join("module.qli")
+            } else {
+                root.clone()
+            };
+            let input = qlippy_engine::support::source::capture_source(&selected).unwrap();
+            let formatted = format_files(input.sources.files()).unwrap();
+            std::fs::rename(&root, &old).unwrap();
+            std::fs::create_dir(&root).unwrap();
+            std::fs::write(root.join("module.qli"), source).unwrap();
+            let failed = apply_captured(&input.original_root, input.sources.files(), &formatted)
+                .unwrap_err();
+            assert!(failed.updated_files.is_empty());
+            for directory in [&root, &old] {
+                assert_eq!(std::fs::read(directory.join("module.qli")).unwrap(), source);
+                assert_eq!(std::fs::read_dir(directory).unwrap().count(), 1);
+            }
+        }
+    }
+
+    #[test]
     fn later_io_failure_reports_the_atomic_update_prefix_and_cleans_staging() {
         let directory = tempfile::tempdir().unwrap();
         let source = b"pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
@@ -253,11 +277,16 @@ mod tests {
             std::fs::write(directory.path().join(label), bytes).unwrap();
         }
         let formatted = format_files(&original).unwrap();
-        let failed = apply_with_hook(directory.path(), &original, &formatted, |label, count| {
-            if count == 1 {
-                std::fs::remove_file(directory.path().join(label)).unwrap();
-            }
-        })
+        let failed = apply_with_hook(
+            &InputDirectory::open(directory.path()).unwrap(),
+            &original,
+            &formatted,
+            |label, count| {
+                if count == 1 {
+                    std::fs::remove_file(directory.path().join(label)).unwrap();
+                }
+            },
+        )
         .unwrap_err();
         assert_eq!(failed.updated_files, ["a.qli"]);
         assert_eq!(failed.diagnostic.id, "format_write");
@@ -276,7 +305,11 @@ mod tests {
 }
 
 #[cfg(not(unix))]
-fn apply(_root: &Path, _original: &Files, _formatted: &Files) -> Result<Vec<String>, ApplyFailure> {
+fn apply(
+    _root: &InputDirectory,
+    _original: &Files,
+    _formatted: &Files,
+) -> Result<Vec<String>, ApplyFailure> {
     Err(failure(
         io_error(
             "root",

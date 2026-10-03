@@ -1,12 +1,10 @@
 //! Immutable subjects and their bound checking/reporting context.
 
-use std::path::PathBuf;
-
 use serde_json::{Value, json};
 
 use crate::adapter::{self, CheckedSources};
 use crate::report::{Diagnostic, Report};
-use crate::snapshot::FrozenSources;
+use crate::snapshot::{FrozenSources, InputDirectory};
 
 use super::manifest::{self, CapturedQrate};
 use super::request::SourceSelection;
@@ -15,7 +13,7 @@ pub(super) enum CapturedSubject {
     Qrate(CapturedQrate),
     Standalone {
         sources: FrozenSources,
-        original_root: PathBuf,
+        original_root: InputDirectory,
     },
 }
 
@@ -26,10 +24,11 @@ impl CapturedSubject {
                 Ok(Self::Qrate(manifest::capture(manifest.as_deref())?))
             }
             SourceSelection::Standalone(root) => {
-                let sources = FrozenSources::capture(root)?;
+                let original_root = InputDirectory::open(root)?;
+                let sources = FrozenSources::from_files(original_root.collect(Some("qli"))?)?;
                 Ok(Self::Standalone {
                     sources,
-                    original_root: root.clone(),
+                    original_root,
                 })
             }
         }
@@ -42,11 +41,10 @@ impl CapturedSubject {
         }
     }
 
-    pub(super) fn original_root(&self) -> Result<PathBuf, Diagnostic> {
+    pub(super) fn original_root(&self) -> &InputDirectory {
         match self {
-            Self::Qrate(qrate) => Ok(qrate.directory().join(&qrate.manifest().source.root)),
-            Self::Standalone { original_root, .. } => std::fs::canonicalize(original_root)
-                .map_err(|error| Diagnostic::error("input", "qargo", error.to_string())),
+            Self::Qrate(qrate) => qrate.held_source(),
+            Self::Standalone { original_root, .. } => original_root,
         }
     }
 

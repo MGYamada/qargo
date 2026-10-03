@@ -55,7 +55,11 @@ fn publication_error(error: crate::publication::PublicationError) -> Diagnostic 
     Diagnostic::error(id, "qargo", error.to_string())
 }
 
-pub(super) fn publish(subject: &CheckedQrate<'_>, tool: &Value) -> Result<String, Diagnostic> {
+pub(super) fn publish(
+    subject: &CheckedQrate<'_>,
+    tool: &Value,
+    verify_host: impl FnOnce() -> Result<(), Diagnostic>,
+) -> Result<String, Diagnostic> {
     let qrate = subject.qrate();
     let checked = subject.checked();
     let record = json!({
@@ -81,8 +85,6 @@ pub(super) fn publish(subject: &CheckedQrate<'_>, tool: &Value) -> Result<String
     );
     artifacts.insert("build-record.json".into(), json_bytes(&record)?);
     let directories = artifact_directories(qrate, &artifacts);
-    let target = qrate.directory().join("target");
-    let output = target.join("qargo");
     let hex = qrate
         .input_id()
         .strip_prefix("sha256:")
@@ -92,11 +94,15 @@ pub(super) fn publish(subject: &CheckedQrate<'_>, tool: &Value) -> Result<String
         .and_then(|digest| digest.strip_prefix("sha256:"))
         .filter(|hex| hex.len() == 64 && hex.bytes().all(|byte| byte.is_ascii_hexdigit()))
         .ok_or_else(|| error("tool_identity", "tool", "Invalid executable identity."))?;
-    let base = output.join(hex);
-    let destination = base.join(tool_hex);
     let relative = format!("target/qargo/{hex}/{tool_hex}");
-    crate::publication::publish(&destination, &artifacts, &directories)
-        .map_err(publication_error)?;
+    verify_host()?;
+    crate::publication::publish_at(
+        qrate.held_directory(),
+        Path::new(&relative),
+        &artifacts,
+        &directories,
+    )
+    .map_err(publication_error)?;
     Ok(relative)
 }
 
@@ -105,6 +111,31 @@ mod tests {
     use super::super::manifest::capture;
     use super::*;
     use std::fs;
+
+    #[test]
+    fn replacing_the_captured_qrate_cannot_redirect_build_publication() {
+        let home = tempfile::tempdir().unwrap();
+        let root = home.path().join("qrate");
+        let replacement = home.path().join("replacement");
+        for directory in [&root, &replacement] {
+            for name in ["src", "tests", "docs"] {
+                fs::create_dir_all(directory.join(name)).unwrap();
+            }
+            fs::write(directory.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.0\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+        }
+        let captured = capture(Some(&root.join("Qargo.toml"))).unwrap();
+        let checked = captured.check().unwrap();
+        let tool = crate::report::tool_info("qargo", crate::VERSION).unwrap();
+        let old = home.path().join("old");
+        let failed = publish(&checked, &tool, || {
+            fs::rename(&root, &old).unwrap();
+            fs::rename(&replacement, &root).unwrap();
+            Ok(())
+        });
+        assert_eq!(failed.unwrap_err().id, "build_output");
+        assert!(!root.join("target").exists());
+        assert!(!old.join("target").exists());
+    }
 
     #[test]
     fn qrate_check_and_artifacts_use_captured_bytes_after_original_mutation() {
@@ -121,8 +152,8 @@ mod tests {
         fs::write(directory.path().join("Qargo.toml"), "invalid manifest").unwrap();
         let checked = frozen.check().unwrap();
         assert_eq!(checked.checked().qleisli_check()["status"], "passed");
-        let tool = crate::report::tool_info("qargo").unwrap();
-        let artifact = publish(&checked, &tool).unwrap();
+        let tool = crate::report::tool_info("qargo", crate::VERSION).unwrap();
+        let artifact = publish(&checked, &tool, || Ok(())).unwrap();
         assert_eq!(
             fs::read_to_string(
                 directory
@@ -141,7 +172,7 @@ mod tests {
         // Rebuilding the host engine must preserve the earlier input/tool record.
         let mut rebuilt_tool = tool.clone();
         rebuilt_tool["executable_sha256"] = json!(format!("sha256:{}", "f".repeat(64)));
-        let rebuilt_artifact = publish(&checked, &rebuilt_tool).unwrap();
+        let rebuilt_artifact = publish(&checked, &rebuilt_tool, || Ok(())).unwrap();
         assert_ne!(artifact, rebuilt_artifact);
         for (path, expected_tool) in [(&artifact, &tool), (&rebuilt_artifact, &rebuilt_tool)] {
             let record: Value = serde_json::from_slice(
@@ -151,6 +182,6 @@ mod tests {
             assert_eq!(record["input_id"], frozen.input_id());
             assert_eq!(&record["tool"], expected_tool);
         }
-        assert_eq!(publish(&checked, &tool).unwrap(), artifact);
+        assert_eq!(publish(&checked, &tool, || Ok(())).unwrap(), artifact);
     }
 }

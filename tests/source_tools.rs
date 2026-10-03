@@ -14,7 +14,7 @@ fn qrate() -> tempfile::TempDir {
     for directory in ["src", "tests", "docs"] {
         fs::create_dir(root.path().join(directory)).unwrap();
     }
-    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.6\"\nedition = \"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.7\"\nedition = \"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
     fs::write(root.path().join("src/module.qli"), SOURCE).unwrap();
     root
 }
@@ -125,7 +125,10 @@ fn documentation_is_syntax_only_private_opt_in_and_conflicts_are_preserved() {
             .contains("hidden")
     );
     fs::write(output.join("index.md"), "Conflicting user content").unwrap();
-    assert_eq!(run(root.path(), "doc", &[]).exit_code, 1);
+    let conflict = run(root.path(), "doc", &[]);
+    assert_eq!(conflict.exit_code, 1);
+    assert_eq!(conflict.envelope.diagnostics[0].id, "artifact_mismatch");
+    assert!(result(&conflict)["artifact_path"].is_null());
     assert_eq!(
         fs::read_to_string(output.join("index.md")).unwrap(),
         "Conflicting user content"
@@ -133,6 +136,21 @@ fn documentation_is_syntax_only_private_opt_in_and_conflicts_are_preserved() {
     assert_eq!(
         fs::read_to_string(root.path().join("docs/README.md")).unwrap(),
         "Handwritten guide"
+    );
+}
+
+#[test]
+fn failed_document_output_creation_has_no_artifact_path() {
+    let root = qrate();
+    // An ordinary file cannot serve as the publication parent.
+    fs::write(root.path().join("target"), "Keep this file").unwrap();
+    let failed = run(root.path(), "doc", &[]);
+    assert_eq!(failed.exit_code, 1, "{:?}", failed.envelope);
+    assert_eq!(failed.envelope.diagnostics[0].id, "doc_output");
+    assert!(result(&failed)["artifact_path"].is_null());
+    assert_eq!(
+        fs::read_to_string(root.path().join("target")).unwrap(),
+        "Keep this file"
     );
 }
 
@@ -352,4 +370,146 @@ fn document_success_without_the_requested_artifacts_is_rejected() {
     assert_eq!(report.exit_code, 1);
     assert_eq!(report.envelope.diagnostics[0].id, "invalid_tool_response");
     assert!(!root.path().join("target/qlidoc").exists());
+}
+
+#[cfg(unix)]
+fn copy_tree(from: &Path, to: &Path) {
+    fs::create_dir(to).unwrap();
+    for entry in fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let destination = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &destination);
+        } else {
+            fs::copy(entry.path(), destination).unwrap();
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn captured_source_root_and_ancestors_cannot_be_replaced_before_format_effects() {
+    for replaced in [
+        "standalone-root",
+        "standalone-parent",
+        "qrate",
+        "source",
+        "source-parent",
+    ] {
+        let home = tempfile::tempdir().unwrap();
+        let root = home.path().join("qrate");
+        let fixture = qrate();
+        copy_tree(fixture.path(), &root);
+        fs::create_dir(root.join("inputs")).unwrap();
+        fs::rename(root.join("src"), root.join("inputs/src")).unwrap();
+        let manifest = fs::read_to_string(root.join("Qargo.toml"))
+            .unwrap()
+            .replace("root=\"src\"", "root=\"inputs/src\"");
+        fs::write(root.join("Qargo.toml"), manifest).unwrap();
+        let sources_path = root.join("inputs/src");
+        let sources = FrozenSources::capture(&sources_path).unwrap();
+        let formatted = qargo_tools::qlifmt_engine::format_files(sources.files()).unwrap();
+        let replace = match replaced {
+            "qrate" => root.clone(),
+            "source-parent" | "standalone-parent" => root.join("inputs"),
+            _ => sources_path.clone(),
+        };
+        let replacement = home.path().join("replacement");
+        let old = home.path().join("old");
+        copy_tree(&replace, &replacement);
+        let tools = tempfile::tempdir().unwrap();
+        let candidate = tools.path().join("candidate.qli");
+        fs::write(&candidate, &formatted["module.qli"]).unwrap();
+        let response_path = tools.path().join("response.json");
+        let tool = script(
+            tools.path(),
+            &format!(
+                "/bin/mv {} {} || exit 9\n/bin/mv {} {} || exit 9\n/bin/cp {} \"$1/module.qli\" || exit 9\n/bin/cat {}",
+                quote(&replace),
+                quote(&old),
+                quote(&replacement),
+                quote(&replace),
+                quote(&candidate),
+                quote(&response_path)
+            ),
+        );
+        let mut report = response(&tool, &sources, "fmt");
+        report["result"]["formatted_source_id"] =
+            json!(digest_files("qleisli.source.v1", &formatted));
+        report["result"]["changed_files"] = json!(["module.qli"]);
+        report["result"]["updated_files"] = json!(["module.qli"]);
+        fs::write(response_path, serde_json::to_vec(&report).unwrap()).unwrap();
+        let failed = if replaced.starts_with("standalone") {
+            qargo::run(&[
+                "fmt".into(),
+                sources_path.as_os_str().to_owned(),
+                format!("--qlifmt={}", tool.display()).into(),
+            ])
+        } else {
+            run(&root, "fmt", &[format!("--qlifmt={}", tool.display())])
+        };
+        assert_eq!(failed.exit_code, 1, "{replaced}: {:?}", failed.envelope);
+        assert_eq!(
+            failed.envelope.diagnostics[0].id, "input",
+            "{replaced}: {:?}",
+            failed.envelope
+        );
+        let suffix = sources_path.strip_prefix(&replace).unwrap();
+        for source_root in [&sources_path, &old.join(suffix)] {
+            assert_eq!(
+                fs::read(source_root.join("module.qli")).unwrap(),
+                SOURCE.as_bytes()
+            );
+            assert_eq!(fs::read_dir(source_root).unwrap().count(), 1);
+        }
+    }
+}
+
+#[cfg(unix)]
+#[test]
+fn replaced_qrate_cannot_receive_validated_document_artifacts() {
+    let home = tempfile::tempdir().unwrap();
+    let root = home.path().join("qrate");
+    let fixture = qrate();
+    copy_tree(fixture.path(), &root);
+    let replacement = home.path().join("replacement");
+    copy_tree(&root, &replacement);
+    let old = home.path().join("old");
+    let sources = FrozenSources::capture(&root.join("src")).unwrap();
+    let rendered = qargo_tools::qlidoc_engine::render_files(sources.files(), false).unwrap();
+    let tools = tempfile::tempdir().unwrap();
+    let candidate = tools.path().join("candidate");
+    qargo_tools::qlidoc_engine::publish(
+        &fs::canonicalize(tools.path()).unwrap().join("candidate"),
+        &rendered,
+    )
+    .unwrap();
+    let response_path = tools.path().join("response.json");
+    let tool = script(
+        tools.path(),
+        &format!(
+            "/bin/mv {} {} || exit 9\n/bin/mv {} {} || exit 9\noutput=${{3#--output=}}\n/bin/cp -R {} \"$output\" || exit 9\n/usr/bin/sed \"s|__OUTPUT__|$output|g\" {}",
+            quote(&root),
+            quote(&old),
+            quote(&replacement),
+            quote(&root),
+            quote(&candidate),
+            quote(&response_path)
+        ),
+    );
+    let mut report = response(&tool, &sources, "doc");
+    report["result"]["artifact_path"] = json!("__OUTPUT__");
+    report["result"]["files"] = json!(
+        rendered
+            .keys()
+            .map(|path| json!({"path":path,"sha256":digest_path(&candidate.join(path)).unwrap()}))
+            .collect::<Vec<_>>()
+    );
+    fs::write(response_path, serde_json::to_vec(&report).unwrap()).unwrap();
+    let failed = run(&root, "doc", &[format!("--qlidoc={}", tool.display())]);
+    assert_eq!(failed.exit_code, 1, "{:?}", failed.envelope);
+    assert_eq!(failed.envelope.diagnostics[0].id, "doc_output");
+    assert!(result(&failed)["artifact_path"].is_null());
+    assert!(!root.join("target").exists());
+    assert!(!old.join("target").exists());
 }

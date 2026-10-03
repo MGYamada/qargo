@@ -5,7 +5,7 @@ use std::io::Read;
 
 use sha2::{Digest, Sha256};
 
-use crate::report::Diagnostic;
+use crate::support::report::Diagnostic;
 
 pub fn identity_error(message: impl Into<String>) -> Diagnostic {
     Diagnostic::error("tool_identity", "tool", message)
@@ -192,7 +192,7 @@ mod macos {
             assert_eq!(std::mem::size_of::<RegionPathInfo>(), 1272);
             assert_eq!(
                 running_digest().unwrap(),
-                crate::snapshot::digest_path(&std::env::current_exe().unwrap()).unwrap()
+                crate::support::snapshot::digest_path(&std::env::current_exe().unwrap()).unwrap()
             );
         }
     }

@@ -14,5 +14,5 @@ pub mod qargo;
 mod tools;
 pub use qlippy_support::{
     PROFILE, QLEISLI_VERSION, VERSION, adapter, executable, publication, qlippy, report, rules,
-    snapshot, source,
+    snapshot, source, support,
 };

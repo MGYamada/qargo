@@ -1,6 +1,6 @@
 [package]
 name = "qargo"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
@@ -10,14 +10,14 @@ publish = ["crates-io"]
 readme = "README.md"
 keywords = ["qleisli", "qrate", "lint", "format", "documentation"]
 categories = ["command-line-utilities", "development-tools"]
-include = ["/src/**", "/qrates/*/Qargo.toml", "/qrates/*/src/**", "/qrates/*/tests/**", "/qrates/*/docs/**", "/tests/**", "/docs/**", "/scripts/*.py", "/install.sh", "/README.md", "/CHANGELOG.md", "/LICENSE", "/NOTICE", "/AGENTS.md", "!**/.DS_Store", "!**/__pycache__/**"]
+include = ["/src/**", "/qrates/*/Qargo.toml", "/qrates/*/src/**", "/qrates/*/tests/**", "/qrates/*/docs/**", "/tests/**", "/docs/**", "/scripts/*.py", "/install.sh", "/README.md", "/CHANGELOG.md", "/LICENSE", "/NOTICE", "/AGENTS.md", "/QRATEBOUNDARY.md", "!**/.DS_Store", "!**/__pycache__/**"]
 
 [lib]
 name = "qargo_tools"
 
 [workspace]
-members = ["rust/qlippy", "rust/qlifmt", "rust/qlidoc"]
-default-members = [".", "rust/qlippy", "rust/qlifmt", "rust/qlidoc"]
+members = ["."]
+exclude = ["rust/qlippy", "rust/qlifmt", "rust/qlidoc"]
 resolver = "3"
 
 [workspace.dependencies]
@@ -51,31 +51,31 @@ path = "src/bin/qargo.rs"
 
 [[bin]]
 name = "qlippy"
-path = "qrates/qlippy/src/bin/qlippy.rs"
+path = "src/bin/qlippy.rs"
 
 [[test]]
 name = "qlippy"
-path = "qrates/qlippy/tests/engine.rs"
+path = "tests/qlippy.rs"
 
 [[bin]]
 name = "qlifmt"
-path = "qrates/qlifmt/src/bin/qlifmt.rs"
+path = "src/bin/qlifmt.rs"
 
 [[bin]]
 name = "qlidoc"
-path = "qrates/qlidoc/src/bin/qlidoc.rs"
+path = "src/bin/qlidoc.rs"
 
 [[test]]
 name = "qlifmt"
-path = "qrates/qlifmt/tests/engine.rs"
+path = "tests/qlifmt.rs"
 
 [[test]]
 name = "qlidoc"
-path = "qrates/qlidoc/tests/engine.rs"
+path = "tests/qlidoc.rs"
 
 [[test]]
 name = "snapshot"
-path = "qrates/qlippy/tests/snapshot.rs"
+path = "tests/snapshot.rs"
 
 [lints.rust]
 unsafe_code = "forbid"

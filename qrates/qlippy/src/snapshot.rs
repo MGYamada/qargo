@@ -8,7 +8,7 @@ use std::path::{Component, Path, PathBuf};
 use sha2::{Digest, Sha256};
 use tempfile::TempDir;
 
-use crate::report::Diagnostic;
+use crate::support::report::Diagnostic;
 
 pub type Files = BTreeMap<String, Vec<u8>>;
 pub const FILE_BYTES: u64 = 1 << 20;
@@ -83,6 +83,12 @@ pub struct InputDirectory;
 
 #[cfg(not(unix))]
 impl InputDirectory {
+    pub fn verify(&self) -> Result<(), Diagnostic> {
+        Err(input_error(
+            "Descriptor-anchored input capture is unavailable on this platform.",
+        ))
+    }
+
     pub fn open(_: &Path) -> Result<Self, Diagnostic> {
         Err(input_error(
             "Descriptor-anchored input capture is unavailable on this platform.",
@@ -138,6 +144,7 @@ mod anchored {
         fd: OwnedFd,
         parent: Option<Arc<Directory>>,
         name: OsString,
+        anchor: Option<std::path::PathBuf>,
     }
 
     /// An opened input directory and its retained ancestor chain.
@@ -190,6 +197,7 @@ mod anchored {
                     fd,
                     parent: None,
                     name: OsString::new(),
+                    anchor: None,
                 })));
             }
             let name = absolute
@@ -205,6 +213,7 @@ mod anchored {
                 fd: parent,
                 parent: None,
                 name: OsString::new(),
+                anchor: Some(absolute.parent().expect("absolute parent").to_path_buf()),
             }));
             parent.child_checked(name, &parent.stat(name)?)
         }
@@ -229,6 +238,7 @@ mod anchored {
                 fd,
                 parent: Some(self.0.clone()),
                 name: name.to_owned(),
+                anchor: None,
             }));
             child.validate()?;
             Ok(child)
@@ -266,7 +276,35 @@ mod anchored {
             Ok((stat.st_dev as u64, stat.st_ino as u64))
         }
 
+        /// Revalidate the retained directory chain without acquiring a replacement subject.
+        pub fn verify(&self) -> Result<(), Diagnostic> {
+            self.validate()
+        }
+
+        /// Duplicate the captured directory capability for descriptor-relative effects.
+        pub fn held_file(&self) -> Result<File, Diagnostic> {
+            self.validate()?;
+            self.0.fd.try_clone().map(File::from).map_err(io_error)
+        }
+
         fn validate(&self) -> Result<(), Diagnostic> {
+            if let Some(path) = &self.0.anchor {
+                // External parent aliases are allowed, but must still name the held object.
+                let current = fs::open(
+                    path,
+                    OFlags::RDONLY | OFlags::DIRECTORY | OFlags::CLOEXEC,
+                    Mode::empty(),
+                )
+                .map_err(io_error)?;
+                if !same_object(
+                    &fs::fstat(&current).map_err(io_error)?,
+                    &fs::fstat(&self.0.fd).map_err(io_error)?,
+                ) {
+                    return Err(input_error(
+                        "Input ancestor was renamed or replaced after capture.",
+                    ));
+                }
+            }
             if let Some(parent) = &self.0.parent {
                 let parent = Self(parent.clone());
                 parent.validate()?;
@@ -275,7 +313,7 @@ mod anchored {
                     &fs::fstat(&self.0.fd).map_err(io_error)?,
                 ) {
                     return Err(input_error(
-                        "Input directory was renamed or replaced during capture.",
+                        "Input directory was renamed or replaced after capture.",
                     ));
                 }
             }

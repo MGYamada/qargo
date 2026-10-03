@@ -7,8 +7,8 @@ use qleisli::frontend::compile::check_project_with_policy;
 use qleisli::frontend::project::{ModuleOrigin, Project, SourcePolicy};
 use serde_json::{Value, json};
 
-use crate::report::{Diagnostic, Location};
-use crate::snapshot::{FrozenSources, SourceStage, portable_relative};
+use crate::support::report::{Diagnostic, Location};
+use crate::support::snapshot::{FrozenSources, SourceStage, portable_relative};
 
 pub struct CheckedSources {
     project: Option<Project>,

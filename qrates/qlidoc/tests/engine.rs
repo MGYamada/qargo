@@ -1,12 +1,12 @@
-//! Documentation is parsed syntax, never compiler or mathematical evidence.
+// Documentation is parsed syntax, never compiler or mathematical evidence.
 
 use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use qargo_tools::qlidoc_engine::{publish, render_files, run};
-use qargo_tools::snapshot::{Files, digest_path};
+use qlidoc_engine::{publish, render_files, run};
+use qlippy_engine::support::snapshot::{Files, digest_path};
 use serde_json::Value;
 
 fn sources(label: &str, source: &str) -> Files {
@@ -169,7 +169,7 @@ fn parse_failures_preserve_original_utf8_coordinates_and_do_not_publish() {
     assert_eq!(result["qleisli_check"]["reason"], "syntax_only");
     assert!(result["artifact_path"].is_null());
     assert_eq!(result["files"], serde_json::json!([]));
-    assert_eq!(result["tool"]["version"], "0.1.6");
+    assert_eq!(result["tool"]["version"], "0.1.7");
     let location = report.envelope.diagnostics[0].primary.as_ref().unwrap();
     assert_eq!(location.path, "invalid.qli");
     assert_eq!((location.line, location.column), (2, 1));
@@ -245,7 +245,7 @@ fn output_failure_retains_input_binding_and_intended_artifact_inventory() {
     assert_eq!(report.exit_code, 1);
     let result = report.envelope.result.unwrap();
     assert_eq!(result["source_count"], 1);
-    assert_eq!(result["artifact_path"], output.to_str().unwrap());
+    assert!(result["artifact_path"].is_null());
     assert_eq!(result["files"].as_array().unwrap().len(), 2);
     assert_eq!(fs::read_to_string(output).unwrap(), "unrelated");
 }
@@ -429,7 +429,7 @@ fn cli_is_one_json_envelope_with_portable_relative_paths_and_usage_exit_codes() 
         .unwrap();
     assert!(version.status.success());
     let version: Value = serde_json::from_slice(&version.stdout).unwrap();
-    assert_eq!(version["result"]["version"], "0.1.6");
+    assert_eq!(version["result"]["version"], "0.1.7");
     assert_eq!(version["result"]["qleisli_version"], "0.2.1");
     for args in [
         vec!["--format=json"],

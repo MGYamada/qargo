@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.7 — 2026-10-03
+
+- Retain captured directory capabilities through formatting and build/document publication, rejecting byte-identical root/ancestor replacements before effects and preventing redirection to replacement paths (#24).
+- Revalidate the captured Qargo running-image identity before check acceptance and build publication; derive the build record and output path from that same identity (#25).
+- Clear parent-unverified change lists, formatted identity and document inventories on failed child execution while preserving transport, diagnostic and identity validation (#26).
+- Report documentation `artifact_path` only after successful publication or exact reuse, leaving it null on conflicts and output failures in Qargo and standalone qlidoc (#27).
+- Adopt `QRATEBOUNDARY.md`: every internal or external qrate has an independent environment boundary, including its Rust development environment. qlippy, qlifmt, and qlidoc remain three ordinary qrates; their aligned Qargo versions are a bundle convenience, not a privilege. Only std has privileged qrate status and is bundled with and versioned alongside Qleisli.
+- Give each tool an independent Cargo workspace, explicit dependencies, lockfile, toolchain declaration, canonical CLI and Rust tests. Extract its qrate, Rust environment and exact vendored dependency closure without a root Qargo manifest. Verify standalone builds, tests, documentation, CLI equivalence and qrate relocation with no original-checkout access.
+- Separate qlippy shared support from its lint product; require caller-owned report versions and wiring-only bundle adapters. Audit reverse/conditional dependencies and source inclusions. Record portable project identities separately from native build inputs, generated outputs and executable digests. Root Cargo package version is the release-orchestration authority; component manifests retain literal versions checked by release validation.
+- Add independent component CI on Linux/macOS with Rust 1.85 and stable, frozen vendored resolution and isolated Cargo/Rustup configuration. Preserve Qargo/Cargo manifest independence, including invalid unrelated Cargo metadata.
+- Update Qargo, the standard tools, qrate manifests, private Rust packages, lockfile, CI, and release/package verification to 0.1.7. Include the boundary policy and extraction plan in source/package validation.
+- Preserve exact Qleisli 0.2.1, Rust 1.85, explicit Qleisli/Rust editions, manifest schema 2, result schema 1, current same-release tool compatibility, and existing native archive formats. Publication remains a separate action.
+
 ## 0.1.6 — 2026-10-03
 
 - Require the exact top-level published release asset set before checksum, archive, installer, and runtime validation. Keep nested Actions artifact collection and verification of older release tags supported (#21).

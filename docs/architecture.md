@@ -15,6 +15,11 @@ qleisliup. A digest is neither authentication nor mathematical evidence.
 
 ## Principles and consequences
 
+The [qrate boundary policy](../QRATEBOUNDARY.md) applies the Independent principle
+to every qrate and its host development environment, regardless of repository or
+bundle membership. Standard-tool version alignment is a distribution policy;
+only Qleisli's bundled, version-aligned std qrate has privileged status.
+
 | Principle | Requirement | Architectural consequence |
 | --- | --- | --- |
 | Exact | Process the declared bytes with an identified implementation. | Capture once; distinguish qrate input identity, Qleisli source identity, and executable identity. Check explicit editions and exact tool compatibility. |
@@ -65,6 +70,22 @@ The phases constrain dependencies:
   remains inside the qlippy qrate. The ordinary checker gets its own working
   copy, and syntax engines read immutable captured bytes.
 
+Qlippy's `support` module is logically separate
+from its linter product. Formatter/documenter consumers cannot depend on lint
+rules, product defaults, or ordinary-checker execution. Root component adapters
+are wiring only; Qargo retains its own orchestration and response validation.
+The [boundary policy](../QRATEBOUNDARY.md#dependency-direction-and-adapter-ownership)
+forbids reverse component-to-Qargo dependencies, including build/test edges and
+source inclusions. Component CLIs and tests use their own packages; the public
+bundle includes those canonical sources through audited alias/include adapters.
+Each private Cargo environment has its own workspace, lockfile and toolchain
+declaration. Extraction checks build the relocated dependency closure.
+
+The [extraction identity contract](qrate-extraction-plan.md#exact-extraction-and-build-identity)
+separates portable Rust project inputs from the actual build environment and
+generated compilation inputs. It does not extend current `source_id`, `input_id`,
+or public result schemas to cover host builds.
+
 The public CLI and wire formats are defined by the [specification](specification.md).
 Internal Rust types are implementation boundaries, not a new external protocol.
 Requests, captured subjects, and checking state stay typed; JSON remains the existing
@@ -79,11 +100,17 @@ and output while process-group cleanup remains armed; rejection drops the guard.
 An accepted tool error remains an error, but is a valid transport result.
 
 Only the effect phase can apply a format plan or publish a document/build plan.
-It uses the established source revalidation and descriptor-based publication
-kernels. Child-owned paths and bytes are never reread after acceptance for
+It retains captured source/qrate directory capabilities across the capture/effect
+boundary, revalidates their names and ancestors, and passes them to the source
+replacement and publication kernels. Reopening an equivalent pathname must never
+select a new subject for an effect. Child-owned paths and bytes are never reread after acceptance for
 publication. The orchestrator's identity is captured before child execution and
 effects, then revalidated while child cleanup is still armed. A rejected host
 identity therefore prevents source writes and artifact publication.
+Ordinary check/build retain and revalidate their captured host identity as well;
+build verifies immediately before publication. Failed child responses expose no
+unvalidated formatting changes or document inventory. A document artifact path is
+assigned only after successful publication or exact reuse.
 
 The qleisliup proxy may choose the executable bundle. It does not replace the
 linked Qleisli acceptance implementation. The [toolchain plan](toolchains.md)
