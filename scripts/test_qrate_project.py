@@ -9,7 +9,7 @@ import shutil
 import tempfile
 import unittest
 
-from capture_build import build_binding, generated_inputs
+from capture_build import audit_linux_access, build_binding, external_tree, generated_inputs
 from qrate_project import QRATES, audit, audit_metadata, audit_vendor, copy_tree, extract, sha256, snapshot
 from verify_qrate import isolated_config
 from verify_release import verify_versions
@@ -40,6 +40,23 @@ class ProjectBoundaryTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "outside the original checkout"):
             extract(self.root, destination, "qlippy", Path("unused-cargo"))
         self.assertFalse(destination.exists())
+
+    def test_native_configuration_is_captured_and_unrecorded_access_is_rejected(self):
+        certificate = self.root / "ca-certificates.crt"
+        certificate.write_bytes(b"first certificate bundle")
+        before = external_tree(certificate)
+        certificate.write_bytes(b"changed certificate bundle")
+        self.assertNotEqual(before, external_tree(certificate))
+        trace = f'123 openat(AT_FDCWD, "cert", O_RDONLY) = 3<{certificate}>\n'
+        audit_linux_access(trace, [self.root])
+        trace += '123 openat(AT_FDCWD, "outside", O_RDONLY) = 4</unrecorded/data>\n'
+        trace += '123 execve("/unrecorded/compiler", [], []) <unfinished ...>\n'
+        with self.assertRaises(RuntimeError) as rejected:
+            audit_linux_access(trace, [self.root])
+        self.assertIn("Unrecorded native/project read: /unrecorded/data", str(rejected.exception))
+        self.assertIn("Unrecorded build executable: /unrecorded/compiler", str(rejected.exception))
+        with self.assertRaisesRegex(RuntimeError, "Relative build executable"):
+            audit_linux_access('execve("compiler", [], []) = 0', [self.root])
 
     def test_relocation_and_excluded_build_cache_preserve_identity(self):
         before = self.identity()

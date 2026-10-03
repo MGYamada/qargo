@@ -102,7 +102,7 @@ def capture_native(toolchain):
         roots = [Path(name) for name in ("/usr/include", "/usr/lib/gcc", "/usr/lib/x86_64-linux-gnu",
                                         "/lib/x86_64-linux-gnu", "/usr/lib64", "/lib64",
                                         "/etc/ld.so.cache", "/etc/ld.so.conf", "/etc/ld.so.conf.d",
-                                        "/etc/ssl/openssl.cnf") if Path(name).exists()]
+                                        "/etc/ssl/openssl.cnf", "/etc/ssl/certs/ca-certificates.crt") if Path(name).exists()]
         roots += [Path("/usr/bin") / name for name in ("gcc", "as", "ld", "ar", "ranlib", "objcopy", "strip", "env", "uname", "sh", "strace")]
         roots = list(dict.fromkeys(path.resolve() for path in roots))
         env = {}
@@ -169,30 +169,38 @@ class BuildGuard:
         if self.darwin:
             command = ["/usr/bin/sandbox-exec", "-f", str(self.profile), *map(str, command)]
             return subprocess.run(command, **kwargs)
-        import re
         self.sequence += 1
         trace = self.work / f"build-access-{self.sequence}.log"
         result = subprocess.run(["/usr/bin/strace", "-f", "-qq", "-yy", "-s", "8192",
                                  "-e", "trace=open,openat,openat2,execve", "-o", str(trace),
                                  *map(str, command)], **kwargs)
-        for line in trace.read_text().splitlines():
-            # -yy annotates each successful opened descriptor with its resolved
-            # path. Failed probes cannot supply compilation bytes.
-            opened = re.search(r"= \d+<(/[^>]*)>", line)
-            if opened:
-                path = Path(opened[1].removesuffix(" (deleted)"))
-                require(any(path.is_relative_to(root) for root in self.roots)
-                        or path.is_relative_to("/proc") or path.is_relative_to("/dev"),
-                        "Unrecorded native/project read: " + str(path))
-            # Audit attempts too: concurrent strace output can split execve's
-            # entry and successful return over separate lines.
-            executed = re.search(r'execve\("([^"]+)"', line)
-            if executed:
-                require(Path(executed[1]).is_absolute(), "Relative build executable requires an explicit capture rule")
-                path = Path(executed[1]).resolve()
-                require(any(path.is_relative_to(root) for root in self.roots),
-                        "Unrecorded build executable: " + str(path))
+        audit_linux_access(trace.read_text(), self.roots)
         return result
+
+
+def audit_linux_access(trace, roots):
+    """Reject every observed unrecorded read/launch, reporting the full set."""
+    import re
+    violations = set()
+    for line in trace.splitlines():
+        # -yy annotates successful opened descriptors with resolved paths.
+        # Failed probes cannot supply compilation bytes.
+        opened = re.search(r"= \d+<(/[^>]*)>", line)
+        if opened:
+            path = Path(opened[1].removesuffix(" (deleted)"))
+            if not (any(path.is_relative_to(root) for root in roots)
+                    or path.is_relative_to("/proc") or path.is_relative_to("/dev")):
+                violations.add("Unrecorded native/project read: " + str(path))
+        # Audit attempts too: concurrent strace output can split execve's
+        # entry and successful return over separate lines.
+        executed = re.search(r'execve\("([^"]+)"', line)
+        if executed:
+            path = Path(executed[1])
+            if not path.is_absolute():
+                violations.add("Relative build executable requires an explicit capture rule: " + str(path))
+            elif not any(path.resolve().is_relative_to(root) for root in roots):
+                violations.add("Unrecorded build executable: " + str(path))
+    require(not violations, "\n".join(sorted(violations)))
 
 
 def generated_inputs(target):
