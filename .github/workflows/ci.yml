@@ -9,14 +9,25 @@ permissions:
 
 jobs:
   rust:
-    name: ${{ matrix.os }} / Rust ${{ matrix.toolchain }}
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        os: ["ubuntu-latest", "macos-latest"]
-        toolchain: ["1.85.0", "stable"]
+        include:
+          - name: ubuntu-latest
+            os: ubuntu-latest
+            toolchain: stable
+          - name: ubuntu-latest-msrv
+            os: ubuntu-latest
+            toolchain: "1.85.0"
+          - name: macos-latest
+            os: macos-latest
+            toolchain: stable
+          - name: macos-latest-msrv
+            os: macos-latest
+            toolchain: "1.85.0"
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: Prepare development toolchain

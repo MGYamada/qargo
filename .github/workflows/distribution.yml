@@ -12,18 +12,21 @@ permissions:
 
 jobs:
   binary:
-    name: ${{ matrix.target }} / Rust 1.85.0
+    name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - name: linux-x86_64
+            os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
-          - os: macos-15-intel
+          - name: macos-x86_64
+            os: macos-15-intel
             target: x86_64-apple-darwin
-          - os: macos-14
+          - name: macos-arm64
+            os: macos-14
             target: aarch64-apple-darwin
     env:
       MACOSX_DEPLOYMENT_TARGET: "11.0"
@@ -70,30 +73,22 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
-  verified:
-    name: Native distribution verified
-    if: ${{ always() }}
-    needs: [binary, assets]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - name: Require successful native builds and complete release assets
-        env:
-          BINARY_RESULT: ${{ needs.binary.result }}
-          ASSETS_RESULT: ${{ needs.assets.result }}
-        shell: bash
-        run: |
-          if [[ "$BINARY_RESULT" != success || "$ASSETS_RESULT" != success ]]; then
-            printf 'Native distribution verification failed: binary=%s, assets=%s\n' "$BINARY_RESULT" "$ASSETS_RESULT" >&2
-            exit 1
-          fi
-
   assets:
-    name: Assemble verified release assets (no publication)
+    name: release-assets
+    if: ${{ always() }}
     needs: binary
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
+      - name: Require successful native builds
+        env:
+          BINARY_RESULT: ${{ needs.binary.result }}
+        shell: bash
+        run: |
+          if [[ "$BINARY_RESULT" != success ]]; then
+            printf 'Native builds did not succeed: %s\n' "$BINARY_RESULT" >&2
+            exit 1
+          fi
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
