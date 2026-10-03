@@ -8,7 +8,7 @@ define these responsibilities and their implementation boundaries.
 
 Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.7 in this checkout for bundle convenience. The three tool qrates retain independent boundaries and have no privileged qrate status; see [QRATEBOUNDARY.md](QRATEBOUNDARY.md).
 
-**0.1.7 is an unpublished candidate.** The environment-extraction work remains planned; see the [extraction plan](docs/qrate-extraction-plan.md).
+**0.1.7 is an unpublished candidate.** It includes independent Rust environments and extraction verification; see the [development instructions](docs/qrate-development.md) and [extraction contract](docs/qrate-extraction-plan.md).
 
 **0.1.6 is published and verified.** Install it through [crates.io](https://crates.io/crates/qargo/0.1.6) or the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.6). The download and registry installation examples below use this release. Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
