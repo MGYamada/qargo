@@ -1,12 +1,12 @@
 # Changelog
 
-## 0.1.6 — Unreleased
+## 0.1.6 — 2026-10-03
 
 - Require the exact top-level published release asset set before checksum, archive, installer, and runtime validation. Keep nested Actions artifact collection and verification of older release tags supported (#21).
 - Reject directory-content changes during input capture by comparing two bounded descriptor-anchored inventories and directory metadata, including extension-filtered entries. Preserve the logical traversal budget and existing replacement checks (#20).
 - Establish Qargo's first principles: Exact, Immutable, Bound, Explicit, Independent. Refactor orchestration into typed requests, immutable captured subjects, bound checking/tool validation, and explicit effects. Give each checker/tool its own materialized sources and accept child transport through one guarded execution boundary before source updates or artifact publication.
 - Capture the orchestrator identity before child execution and revalidate it before response acceptance, so host-identity rejection prevents parent-side formatting writes and documentation publication.
-- Update Qargo, all three standard tools, their qrate manifests, private development packages, lockfile, CI, documentation, and package/release verifiers together to 0.1.6. Keep installation examples on the published 0.1.5 release until publication.
+- Update Qargo, all three standard tools, their qrate manifests, private development packages, lockfile, CI, documentation, and package/release verifiers together to 0.1.6.
 - Adopt a qleisliup compatibility plan covering offline proxy execution, complete same-release bundles, executable and checker identities, explicit failure, and a coordinated exact linked-Qleisli update for the manager's initial production language distribution. Keep external-checker integration dependent on its own upstream and Qargo contracts.
 - Preserve exact Qleisli 0.2.1, Rust 1.85, manifest schema 2 with explicit edition "2026", independent result schema version 1, syntax-only formatting/documentation, and unavailable QLT execution. Publication requires separate authorization.
 

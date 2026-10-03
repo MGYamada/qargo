@@ -6,7 +6,9 @@ Cargo publication and GitHub source/binary releases are separate actions. Obtain
 
 Version 0.1.5 was published on 2026-10-01 to [crates.io](https://crates.io/crates/qargo/0.1.5) and [GitHub](https://github.com/MGYamada/qargo/releases/tag/v0.1.5) from verified commit `f9b562474351327e1b72781e30bdb19d5621d5b4`. Its release assets contain the three supported native bundles, `install.sh`, and `SHA256SUMS`; Linux ARM64 remains deferred under issue #18. Subsequent documentation and verification-workflow corrections retain that published package and tag identity.
 
-Version 0.1.6 is an unpublished candidate. Commands below prepare or publish that candidate only at the corresponding authorized step; public installation examples in README continue to use 0.1.5 until publication is verified.
+Version 0.1.6 was published on 2026-10-03 to [crates.io](https://crates.io/crates/qargo/0.1.6) and [GitHub](https://github.com/MGYamada/qargo/releases/tag/v0.1.6) from verified commit `1c759a097c58f8fbd280edcaf8efac6d380ec1e9`. The annotated tag and published crate retain that commit; later documentation updates must not move or replace either. All three native archives, `install.sh`, and `SHA256SUMS` were attached before the GitHub release became formal/latest.
+
+The [source/package matrix](https://github.com/MGYamada/qargo/actions/runs/37080281022), [native distribution and complete asset collection](https://github.com/MGYamada/qargo/actions/runs/37080280990), and [published-release verification](https://github.com/MGYamada/qargo/actions/runs/37081714657) all passed for that commit. Real versioned/latest installations passed on Linux x86_64 and macOS x86_64/ARM64. A fresh crates.io installation passed package/runtime verification; its archive matched the dry-run package byte-for-byte (SHA-256 `e985680e072d23f0402bad9ed133429a05a1a81940ec3ab277b0ae7af2a04ac0`). The GitHub source archive matched all 80 tracked files at the tagged commit.
 
 ## Package layout
 
