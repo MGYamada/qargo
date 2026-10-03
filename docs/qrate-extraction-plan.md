@@ -4,7 +4,7 @@ Status: implementation contract for the 0.1.7 candidate, revised 2026-10-03 unde
 [QRATEBOUNDARY.md](../QRATEBOUNDARY.md). This policy supersedes the earlier
 proposal for independently advancing standard-tool versions and mixed-version
 bundles. The independent Cargo environments, extraction tooling, identity records
-and CI checks implement this contract. See [development instructions](qrate-development.md).
+and on-demand verification implement this contract. See [development instructions](qrate-development.md).
 
 ## Objective
 
@@ -254,7 +254,11 @@ Cargo configuration, source kinds, cross compilation and external tools fail
 until their capture profiles are specified. Existing native distribution builds
 retain their separate verification, including Linux musl.
 
-The independent CI job moves the original checkout away and removes read access
-during verification. Each component is checked separately on Linux/macOS with
+The manually dispatched `Verify independent qrate extraction` workflow moves
+the original checkout away and removes read access during verification. It does
+not run on pushes or pull requests; ordinary CI retains the lightweight manifest,
+identity, dependency-direction and adapter audits. The full manually triggered
+matrix remains mandatory before every release for the exact publication
+candidate. Each component is checked separately on Linux/macOS with
 Rust 1.85 and stable. Standard-bundle version alignment and all existing public
 transport, package and native-installation contracts remain unchanged.

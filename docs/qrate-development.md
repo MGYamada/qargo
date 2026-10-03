@@ -78,8 +78,8 @@ reads from captured inputs and writes only to fresh build/test state. On Linux,
 the admitted paths. Directory-only descriptors permit path traversal; subsequent
 file-content opens remain audited. Failed executable probes supply no executable
 bytes, and interleaved syscall entries/returns are matched by process identity.
-Unrecorded native reads fail verification. CI also makes the
-original checkout unreadable while running the copied verifier.
+Unrecorded native reads fail verification. The on-demand extraction workflow
+also makes the original checkout unreadable while running the copied verifier.
 
 Native build records bind the actual Rust installation, compiler/helper binaries,
 native SDK/header/library inventories, selected commands, admitted environment,
@@ -100,3 +100,19 @@ audits component dependency direction and checks that root CLI/test adapters
 remain wiring only. Release validation compares literal standard-qrate and Rust
 versions to root Cargo `[package].version`. Qargo commands do not run these
 developer scripts or Cargo.
+
+## On-demand workflow
+
+The `Verify independent qrate extraction` workflow (`qrate-extraction.yml`) is
+started manually from GitHub Actions. Select the intended branch or tag before
+starting it. It checks all three components on Linux/macOS with Rust 1.85 and
+stable and uploads the project, native-input and build records. It is not
+triggered by pushes or pull requests. Before every release, require a successful
+full matrix for the exact publication candidate and record its commit and run
+URL; routine CI success does not establish extraction readiness. Also run it
+when changing extraction boundaries or Rust environments. Native inventories can make
+a macOS run take about 30 minutes; this belongs outside routine feedback.
+
+Normal CI retains the lightweight project-identity, manifest, dependency and
+adapter checks, as well as the bundle source/package tests. Independent extraction
+remains a supported development operation through the copied scripts above.
