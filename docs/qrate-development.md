@@ -81,9 +81,11 @@ original checkout unreadable while running the copied verifier.
 Native build records bind the actual Rust installation, compiler/helper binaries,
 native SDK/header/library inventories, selected commands, admitted environment,
 each stage's dependency build outputs and Rust dep-info, and separate executable
-digests. Linux records also capture Cargo's system CA input, transparent-hugepage
-setting and applicable cgroup CPU limits; ambient system/global Git configuration
-is disabled. They are developer observations, not publisher authentication,
+digests. Linux records also capture Cargo's system CA and Git configuration inputs,
+transparent-hugepage setting and applicable cgroup CPU limits. Fresh homes and
+explicit Git configuration variables isolate user configuration; Cargo's linked
+Git library can still inspect the captured system file. They are developer
+observations, not publisher authentication,
 mathematical evidence or promises of reproducible binary bytes. Supported native
 verification hosts are Linux x86_64 with system GCC and macOS with Command Line
 Tools; custom native toolchains and cross builds require separate capture rules.

@@ -108,7 +108,7 @@ def capture_native(toolchain):
             dyld = Path("/System/Library/dyld")
         require(any(dyld.glob("dyld_shared_cache*")), "Cannot identify macOS system library content")
         roots = [developer, dyld, Path("/bin"), Path("/usr/lib"),
-                 *[Path("/usr/bin") / name for name in ("xcrun", "xcode-select", "env", "uname")],
+                 *[Path("/usr/bin") / name for name in ("xcrun", "xcode-select", "env", "uname", "mkfifo")],
                  Path("/usr/bin/sandbox-exec"), Path("/private/etc/ssl/openssl.cnf"),
                  Path("/System/Library/CoreServices/SystemVersion.plist")]
         env = {"SDKROOT": str(sdk), "DEVELOPER_DIR": str(developer),
@@ -122,9 +122,9 @@ def capture_native(toolchain):
         roots = [Path(name) for name in ("/usr/include", "/usr/lib/gcc", "/usr/lib/x86_64-linux-gnu",
                                         "/lib/x86_64-linux-gnu", "/usr/lib64", "/lib64",
                                         "/etc/ld.so.cache", "/etc/ld.so.conf", "/etc/ld.so.conf.d",
-                                        "/etc/ssl/openssl.cnf", "/etc/ssl/certs/ca-certificates.crt",
+                                        "/etc/ssl/openssl.cnf", "/etc/ssl/certs/ca-certificates.crt", "/etc/gitconfig",
                                         "/sys/kernel/mm/transparent_hugepage/enabled") if Path(name).exists()]
-        roots += [Path("/usr/bin") / name for name in ("gcc", "as", "ld", "ar", "ranlib", "objcopy", "strip", "env", "uname", "sh", "strace")]
+        roots += [Path("/usr/bin") / name for name in ("gcc", "as", "ld", "ar", "ranlib", "objcopy", "strip", "env", "uname", "sh", "strace", "mkfifo")]
         roots += linux_resource_inputs()
         roots = list(dict.fromkeys(path.resolve() for path in roots))
         env = {}
