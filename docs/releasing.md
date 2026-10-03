@@ -6,7 +6,7 @@ Cargo publication and GitHub source/binary releases are separate actions. Obtain
 
 Version 0.1.5 was published on 2026-10-01 to [crates.io](https://crates.io/crates/qargo/0.1.5) and [GitHub](https://github.com/MGYamada/qargo/releases/tag/v0.1.5) from verified commit `f9b562474351327e1b72781e30bdb19d5621d5b4`. Its release assets contain the three supported native bundles, `install.sh`, and `SHA256SUMS`; Linux ARM64 remains deferred under issue #18. Subsequent documentation and verification-workflow corrections retain that published package and tag identity.
 
-Version 0.1.6 is an unpublished candidate. Commands below prepare or publish that candidate only at the corresponding authorized step; public installation examples in README continue to use 0.1.5 until publication is verified.
+Version 0.1.6 is prepared for publication on 2026-10-03. The versioned installation examples in README target this release; availability must be confirmed after publication. Keep the preparation notice until both requested publication channels are verified, then record the exact published commit and replace the notice with verified release links.
 
 ## Package layout
 
