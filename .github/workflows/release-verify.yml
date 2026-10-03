@@ -6,7 +6,7 @@ on:
       version:
         description: Published version to verify
         required: true
-        default: "0.1.6"
+        default: "0.1.7"
         type: string
 
 permissions:

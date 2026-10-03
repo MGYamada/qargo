@@ -5,9 +5,9 @@ use std::path::Path;
 use qleisli::frontend::documentation::{DocComment, DocumentedModule};
 use qleisli::frontend::lexer::{TokenKind, lex};
 use qleisli::frontend::parser::parse_documented_module;
-use qlippy_engine::report::Diagnostic;
-use qlippy_engine::snapshot::{FILE_BYTES, Files, TOTAL_BYTES, portable_relative};
-use qlippy_engine::source::parse_diagnostic;
+use qlippy_engine::support::report::Diagnostic;
+use qlippy_engine::support::snapshot::{FILE_BYTES, Files, TOTAL_BYTES, portable_relative};
+use qlippy_engine::support::source::parse_diagnostic;
 
 use super::{error, source_text};
 

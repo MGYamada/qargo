@@ -38,6 +38,47 @@ fn qargo(args: &[&str]) -> Output {
 }
 
 #[test]
+fn qrate_management_ignores_unrelated_cargo_identity_and_invalid_metadata() {
+    let root = qrate();
+    let manifest_path = root.path().join("Qargo.toml");
+    let path = manifest_path.to_str().unwrap();
+    let cargo_path = root.path().join("Cargo.toml");
+    let cargo_variants = [
+        None,
+        Some(
+            "[package]\nname = \"unrelated-rust-host\"\nversion = \"9.8.7\"\nedition = \"2024\"\n",
+        ),
+        Some("this is not valid TOML ["),
+        Some("[package]\nname = false\nversion = { workspace = true }\nedition = \"1900\"\n"),
+    ];
+    for command in ["check", "build", "lint", "fmt", "doc", "test"] {
+        let mut baseline = None;
+        for cargo in cargo_variants {
+            if let Some(contents) = cargo {
+                fs::write(&cargo_path, contents).unwrap();
+            } else if cargo_path.exists() {
+                fs::remove_file(&cargo_path).unwrap();
+            }
+            let output = qargo(&[command, "--manifest-path", path]);
+            assert_eq!(
+                output.status.code(),
+                Some(if command == "test" { 1 } else { 0 })
+            );
+            let report = json(&output);
+            if let Some(expected) = &baseline {
+                assert_eq!(&report, expected, "Cargo metadata influenced {command}");
+            } else {
+                baseline = Some(report);
+            }
+        }
+    }
+    // Coexisting Cargo metadata cannot fill in a missing Qleisli edition.
+    fs::write(&manifest_path, MANIFEST.replace("edition = \"2026\"\n", "")).unwrap();
+    let report = json(&qargo(&["check", "--manifest-path", path]));
+    assert_eq!(report["outcome"], "error");
+}
+
+#[test]
 fn space_separated_paths_match_equality_paths_for_all_qargo_commands() {
     let root = qrate();
     let manifest = root.path().join("Qargo with spaces.toml");
@@ -157,7 +198,7 @@ fn cargo_style_dependency_requests_include_actionable_diagnostics() {
         let manifest = root.path().join("Qargo.toml");
         fs::write(
             &manifest,
-            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.6\"\n"),
+            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.7\"\n"),
         )
         .unwrap();
         let output = qargo(&["check", "--manifest-path", manifest.to_str().unwrap()]);

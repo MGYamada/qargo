@@ -2,8 +2,8 @@ use std::ffi::OsString;
 use std::fs;
 use std::process::Command;
 
-use qargo_tools::qlippy;
-use qargo_tools::report::{Diagnostic, Envelope, Report};
+use qlippy_engine::qlippy;
+use qlippy_engine::report::{Diagnostic, Envelope, Report};
 use tempfile::TempDir;
 
 const APPLY: &str = "unitary fn apply[static U:Op<Bit>](q:Q<Bit>)->Q<Bit> requires Apply(U){U(q)}";
@@ -34,9 +34,9 @@ fn warnings(report: &Report) -> &[Diagnostic] {
         assert_eq!(diagnostic.category, "lint");
         assert_eq!(diagnostic.severity, "warning");
         assert!(diagnostic.suggestion.is_some());
-        let policy = qargo_tools::rules::find(&diagnostic.id).expect("catalogued lint rule");
+        let policy = qlippy_engine::rules::find(&diagnostic.id).expect("catalogued lint rule");
         assert_eq!(diagnostic.severity, policy.default_severity);
-        assert_eq!(policy.promotion, qargo_tools::rules::Promotion::Advisory);
+        assert_eq!(policy.promotion, qlippy_engine::rules::Promotion::Advisory);
     }
     &report.envelope.diagnostics
 }
@@ -61,7 +61,7 @@ fn rule_catalog_is_machine_readable_and_independent_of_checking() {
     assert_eq!(envelope.command, "list-rules");
     let result = envelope.result.unwrap();
     assert_eq!(result["catalog_version"], 1);
-    assert_eq!(result["tool"]["version"], "0.1.6");
+    assert_eq!(result["tool"]["version"], "0.1.7");
     assert!(result.get("qleisli_check").is_none());
     assert!(result.get("verified").is_none());
     let groups: Vec<_> = result["groups"]

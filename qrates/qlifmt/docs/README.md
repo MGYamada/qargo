@@ -1,6 +1,6 @@
 # qlifmt
 
-qlifmt 0.1.6 is the Qleisli formatter in the standard Qargo bundle.
+qlifmt 0.1.7 is the Qleisli formatter in the standard Qargo bundle.
 
 ```text
 qlifmt <file-or-source-root> [--check] [--format=json]
@@ -15,7 +15,7 @@ The initial style uses four spaces and a target line width of 100 Unicode scalar
 characters. Long indivisible tokens and comments may exceed that target. All
 syntax token spellings, comment bodies and comment order are preserved. LF and
 CRLF are retained; files containing both retain their first line-ending style.
-No import sorting or style configuration is provided in 0.1.6.
+No import sorting or style configuration is provided in 0.1.7.
 
 Formatting parses Qleisli 0.2.1 syntax and validates token/comment preservation
 and documentation attachment. It does not require or imply type, ownership,
@@ -29,3 +29,8 @@ multi-file transaction is claimed. Symlinks and nonregular sources are rejected.
 The qrate contains the formatter engine, CLI and Rust tests, plus a small
 `smoke.qli` management sample. Developer Cargo manifests are outside this qrate.
 Qargo never invokes Cargo to build or test these sources.
+
+Rust development uses the independent `rust/qlifmt/` Cargo workspace with its
+own manifest, lockfile and Rust toolchain declaration. Transfer that directory
+and this qrate together; see [independent development](../../../docs/qrate-development.md)
+for extraction, dependency capture and verification without the original checkout.

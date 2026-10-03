@@ -141,19 +141,19 @@ pub struct ToolIdentity {
 }
 
 impl ToolIdentity {
-    pub fn capture(name: &str) -> Result<Self, Diagnostic> {
+    pub fn capture(name: &str, version: &'static str) -> Result<Self, Diagnostic> {
         Ok(Self {
             name: name.into(),
-            version: crate::VERSION,
-            executable_sha256: crate::executable::running_digest()?,
-            qleisli_version: crate::QLEISLI_VERSION,
-            profile: crate::PROFILE,
+            version,
+            executable_sha256: crate::support::executable::running_digest()?,
+            qleisli_version: crate::support::QLEISLI_VERSION,
+            profile: crate::support::PROFILE,
         })
     }
 
     pub fn verify(&self) -> Result<(), Diagnostic> {
-        if crate::executable::running_digest()? != self.executable_sha256 {
-            return Err(crate::executable::identity_error(
+        if crate::support::executable::running_digest()? != self.executable_sha256 {
+            return Err(crate::support::executable::identity_error(
                 "Running executable identity changed during the operation.",
             ));
         }
@@ -166,8 +166,8 @@ impl ToolIdentity {
 }
 
 /// Bind metadata to the executable actually running, not to a path or timestamp.
-pub fn tool_info(name: &str) -> Result<Value, Diagnostic> {
-    Ok(ToolIdentity::capture(name)?.to_value())
+pub fn tool_info(name: &str, version: &'static str) -> Result<Value, Diagnostic> {
+    Ok(ToolIdentity::capture(name, version)?.to_value())
 }
 
 pub fn coordinates(source: &str, offset: usize) -> (usize, usize) {
@@ -238,26 +238,34 @@ fn emit_human(report: &Report) -> io::Result<()> {
             writeln!(
                 output,
                 "{} {} (Qleisli {}, {})",
-                report.envelope.format.trim_end_matches(".result"),
-                crate::VERSION,
-                crate::QLEISLI_VERSION,
-                crate::PROFILE
+                result.get("tool").unwrap_or(result)["name"]
+                    .as_str()
+                    .unwrap_or(""),
+                result.get("tool").unwrap_or(result)["version"]
+                    .as_str()
+                    .unwrap_or(""),
+                result.get("tool").unwrap_or(result)["qleisli_version"]
+                    .as_str()
+                    .unwrap_or(""),
+                result.get("tool").unwrap_or(result)["profile"]
+                    .as_str()
+                    .unwrap_or("")
             )?;
         } else if report.envelope.command == "list-rules" {
             writeln!(
                 output,
-                "qlippy rule catalog {}",
-                crate::rules::CATALOG_VERSION
+                "{} rule catalog {}",
+                report.envelope.format.trim_end_matches(".result"),
+                result["catalog_version"]
             )?;
-            for rule in crate::rules::RULES {
-                let metadata = serde_json::to_value(rule).map_err(io::Error::other)?;
+            for metadata in result["rules"].as_array().into_iter().flatten() {
                 writeln!(
                     output,
                     "{} [{}; {}]: {}",
-                    rule.id,
+                    metadata["id"].as_str().unwrap_or(""),
                     metadata["group"].as_str().unwrap_or(""),
                     metadata["promotion"].as_str().unwrap_or(""),
-                    rule.description
+                    metadata["description"].as_str().unwrap_or("")
                 )?;
             }
         } else {

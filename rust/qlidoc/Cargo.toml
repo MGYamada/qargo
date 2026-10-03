@@ -1,7 +1,7 @@
 # Developer-only Rust build configuration. Qargo never reads or executes this.
 [package]
 name = "qlidoc-engine"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
@@ -12,11 +12,22 @@ description = "Syntax-only Qleisli Markdown documentation engine"
 path = "../../qrates/qlidoc/src/lib.rs"
 
 [dependencies]
-qlippy-engine = { path = "../qlippy" }
-qleisli = { workspace = true }
-serde_json = { workspace = true }
-sha2 = { workspace = true }
-tempfile = { workspace = true }
+qlippy-engine = { version = "=0.1.7", path = "../qlippy" }
+qleisli = "=0.2.1"
+serde_json = "=1.0.145"
+sha2 = "=0.10.9"
+tempfile = "=3.23.0"
 
 [lints.rust]
 unsafe_code = "forbid"
+
+[workspace]
+resolver = "3"
+
+[[bin]]
+name = "qlidoc"
+path = "../../qrates/qlidoc/src/bin/qlidoc.rs"
+
+[[test]]
+name = "engine"
+path = "../../qrates/qlidoc/tests/engine.rs"

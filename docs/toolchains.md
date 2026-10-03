@@ -1,6 +1,6 @@
 # Qrate semantics and acceptance toolchains
 
-Status: compatibility and toolchain evolution plan, updated 2026-10-02 for the unpublished Qargo 0.1.6 candidate. Qargo continues to link exactly Qleisli 0.2.1 and supports manifest schema 2 and independent result schema 1. The plan does not implement selection or authorize publication.
+Status: compatibility and toolchain evolution plan, updated 2026-10-03 for the unpublished Qargo 0.1.7 candidate. Qargo continues to link exactly Qleisli 0.2.1 and supports manifest schema 2 and independent result schema 1. The plan does not implement selection or authorize publication.
 
 ## Current acceptance authority
 
@@ -16,7 +16,7 @@ Every qrate declares Qleisli `edition = "2026"` under `[qrate]`. Schema 2 requir
 
 Its repository declaration is `qleisli-toolchain.toml`, with an exact SemVer string in `[toolchain].version`. That version identifies the Qleisli distribution; qargo and qleisliup have independent product versions. Proxy selection uses a leading `+selector`, then `QLEISLIUP_TOOLCHAIN`, the nearest repository declaration, and the global default. The manager removes the leading selector and directly executes the selected tool, preserving arguments, streams, working directory, and exit/signal behavior. It prepends the selected bin directory to PATH and passes the resolved home/selection to nested calls. Qargo does not reimplement that resolution or parse the manager's human inspection output.
 
-In 0.1.6 a proxy can select a Qargo executable, whose linked Qleisli version remains fixed at Rust build time. qlippy, qlifmt, and qlidoc must be regular executable siblings from the same Qargo product release. Qargo's explicit auxiliary paths remain authoritative, and existing sibling/PATH discovery and executable capture rules remain in effect. A manager pin is not currently Qargo acceptance configuration; declarations outside the declared qrate inputs do not enter Qargo's input identity or snapshot. No manager state or library dependency is added.
+In 0.1.7 a proxy can select a Qargo executable, whose linked Qleisli version remains fixed at Rust build time. qlippy, qlifmt, and qlidoc must be regular executable siblings from the same Qargo product release. Qargo's explicit auxiliary paths remain authoritative, and existing sibling/PATH discovery and executable capture rules remain in effect. A manager pin is not currently Qargo acceptance configuration; declarations outside the declared qrate inputs do not enter Qargo's input identity or snapshot. No manager state or library dependency is added.
 
 ### Delivery order
 

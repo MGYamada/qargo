@@ -258,7 +258,7 @@ dependencies = [
 
 [[package]]
 name = "qargo"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "libc",
  "libproc",
@@ -276,42 +276,6 @@ name = "qleisli"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fe5ad5a9b795a0e5790646cca124e0d9e41762ad2be8759ab50641d895279c1"
-
-[[package]]
-name = "qlidoc-engine"
-version = "0.1.6"
-dependencies = [
- "qleisli",
- "qlippy-engine",
- "serde_json",
- "sha2",
- "tempfile",
-]
-
-[[package]]
-name = "qlifmt-engine"
-version = "0.1.6"
-dependencies = [
- "qleisli",
- "qlippy-engine",
- "rustix",
- "serde_json",
- "tempfile",
-]
-
-[[package]]
-name = "qlippy-engine"
-version = "0.1.6"
-dependencies = [
- "libc",
- "libproc",
- "qleisli",
- "rustix",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
-]
 
 [[package]]
 name = "quote"

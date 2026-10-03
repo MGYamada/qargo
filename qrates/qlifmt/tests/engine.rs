@@ -2,11 +2,9 @@ use std::ffi::OsString;
 use std::fs;
 use std::process::Command;
 
-use qargo_tools::qlifmt_engine::{
-    apply_files, changed_files, diff, format_files, run, validate_formatted,
-};
-use qargo_tools::report::Envelope;
-use qargo_tools::snapshot::Files;
+use qlifmt_engine::{apply_files, changed_files, diff, format_files, run, validate_formatted};
+use qlippy_engine::support::report::Envelope;
+use qlippy_engine::support::snapshot::Files;
 use tempfile::TempDir;
 
 const SOURCE: &str = "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
@@ -311,7 +309,7 @@ fn empty_roots_and_json_metadata_do_not_claim_a_check() {
                 result["qleisli_check"],
                 serde_json::json!({"status":"not_run", "reason":"no_sources"})
             );
-            assert_eq!(result["tool"]["version"], "0.1.6");
+            assert_eq!(result["tool"]["version"], "0.1.7");
             assert_eq!(result["tool"]["qleisli_version"], "0.2.1");
         }
     }

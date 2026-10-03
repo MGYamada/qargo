@@ -75,7 +75,7 @@ fn run(root: &Path, command: &str, report: &Value) -> qargo_tools::report::Repor
         for directory in ["tests", "docs"] {
             fs::create_dir(root.join(directory)).unwrap();
         }
-        fs::write(root.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.6\"\nedition = \"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+        fs::write(root.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.7\"\nedition = \"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
         args.push(format!("--manifest-path={}", root.join("Qargo.toml").display()).into());
     }
     qargo::run(&args)
@@ -96,6 +96,42 @@ fn failed_document_transport_still_rejects_unsafe_paths_and_invalid_digests() {
         let result = run(root.path(), "doc", &report);
         assert_eq!(result.exit_code, 1);
         assert_eq!(result.envelope.diagnostics[0].id, "invalid_tool_response");
+        assert!(!root.path().join("target").exists());
+    }
+}
+
+#[test]
+fn failed_children_cannot_publish_unverified_format_or_document_claims() {
+    for command in ["fmt", "doc"] {
+        let (root, mut report) = fixture(command, false);
+        let before = fs::read(root.path().join("sources/module.qli")).unwrap();
+        if command == "fmt" {
+            report["result"]["changed_files"] = json!(["module.qli"]);
+            report["result"]["updated_files"] = json!(["module.qli"]);
+        } else {
+            report["result"]["artifact_path"] = json!("/unverified/output");
+            report["result"]["files"] = json!([
+                {"path":"index.md", "sha256":format!("sha256:{}", "0".repeat(64))}
+            ]);
+        }
+        let accepted = run(root.path(), command, &report);
+        assert_eq!(accepted.exit_code, 1, "{:?}", accepted.envelope);
+        assert_eq!(accepted.envelope.diagnostics[0].id, "tool_failure");
+        let result = accepted.envelope.result.unwrap();
+        assert_eq!(result["source_id"], report["result"]["source_id"]);
+        assert_eq!(result["tool"], report["result"]["tool"]);
+        if command == "fmt" {
+            assert_eq!(result["changed_files"], json!([]));
+            assert_eq!(result["updated_files"], json!([]));
+            assert!(result["formatted_source_id"].is_null());
+        } else {
+            assert_eq!(result["files"], json!([]));
+            assert!(result["artifact_path"].is_null());
+        }
+        assert_eq!(
+            fs::read(root.path().join("sources/module.qli")).unwrap(),
+            before
+        );
         assert!(!root.path().join("target").exists());
     }
 }
@@ -163,7 +199,7 @@ fn descendant_fixture(command: &str, rejection: &str) -> (tempfile::TempDir, Det
         "pub unitary fn f(q:Q<Bit>)->Q<Bit>{q}",
     )
     .unwrap();
-    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.6\"\nedition=\"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.7\"\nedition=\"2026\"\n[source]\nroot=\"sources\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
     let pid_path = root.path().join("descendant.pid");
     let script = root.path().join("tool");
     let response = root.path().join("response.json");

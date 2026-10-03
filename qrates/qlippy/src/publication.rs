@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::path::{Component, Path, PathBuf};
 
-use crate::snapshot::{Files, portable_relative};
+use crate::support::snapshot::{Files, InputDirectory, portable_relative};
 
 /// Publication failures retain the caller's diagnostic vocabulary.
 #[derive(Debug)]
@@ -81,6 +81,28 @@ pub fn publish(
     }
 }
 
+/// Publish relative to the directory retained when the qrate was captured.
+pub fn publish_at(
+    root: &InputDirectory,
+    output: &Path,
+    files: &Files,
+    directories: &BTreeSet<PathBuf>,
+) -> Result<(), PublicationError> {
+    // Relative paths cannot escape or replace the captured root.
+    artifact_label(output)?;
+    #[cfg(any(target_os = "linux", target_os = "android", target_vendor = "apple"))]
+    {
+        unix::publish_captured(root, output, files, directories)
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "android", target_vendor = "apple")))]
+    {
+        let _ = (root, output, files, directories);
+        Err(output_error(
+            "Atomic directory publication without replacement is unavailable on this platform.",
+        ))
+    }
+}
+
 /// Compare complete artifact bytes and directory inventory using held directory descriptors.
 pub fn artifacts_match(
     output: &Path,
@@ -113,7 +135,7 @@ mod unix {
     use rustix::fs::{self, AtFlags, Dir, FileType, Mode, OFlags, RenameFlags};
 
     use super::{PublicationError, absolute_normalized, artifact_label, output_error};
-    use crate::snapshot::Files;
+    use crate::support::snapshot::{Files, InputDirectory};
 
     fn directory_flags() -> OFlags {
         OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC
@@ -134,8 +156,22 @@ mod unix {
     }
 
     fn open_parent(path: &Path, create: bool) -> Result<OwnedFd, PublicationError> {
-        let mut directory = fs::open("/", directory_flags(), Mode::empty())
-            .map_err(|error| output_error(format!("Cannot open filesystem root: {error}")))?;
+        open_parent_at(None, path, create)
+    }
+
+    fn open_parent_at(
+        root: Option<&InputDirectory>,
+        path: &Path,
+        create: bool,
+    ) -> Result<OwnedFd, PublicationError> {
+        let mut directory = match root {
+            Some(root) => root
+                .held_file()
+                .map(Into::into)
+                .map_err(|error| output_error(error.message))?,
+            None => fs::open("/", directory_flags(), Mode::empty())
+                .map_err(|error| output_error(format!("Cannot open filesystem root: {error}")))?,
+        };
         for component in path.components() {
             match component {
                 Component::RootDir => {}
@@ -169,8 +205,12 @@ mod unix {
             && FileType::from_raw_mode(named.st_mode) == FileType::from_raw_mode(held.st_mode))
     }
 
-    fn validate_parent(parent: &OwnedFd, path: &Path) -> Result<(), PublicationError> {
-        let current = open_parent(path, false)?;
+    fn validate_parent(
+        root: Option<&InputDirectory>,
+        parent: &OwnedFd,
+        path: &Path,
+    ) -> Result<(), PublicationError> {
+        let current = open_parent_at(root, path, false)?;
         if !same_directory(parent, &current).map_err(|error| output_error(error.to_string()))? {
             return Err(output_error(
                 "Artifact output ancestors changed during publication.",
@@ -453,7 +493,16 @@ mod unix {
         files: &Files,
         directories: &BTreeSet<PathBuf>,
     ) -> Result<(), PublicationError> {
-        publish_with_hook(output, files, directories, || {})
+        publish_at_with_hook(None, output, files, directories, || {})
+    }
+
+    pub(super) fn publish_captured(
+        root: &InputDirectory,
+        output: &Path,
+        files: &Files,
+        directories: &BTreeSet<PathBuf>,
+    ) -> Result<(), PublicationError> {
+        publish_at_with_hook(Some(root), output, files, directories, || {})
     }
 
     pub(super) fn matches(
@@ -471,29 +520,44 @@ mod unix {
             .ok_or_else(|| output_error("Invalid output name."))?;
         let parent = open_parent(parent_path, false)?;
         let matches = artifacts_match(&parent, name, files, &directories)?;
-        validate_parent(&parent, parent_path)?;
+        validate_parent(None, &parent, parent_path)?;
         Ok(matches)
     }
 
+    #[cfg(test)]
     fn publish_with_hook(
         output: &Path,
         files: &Files,
         extra_directories: &BTreeSet<PathBuf>,
         before_install: impl FnOnce(),
     ) -> Result<(), PublicationError> {
+        publish_at_with_hook(None, output, files, extra_directories, before_install)
+    }
+
+    fn publish_at_with_hook(
+        root: Option<&InputDirectory>,
+        output: &Path,
+        files: &Files,
+        extra_directories: &BTreeSet<PathBuf>,
+        before_install: impl FnOnce(),
+    ) -> Result<(), PublicationError> {
         let directories = expected_directories(files, extra_directories)?;
-        let destination = absolute_normalized(output)?;
+        let destination = if root.is_some() {
+            PathBuf::from(artifact_label(output)?)
+        } else {
+            absolute_normalized(output)?
+        };
         let parent_path = destination
             .parent()
             .ok_or_else(|| output_error("Invalid output parent."))?;
         let name = destination
             .file_name()
             .ok_or_else(|| output_error("Invalid output name."))?;
-        let parent = open_parent(parent_path, true)?;
+        let parent = open_parent_at(root, parent_path, true)?;
         match fs::statat(&parent, name, AtFlags::SYMLINK_NOFOLLOW) {
             Ok(_) => {
                 return if artifacts_match(&parent, name, files, &directories)? {
-                    validate_parent(&parent, parent_path)?;
+                    validate_parent(root, &parent, parent_path)?;
                     Ok(())
                 } else {
                     Err(PublicationError::Mismatch)
@@ -509,7 +573,7 @@ mod unix {
         let mut stage = Stage::create(&parent, parent_path)?;
         stage.populate(files, &directories)?;
         before_install();
-        let current_parent = open_parent(parent_path, false)?;
+        let current_parent = open_parent_at(root, parent_path, false)?;
         if !same_directory(&parent, &current_parent)
             .map_err(|error| output_error(error.to_string()))?
             || !stage
@@ -529,12 +593,12 @@ mod unix {
         ) {
             Ok(()) => {
                 stage.published = true;
-                validate_parent(&parent, parent_path)?;
+                validate_parent(root, &parent, parent_path)?;
                 Ok(())
             }
             Err(rustix::io::Errno::EXIST) => {
                 if artifacts_match(&parent, name, files, &directories)? {
-                    validate_parent(&parent, parent_path)?;
+                    validate_parent(root, &parent, parent_path)?;
                     Ok(())
                 } else {
                     Err(PublicationError::Mismatch)
@@ -560,6 +624,28 @@ mod unix {
                 ("modules/a.md".into(), b"complete module".to_vec()),
             ]);
             (temp, root, files)
+        }
+
+        #[test]
+        fn captured_root_replacement_during_staging_cannot_redirect_publication() {
+            let (_temp, home, files) = fixture();
+            let root = home.join("qrate");
+            host_fs::create_dir(&root).unwrap();
+            let held = InputDirectory::open(&root).unwrap();
+            let old = home.join("old");
+            let result = publish_at_with_hook(
+                Some(&held),
+                Path::new("target/docs"),
+                &files,
+                &BTreeSet::new(),
+                || {
+                    host_fs::rename(&root, &old).unwrap();
+                    host_fs::create_dir(&root).unwrap();
+                },
+            );
+            assert!(result.is_err());
+            assert!(!root.join("target").exists());
+            assert_eq!(host_fs::read_dir(old.join("target")).unwrap().count(), 0);
         }
 
         #[test]

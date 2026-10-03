@@ -34,7 +34,7 @@ def verify_package(source_root, archive_path, bin_dir):
         inputs, _ = qrate_inputs(source_root / "qrates" / name)
         for label, content in inputs.items():
             expected["qrates/" + name + "/" + label] = content
-    for label in ("README.md", "CHANGELOG.md", "LICENSE", "NOTICE", "AGENTS.md", "install.sh"):
+    for label in ("README.md", "CHANGELOG.md", "LICENSE", "NOTICE", "AGENTS.md", "QRATEBOUNDARY.md", "install.sh"):
         expected[label] = (source_root / label).read_bytes()
     expected["Cargo.toml.orig"] = (source_root / "Cargo.toml").read_bytes()
     different = [label for label, content in expected.items() if packaged.get(label) != content]

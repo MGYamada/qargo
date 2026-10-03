@@ -1,14 +1,10 @@
-//! Pure Rust qlippy engine. Its source belongs to the qlippy qrate.
+//! Qlippy product and its separately audited internal Rust support surface.
 
-pub mod adapter;
-pub mod executable;
-pub mod publication;
 pub mod qlippy;
-pub mod report;
 pub mod rules;
-pub mod snapshot;
-pub mod source;
+pub mod support;
 
-pub const QLEISLI_VERSION: &str = "0.2.1";
-pub const PROFILE: &str = "finite-v0";
+pub use support::{
+    PROFILE, QLEISLI_VERSION, adapter, executable, publication, report, snapshot, source,
+};
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

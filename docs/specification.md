@@ -2,9 +2,9 @@
 
 Status: public contract for the experimental 0.1.x releases; manifest schema version 2 and independent result schema version 1. Derived from [Qleisli issue 53](https://github.com/MGYamada/Qleisli/issues/53).
 
-Supported 0.1.6 release platforms are Linux x86_64 and macOS x86_64/ARM64, validated with Rust 1.85 and stable. Windows and Android are outside the 0.1.x support contract. Linux ARM64 is deferred because the pinned Qleisli 0.2.1 loader fails during ordinary checking (issue #18), including source/crates.io installations. Starting with 0.1.1, distribution includes the complete GitHub source archive or tagged checkout and the qargo crates.io package, which must install all four executables. Starting with 0.1.5, GitHub releases also provide binary bundles for the three supported targets and a Cargo-free installer. A crates.io package must build independently from its packaged sources and registry dependencies. Repository development uses Cargo manifests/lockfile outside the qrate snapshot. The published qargo package compiles the canonical qrate engine sources as internal modules, with no dependency on the three private development packages. Packaging and installation are verified independently of Git source archives and binary bundles.
+Supported 0.1.7 release platforms are Linux x86_64 and macOS x86_64/ARM64, validated with Rust 1.85 and stable. Windows and Android are outside the 0.1.x support contract. Linux ARM64 is deferred because the pinned Qleisli 0.2.1 loader fails during ordinary checking (issue #18), including source/crates.io installations. Starting with 0.1.1, distribution includes the complete GitHub source archive or tagged checkout and the qargo crates.io package, which must install all four executables. Starting with 0.1.5, GitHub releases also provide binary bundles for the three supported targets and a Cargo-free installer. A crates.io package must build independently from its packaged sources and registry dependencies. Repository development uses Cargo manifests/lockfile outside the qrate snapshot. The published qargo package compiles the canonical qrate engine sources as internal modules, with no dependency on the three private development packages. Packaging and installation are verified independently of Git source archives and binary bundles.
 
-The documented CLI, independently versioned qargo.result, qlippy.result, qlifmt.result, and qlidoc.result formats (each version 1), and exit codes remain compatible within 0.1.x. Incompatible manifest/result changes require a new schema version, independently of product versions. Version 0.1.3 introduced manifest schema 2 to require an explicit Qleisli edition; schema-1 manifests must migrate and are rejected. Diagnostic prose and the internal Rust library API are not stable interfaces. Qargo, qlippy, qlifmt, and qlidoc must come from the same product release. The standard bundle consists of the three tool qrates, developed together at 0.1.6; Qargo still manages one qrate per operation.
+The documented CLI, independently versioned qargo.result, qlippy.result, qlifmt.result, and qlidoc.result formats (each version 1), and exit codes remain compatible within 0.1.x. Incompatible manifest/result changes require a new schema version, independently of product versions. Version 0.1.3 introduced manifest schema 2 to require an explicit Qleisli edition; schema-1 manifests must migrate and are rejected. Diagnostic prose and the internal Rust library API are not stable interfaces. Qargo, qlippy, qlifmt, and qlidoc must come from the same product release. The standard bundle consists of the three tool qrates, developed together at 0.1.7; Qargo still manages one qrate per operation.
 
 ## Binary distribution and installation
 
@@ -26,6 +26,16 @@ Under the prefix, `lib/qargo/releases/qargo-<version>-<target>/` holds an immuta
 
 ## Boundaries
 
+The adopted [qrate boundary policy](../QRATEBOUNDARY.md) treats every internal or
+external qrate as an independent environment. qlippy, qlifmt, and qlidoc are three
+ordinary qrates; their versions align with Qargo for bundle convenience, without
+privileged semantics. Only std has privileged qrate status, bundled with and
+versioned alongside Qleisli. Qargo/Cargo manifest ownership remains separate.
+The [Rust environment extraction contract](qrate-extraction-plan.md) and
+[development instructions](qrate-development.md) define independent Cargo
+workspaces and developer-side extraction checks. This adds no Qargo command or
+public schema field.
+
 The [first principles and architecture](architecture.md) define Qargo as **Exact,
 Immutable, Bound, Explicit, Independent**. Requests identify one input scope;
 captured bytes and identities remain immutable; results bind to those inputs and
@@ -35,6 +45,9 @@ validation. These internal boundaries preserve the public contracts below.
 Qargo captures its orchestrator identity before selected-tool execution and
 revalidates it before accepting the response and applying effects. Identity
 rejection prevents parent-side formatting writes and documentation publication.
+Ordinary check/build likewise retain the captured running-image identity through
+checking. Check revalidates before accepting its result; build revalidates before
+publication, using that same identity for the build record and output path.
 
 The [ecosystem policy](ecosystem-policy.md) adopts a curated stdlib center with future extensions bound to trusted sources, authenticated namespaces, and fixed identities. Public registry and automatic semver resolution are deferred. Qargo will not introduce arbitrary qrate build hooks, native procedural macros, dependency-install scripts, or global feature unification. These are design constraints on future Qargo operations, independent of Cargo's Rust implementation build machinery.
 
@@ -44,7 +57,7 @@ A qrate comprises Qargo.toml, a source root, a QLT test root, a documentation ro
 
 The semantic subject of a qrate is its local Qleisli modules, public declarations, and contracts checked by the selected Qleisli implementation. Its raw input identity is a provenance envelope and can also contain host-language sources, tests, and documentation. Including Rust in that envelope does not extend Qleisli checking to Rust or make the host engine part of a proved Qleisli interface. The standard tool qrates are management examples whose smoke interfaces do not describe or certify their Rust engines. Schema 2 provides local source management, an explicit language edition, and provenance; it does not promise registry identity, dependency compatibility, or a complete semantic package contract.
 
-In 0.1.6 the acceptance implementation is the linked Qleisli 0.2.1 ordinary checker. Qargo and qlippy record that linked version, finite-v0 profile, and actual host executable digest. A `qleisli` executable on PATH is not selected or consulted. The embedded standard library belongs to that linked checker distribution, not to an independently resolved qrate; local source identity excludes it and must be interpreted together with the recorded tool identity. This metadata identifies a processing implementation, not a proof. See [toolchain evolution](toolchains.md) for the future separation of qrate-selected acceptance toolchains and orchestration.
+In 0.1.7 the acceptance implementation is the linked Qleisli 0.2.1 ordinary checker. Qargo and qlippy record that linked version, finite-v0 profile, and actual host executable digest. A `qleisli` executable on PATH is not selected or consulted. The embedded standard library belongs to that linked checker distribution, not to an independently resolved qrate; local source identity excludes it and must be interpreted together with the recorded tool identity. This metadata identifies a processing implementation, not a proof. See [toolchain evolution](toolchains.md) for the future separation of qrate-selected acceptance toolchains and orchestration.
 
 qleisliup may launch a complete Qargo bundle through its offline proxies. Its repository declaration and selection environment choose the executable bundle before Qargo starts; Qargo does not interpret `qleisli-toolchain.toml`, `QLEISLIUP_TOOLCHAIN`, `QLEISLIUP_HOME`, or manager state. Proxy selection does not change the linked checker or parser. Manager declarations outside the declared qrate inputs are not included in the current input identity or build snapshot. The [qleisliup compatibility plan](toolchains.md#qleisliup-compatibility-plan) specifies future development checks and protocol prerequisites without adding a current command, manifest field, or result field.
 
@@ -52,7 +65,7 @@ qleisliup may launch a complete Qargo bundle through its offline proxies. Its re
 schema-version = 2
 [qrate]
 name = "qlippy"
-version = "0.1.6"
+version = "0.1.7"
 edition = "2026"
 [source]
 root = "src"
@@ -98,7 +111,21 @@ Qargo treats child-tool output as untrusted transport: validate the closed envel
 
 Formatting results contain source_count, original source_id, qleisli_check, tool, formatted_source_id, changed_files, updated_files, check, and diff. Paths are sorted source-relative labels. changed_files identifies differences; updated_files identifies files actually written, and is empty for --check. All candidate bytes must pass syntax, token/comment preservation, and doc-comment attachment validation. Qargo adds orchestrator and input_id when a qrate was captured; it revalidates candidates on the private copy and source identity before applying changes. An application I/O failure retains updated_files so partial progress is explicit.
 
+On failed child execution, Qargo clears formatter `changed_files` and
+`updated_files` to `[]` and `formatted_source_id` to `null`: the parent's candidate
+validation did not establish those child claims. It similarly clears a failed
+document child's `files` to `[]` and `artifact_path` to `null`. Transport schemas,
+path safety, source/tool identities, diagnostics, status and exit validation still
+apply to failed responses. These rules do not discard parent-validated formatting
+differences in check mode or actual parent-side partial write progress.
+
 Documentation results contain source_count, source_id, qleisli_check, tool, document_private_items, artifact_path, and a sorted files array of {path, sha256}. Qargo adds orchestrator and input_id and validates the exact file set, path safety, SHA-256 digests, and rendered content against frozen sources. The artifact_path is relative for default outputs; explicit standalone output may be an absolute path. Neither result contains verified=true.
+
+`artifact_path` identifies successfully published or identically reused
+documentation. Publication conflicts, I/O failures and other rejected publication
+attempts leave it `null`, in both Qargo and standalone qlidoc results. A publication
+failure may retain the inventory of independently rendered and validated candidate
+files; it does not claim those files exist at the attempted destination.
 
 ## Lint rules
 
@@ -124,11 +151,11 @@ Possible future proofs of repetition or inverse identities do not make these sty
 
 ## Formatting and documentation
 
-qlifmt uses four-space indentation and a target line width of 100; indivisible syntax tokens or comments may exceed the target. It preserves syntax-token values, comments' exact content and order, doc-comment attachment, and LF/CRLF convention. All files are parsed and all candidates validated before the first write. No import reordering or configuration file is provided in 0.1.6. Type and ownership errors do not prevent formatting when syntax is valid. --check prints a human-readable diff (or places it in the JSON diff field), returns 1 on differences, and writes no source files.
+qlifmt uses four-space indentation and a target line width of 100; indivisible syntax tokens or comments may exceed the target. It preserves syntax-token values, comments' exact content and order, doc-comment attachment, and LF/CRLF convention. All files are parsed and all candidates validated before the first write. No import reordering or configuration file is provided in 0.1.7. Type and ownership errors do not prevent formatting when syntax is valid. --check prints a human-readable diff (or places it in the JSON diff field), returns 1 on differences, and writes no source files.
 
 qlidoc calls Qleisli 0.2.1's parse_documented_module and renders module docs, declaration signatures, and attached doc comments to Markdown. The default visibility policy includes only public declarations, following rustdoc's public/private selection convention; --document-private-items includes nonpublic declarations. It writes index.md plus modules/<relative-source-path-without-.qli>.md, including nested source paths. Handwritten qrate documentation remains an ordinary captured input rather than being rewritten. Documentation examples are not executed, and type-invalid but syntactically valid modules can be documented. Empty inputs produce an index without a Qleisli verification result.
 
-Complete documentation directories are staged and published atomically without replacing existing output. Exact repeated contents are validated and reused; conflicting contents, symlinks, and unsafe paths fail. Generated files cannot feed back into captured qrate inputs. Future HTML generation may adopt qlidoc-specific CSS, colors, and layout; visual compatibility with rustdoc is not required. HTML and styling are outside the 0.1.6 implementation.
+Complete documentation directories are staged and published atomically without replacing existing output. Exact repeated contents are validated and reused; conflicting contents, symlinks, and unsafe paths fail. Generated files cannot feed back into captured qrate inputs. Future HTML generation may adopt qlidoc-specific CSS, colors, and layout; visual compatibility with rustdoc is not required. HTML and styling are outside the 0.1.7 implementation.
 
 ## Snapshots, identity and artifacts
 
@@ -146,6 +173,17 @@ Selected-tool executable identity uses one captured executable object for hashin
 Capture original bytes once, using sorted UTF-8 relative paths; reject symlinks and nonregular input files. Each input-tree traversal scans at most 4096 filesystem entries below its selected root, including directories and files skipped by an extension filter. The selected root itself does not count as an entry. Captured files are limited to 1 MiB each and 16 MiB total per tree, with directory depth at most 64 below the root. Qrate capture additionally limits the combined manifest and three root inventories to 4096 captured files and 16 MiB; an in-memory source snapshot also permits at most 4096 captured files and 16 MiB. Traversal entries and captured files are separate budgets, even though both count limits are 4096. Ignored files contribute to traversal safety but not captured bytes or source identity. Qleisli's own default source budget also remains in force. Identity uses SHA-256 with domain separation and length framing of paths/bytes. Input capture on Unix holds the qrate directory and all validated root ancestors open with close-on-exec descriptors; directory descent, enumeration and ordinary-file reads use those descriptors, `openat` and no-follow checks. Compare device/inode identities at inspection/open boundaries and revalidate retained names before and after reads or enumeration, rejecting replacement rather than following a renamed path. Parent aliases such as `/tmp` remain allowed when selecting an external root. Unsupported platforms fail explicitly. Qrate identity covers raw manifest bytes and all files in the three declared roots. Standalone source identity covers .qli files relative to their source root, independent of qrate location. Hidden directory markers are ordinary qrate inputs, never .qli sources.
 
 Checks, linting and artifacts must consume the captured bytes, not a later read of the user's files. Source IDs exclude absolute paths, timestamps, generated files and tool versions; records bind tool identities and profiles separately. Record the actual host executable digest, embedded Qleisli version, selected steps and outcomes. Metadata and success are not proof. QLT execution remains unavailable. Formatting and documentation success establishes only the documented syntax-based processing, never mathematical evidence.
+
+Retain captured source/qrate directory descriptors until effects finish.
+Formatting revalidates the captured source root and its retained ancestors, then
+uses that capability for source replacement. Build and qrate documentation
+publish relative to the captured qrate directory. Replacing a directory with a
+byte-identical one cannot redirect effects. Directory/name revalidation remains
+best-effort race detection, not a filesystem lock; descriptor-relative writes
+remain bound to the retained object even across a later rename. These live
+capabilities are not serialized identities and do not affect relocation-stable
+source or input digests. Read-only checking and generated artifact contents
+continue to use frozen bytes even if the originals subsequently change.
 
 Build artifact directories contain snapshot/Qargo.toml and declared inputs (including .rs files), all three declared root directories even when empty, module-index.json (public declarations in local modules, sorted), and build-record.json. The record explicitly marks QLT as not_run with reason=backend_unavailable and qlidoc as not_run with reason=not_requested; qargo build does not generate documentation. Output uses relative paths, contains no timestamps, and is installed atomically without replacement from a complete sibling staging directory. Build and documentation use the same descriptor-anchored publication kernel in qlippy: ancestor traversal, staging creation/population/cleanup, existing-artifact validation, and no-replace installation use held directory descriptors and reject symlink redirection. Revalidate directory device/inode identities before installation and reuse. Explicit empty directories remain part of the exact artifact inventory. Atomic publication is supported on Linux, Android and Apple platforms; other platforms fail explicitly until a safe implementation is added. A repeated identical build validates and reuses identical artifacts; inconsistent or symlink outputs fail rather than overwriting unrelated data. Distinct host executables keep separate records for the same input ID, allowing engine rebuilds without erasing older provenance. Generated output cannot feed back into inputs. Different toolchains/operating systems have no promised Rust-binary byte equivalence.
 

@@ -10,9 +10,9 @@ use qleisli::frontend::ast::{Decl, FnBody};
 use qleisli::frontend::documentation::DocComment;
 use qleisli::frontend::lexer::{Token, TokenKind, lex};
 use qleisli::frontend::parser::parse_documented_module;
-use qlippy_engine::report::{Diagnostic, Report, path_argument, tool_info};
-use qlippy_engine::snapshot::{Files, portable_relative};
-use qlippy_engine::source::{capture_source, parse_diagnostic, syntax_step};
+use qlippy_engine::support::report::{Diagnostic, Report, path_argument, tool_info};
+use qlippy_engine::support::snapshot::{Files, portable_relative};
+use qlippy_engine::support::source::{capture_source, parse_diagnostic, syntax_step};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -107,7 +107,7 @@ pub fn run(args: &[OsString]) -> Report {
         if special[0] == "--help" {
             return Report::ok(FORMAT, "help", json!({"help":HELP}));
         }
-        return match tool_info("qlidoc") {
+        return match tool_info("qlidoc", VERSION) {
             Ok(tool) => Report::ok(FORMAT, "version", tool),
             Err(error) => Report::fail(FORMAT, "version", error, 1),
         };
@@ -120,7 +120,7 @@ pub fn run(args: &[OsString]) -> Report {
         Ok(input) => input,
         Err(error) => return Report::fail(FORMAT, "doc", error, 1),
     };
-    let tool = match tool_info("qlidoc") {
+    let tool = match tool_info("qlidoc", VERSION) {
         Ok(tool) => tool,
         Err(error) => return Report::fail(FORMAT, "doc", error, 1),
     };
@@ -153,8 +153,8 @@ pub fn run(args: &[OsString]) -> Report {
                 "public"
             })
     });
-    result["artifact_path"] = match display_path(&output) {
-        Ok(label) => json!(label),
+    let output_label = match display_path(&output) {
+        Ok(label) => label,
         Err(error) => return bound_failure(error, result),
     };
     result["files"] = json!(
@@ -169,7 +169,10 @@ pub fn run(args: &[OsString]) -> Report {
         return bound_failure(error, result);
     }
     match publish(&output, &rendered) {
-        Ok(()) => Report::ok(FORMAT, "doc", result),
+        Ok(()) => {
+            result["artifact_path"] = json!(output_label);
+            Report::ok(FORMAT, "doc", result)
+        }
         Err(error) => bound_failure(error, result),
     }
 }
@@ -307,7 +310,7 @@ pub fn render_files(files: &Files, include_private: bool) -> Result<Files, Diagn
 }
 
 fn absolute_normalized(path: &Path) -> Result<PathBuf, Diagnostic> {
-    qlippy_engine::publication::absolute_normalized(path)
+    qlippy_engine::support::publication::absolute_normalized(path)
         .map_err(|error| output_error(error.to_string()))
 }
 
@@ -376,14 +379,32 @@ fn reject_input_overlap(input: &Path, output: &Path) -> Result<(), Diagnostic> {
 
 /// Atomically publish a complete output directory, reusing only byte-identical artifacts.
 pub fn publish(output: &Path, files: &Files) -> Result<(), Diagnostic> {
-    qlippy_engine::publication::publish(output, files, &std::collections::BTreeSet::new()).map_err(
-        |error| match error {
-            qlippy_engine::publication::PublicationError::Mismatch => Diagnostic::error(
-                "artifact_mismatch",
-                "tool",
-                "Existing documentation artifacts are inconsistent; nothing was overwritten.",
-            ),
-            error => output_error(error.to_string()),
-        },
+    qlippy_engine::support::publication::publish(output, files, &std::collections::BTreeSet::new())
+        .map_err(publication_error)
+}
+
+/// Publish below the retained qrate directory, never a replacement at its old path.
+pub fn publish_at(
+    root: &qlippy_engine::support::snapshot::InputDirectory,
+    output: &Path,
+    files: &Files,
+) -> Result<(), Diagnostic> {
+    qlippy_engine::support::publication::publish_at(
+        root,
+        output,
+        files,
+        &std::collections::BTreeSet::new(),
     )
+    .map_err(publication_error)
+}
+
+fn publication_error(error: qlippy_engine::support::publication::PublicationError) -> Diagnostic {
+    match error {
+        qlippy_engine::support::publication::PublicationError::Mismatch => Diagnostic::error(
+            "artifact_mismatch",
+            "tool",
+            "Existing documentation artifacts are inconsistent; nothing was overwritten.",
+        ),
+        error => output_error(error.to_string()),
+    }
 }

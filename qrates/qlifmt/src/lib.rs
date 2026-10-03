@@ -6,12 +6,12 @@ mod formatter;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use qlippy_engine::report::{Diagnostic, Report, tool_info};
-use qlippy_engine::snapshot::{collect_tree, digest_files};
-use qlippy_engine::source::{capture_source, syntax_step};
+use qlippy_engine::support::report::{Diagnostic, Report, tool_info};
+use qlippy_engine::support::snapshot::digest_files;
+use qlippy_engine::support::source::{capture_source, syntax_step};
 use serde_json::json;
 
-pub use apply::{ApplyFailure, apply_files};
+pub use apply::{ApplyFailure, apply_captured, apply_files};
 pub use formatter::{changed_files, diff, format_files, validate_formatted};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -86,7 +86,7 @@ pub fn run(args: &[OsString]) -> Report {
     if options.help {
         return Report::ok(FORMAT, "help", json!({"help": HELP}));
     }
-    let tool = match tool_info("qlifmt") {
+    let tool = match tool_info("qlifmt", VERSION) {
         Ok(tool) => tool,
         Err(error) => return Report::fail(FORMAT, "fmt", error, 1),
     };
@@ -100,7 +100,6 @@ pub fn run(args: &[OsString]) -> Report {
         Ok(input) => input,
         Err(error) => return Report::fail(FORMAT, "fmt", error, 1),
     };
-    let directory_input = root.is_dir();
     let sources = &input.sources;
     let result = json!({
         "source_count": sources.count(),
@@ -134,8 +133,8 @@ pub fn run(args: &[OsString]) -> Report {
         );
     }
     if !options.check {
-        if directory_input {
-            match collect_tree(&root, Some("qli")) {
+        if input.directory_input {
+            match input.original_root.collect(Some("qli")) {
                 Ok(current) if current == *sources.files() => {}
                 Ok(_) => {
                     return bound_failure(
@@ -150,7 +149,7 @@ pub fn run(args: &[OsString]) -> Report {
                 Err(error) => return bound_failure(report, error),
             }
         }
-        match apply_files(&input.original_root, sources.files(), &formatted) {
+        match apply_captured(&input.original_root, sources.files(), &formatted) {
             Ok(updated) => result["updated_files"] = json!(updated),
             Err(failure) => {
                 result["updated_files"] = json!(failure.updated_files);
