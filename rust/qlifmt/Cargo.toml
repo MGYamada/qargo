@@ -1,7 +1,7 @@
 # Developer-only Rust configuration. Qargo never reads or executes this.
 [package]
 name = "qlifmt-engine"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0"
@@ -12,7 +12,7 @@ description = "Token-preserving Qleisli formatter whose sources belong to the ql
 path = "../../qrates/qlifmt/src/lib.rs"
 
 [dependencies]
-qlippy-engine = { version = "=0.1.7", path = "../qlippy" }
+qlippy-engine = { version = "=0.1.8", path = "../qlippy" }
 qleisli = "=0.2.1"
 serde_json = "=1.0.145"
 

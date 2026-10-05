@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8 — 2026-10-05
+
+- Add an explicit non-affiliation notice clarifying that Qleisli, Qargo, qlippy, qlifmt, and qlidoc are independent projects and are not affiliated with, endorsed by, or sponsored by the Rust Project or the Rust Foundation.
+- No runtime, CLI, semantic, manifest-schema, result-schema, dependency, or behavioral changes.
+
 ## 0.1.7 — 2026-10-03
 
 - Retain captured directory capabilities through formatting and build/document publication, rejecting byte-identical root/ancestor replacements before effects and preventing redirection to replacement paths (#24).

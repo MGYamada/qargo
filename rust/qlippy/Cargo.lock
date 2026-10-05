@@ -242,7 +242,7 @@ checksum = "7fe5ad5a9b795a0e5790646cca124e0d9e41762ad2be8759ab50641d895279c1"
 
 [[package]]
 name = "qlippy-engine"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "libc",
  "libproc",

@@ -1,6 +1,6 @@
 # Qargo tooling adoption plan
 
-Status: adopted implementation direction, 2026-09-30; qleisliup coordination updated 2026-10-02. This plan schedules future work; the [specification](specification.md) remains the implemented public contract for 0.1.7. No new command, manifest field, result field, audit format, or backend is implemented by this document.
+Status: adopted implementation direction, 2026-09-30; qleisliup coordination updated 2026-10-02. This plan schedules future work; the [specification](specification.md) remains the implemented public contract for 0.1.8. No new command, manifest field, result field, audit format, or backend is implemented by this document.
 
 ## Responsibility and order
 

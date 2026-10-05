@@ -76,7 +76,7 @@ Isolation and adapter-equivalence checks are specified in the extraction plan.
 ## 3. Aligned tool versions are a distribution policy
 
 Keep the standard qlippy, qlifmt, and qlidoc releases aligned with Qargo for bundle
-convenience. For 0.1.7 this includes the three qrate manifests, their private Rust
+convenience. For 0.1.8 this includes the three qrate manifests, their private Rust
 development packages, and all four executables. Release preparation explicitly
 updates and validates these declarations.
 

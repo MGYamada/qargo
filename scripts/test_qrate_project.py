@@ -167,7 +167,7 @@ class ProjectBoundaryTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "Reverse Qargo dependency"):
                 audit(self.root)
         path.write_text(original)
-        path.write_text(original + '\n[target.\'cfg(target_os = "none")\'.dependencies]\nqargo = "=0.1.7"\n')
+        path.write_text(original + '\n[target.\'cfg(target_os = "none")\'.dependencies]\nqargo = "=0.1.8"\n')
         with self.assertRaisesRegex(RuntimeError, "Reverse Qargo dependency"):
             audit(self.root)
         path.write_text(original)

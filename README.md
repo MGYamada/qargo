@@ -2,17 +2,19 @@
 
 **Exact. Immutable. Bound. Explicit. Independent.**
 
+> **Qleisli, Qargo, qlippy, qlifmt, and qlidoc are independent projects and are not affiliated with, endorsed by, or sponsored by the Rust Project or the Rust Foundation.**
+
 Qargo captures declared inputs, binds results to those bytes and the actual tools,
 and applies only validated effects. The [first principles and architecture](docs/architecture.md)
 define these responsibilities and their implementation boundaries.
 
-Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.7 for bundle convenience. The three tool qrates retain independent boundaries and have no privileged qrate status; see [QRATEBOUNDARY.md](QRATEBOUNDARY.md).
+Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executables and three bundled qrates share version 0.1.8 for bundle convenience. The three tool qrates retain independent boundaries and have no privileged qrate status; see [QRATEBOUNDARY.md](QRATEBOUNDARY.md).
 
-Version 0.1.7 includes independent Rust environments and extraction verification; see the [development instructions](docs/qrate-development.md) and [extraction contract](docs/qrate-extraction-plan.md).
+Since version 0.1.7, the tools have independent Rust environments and extraction verification; see the [development instructions](docs/qrate-development.md) and [extraction contract](docs/qrate-extraction-plan.md).
 
-**0.1.7 is published and verified.** Install it through [crates.io](https://crates.io/crates/qargo/0.1.7) or the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.7). The download and registry installation examples below use this release. Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+Version 0.1.8 is published and verified. Install it through [crates.io](https://crates.io/crates/qargo/0.1.8) or the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.8). Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, Qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
-Linux ARM64 is unsupported in 0.1.7 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
+Linux ARM64 is unsupported in 0.1.8 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside Qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
@@ -48,20 +50,20 @@ qargo --version
 Run the installer again to update all four tools together. Download the script for inspection, select a version, or choose a different absolute prefix:
 
 ```sh
-curl --proto '=https' --tlsv1.2 -fsSL https://github.com/MGYamada/qargo/releases/download/v0.1.7/install.sh -o install.sh
-sh install.sh --version 0.1.7 --prefix "$HOME/.local"
+curl --proto '=https' --tlsv1.2 -fsSL https://github.com/MGYamada/qargo/releases/download/v0.1.8/install.sh -o install.sh
+sh install.sh --version 0.1.8 --prefix "$HOME/.local"
 ```
 
 POSIX shell, curl, tar, `sha256sum` or `shasum`, and standard Unix utilities are required. Python/jq are unnecessary. Unsupported environments and missing release assets fail explicitly. Existing unrelated commands are preserved; choose another prefix if its `bin/qargo`, `bin/qlippy`, `bin/qlifmt`, or `bin/qlidoc` already belongs to another installation.
 
 Bundles are stored under `lib/qargo/releases/`; the common `lib/qargo/current` link selects one version for all four command links. Updates preserve older bundles and switch only after validation. An interrupted install can leave a `.install-lock` directory under `lib/qargo`; after confirming that no installer is running, remove that empty lock with `rmdir` and retry.
 
-For manual installation, download the matching `qargo-0.1.7-<target>.tar.gz` and `SHA256SUMS` from the same release. For example, verify and extract the Apple Silicon archive:
+For manual installation, download the matching `qargo-0.1.8-<target>.tar.gz` and `SHA256SUMS` from the same release. For example, verify and extract the Apple Silicon archive:
 
 ```sh
-awk '$2 == "qargo-0.1.7-aarch64-apple-darwin.tar.gz"' SHA256SUMS | shasum -a 256 -c -
-tar -xzf qargo-0.1.7-aarch64-apple-darwin.tar.gz
-export PATH="$PWD/qargo-0.1.7-aarch64-apple-darwin/bin:$PATH"
+awk '$2 == "qargo-0.1.8-aarch64-apple-darwin.tar.gz"' SHA256SUMS | shasum -a 256 -c -
+tar -xzf qargo-0.1.8-aarch64-apple-darwin.tar.gz
+export PATH="$PWD/qargo-0.1.8-aarch64-apple-darwin/bin:$PATH"
 ```
 
 On Linux use `sha256sum -c -` instead. Keep all four executables together. To uninstall an installer-managed default-prefix bundle, remove its four command links and managed directory:
@@ -73,10 +75,10 @@ rm -rf "$HOME/.local/lib/qargo"
 
 ### Install from crates.io
 
-Rust 1.85 or newer is required. Install all four executables from version 0.1.7 together:
+Rust 1.85 or newer is required. Install all four executables from version 0.1.8 together:
 
 ```sh
-cargo install qargo --version=0.1.7 --locked --bins
+cargo install qargo --version=0.1.8 --locked --bins
 ```
 
 Cargo compiles the Rust tools during installation. The installed Qargo executable manages Qleisli qrates without invoking Cargo. The package includes all three engines and requires no private engine crates or repository checkout.
@@ -105,13 +107,13 @@ tools and Cargo-free installer do not require Python.
 
 ## Manage a bundled qrate
 
-Qargo 0.1.7 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
+Qargo 0.1.8 requires manifest schema 2 and an explicit Qleisli edition in every `Qargo.toml`. The only supported edition is the string `"2026"`; omission has no default and is an error. A minimal manifest is:
 
 ```toml
 schema-version = 2
 [qrate]
 name = "example"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2026"
 [source]
 root = "src"
@@ -169,7 +171,7 @@ All four tools support `--help`, `--version`, and `--format=json`. Independent v
 
 ## 0.1.x support and compatibility
 
-Linux x86_64 and macOS are validated with Rust 1.85 and stable. Linux ARM64, Windows and Android are outside the supported 0.1.7 candidate platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package; version 0.1.5 adds prebuilt bundles for Linux x86_64 and both macOS architectures. All Rust packages forbid unsafe code.
+Linux x86_64 and macOS are validated with Rust 1.85 and stable. Linux ARM64, Windows and Android are outside the supported 0.1.8 candidate platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package; version 0.1.5 adds prebuilt bundles for Linux x86_64 and both macOS architectures. All Rust packages forbid unsafe code.
 
 The public contract covers CLI commands, manifest schema 2, the independently versioned JSON result formats, and exit codes 0/1/2. Path options accept both equality and space-separated syntax, such as `--manifest-path=PATH` and `--manifest-path PATH`, including explicit tool paths and qlidoc's `--output`. Empty, missing, and repeated values are usage errors. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
 
