@@ -14,7 +14,7 @@ fn qrate() -> tempfile::TempDir {
     for directory in ["src", "tests", "docs"] {
         fs::create_dir(root.path().join(directory)).unwrap();
     }
-    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.7\"\nedition = \"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.8\"\nedition = \"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
     fs::write(root.path().join("src/module.qli"), SOURCE).unwrap();
     root
 }

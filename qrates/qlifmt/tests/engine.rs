@@ -309,7 +309,7 @@ fn empty_roots_and_json_metadata_do_not_claim_a_check() {
                 result["qleisli_check"],
                 serde_json::json!({"status":"not_run", "reason":"no_sources"})
             );
-            assert_eq!(result["tool"]["version"], "0.1.7");
+            assert_eq!(result["tool"]["version"], "0.1.8");
             assert_eq!(result["tool"]["qleisli_version"], "0.2.1");
         }
     }
