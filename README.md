@@ -12,7 +12,7 @@ Local Qleisli qrate management with qlippy, qlifmt, and qlidoc. All four executa
 
 Since version 0.1.7, the tools have independent Rust environments and extraction verification; see the [development instructions](docs/qrate-development.md) and [extraction contract](docs/qrate-extraction-plan.md).
 
-Version 0.1.9 is an unpublished candidate. The previous published and verified release is 0.1.8, available through [crates.io](https://crates.io/crates/qargo/0.1.8) and the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.8). Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
+Version 0.1.9 is published and verified, available through [crates.io](https://crates.io/crates/qargo/0.1.9) and the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.9). Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
 Linux ARM64 is unsupported in 0.1.9 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
 
@@ -29,8 +29,6 @@ The [tooling adoption plan](docs/adoption-plan.md) sets the implementation order
 The [qleisliup compatibility plan](docs/toolchains.md#qleisliup-compatibility-plan) starts with offline proxy execution of a complete qargo bundle, then coordinates an exact linked-Qleisli update with the manager's initial production language distribution. Qargo and qlippy currently use their linked Qleisli 0.2.1 checker. That library update can precede external-checker integration, which requires a separate upstream protocol and qargo contract. Qargo does not read `qleisli-toolchain.toml` or manager state in this release.
 
 ## Installation
-
-The version-specific examples below target 0.1.9 and become available after publication. The latest-release installer installs the current published release. To use the candidate now, [build from source](#build-from-source).
 
 ### Install without Cargo
 
@@ -173,7 +171,7 @@ All four tools support `--help`, `--version`, and `--format=json`. Independent v
 
 ## 0.1.x support and compatibility
 
-Linux x86_64 and macOS are validated with Rust 1.85 and stable. Linux ARM64, Windows and Android are outside the supported 0.1.9 candidate platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package; version 0.1.5 adds prebuilt bundles for Linux x86_64 and both macOS architectures. All Rust packages forbid unsafe code.
+Linux x86_64 and macOS are validated with Rust 1.85 and stable. Linux ARM64, Windows and Android are outside the supported 0.1.9 platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package; version 0.1.5 adds prebuilt bundles for Linux x86_64 and both macOS architectures. All Rust packages forbid unsafe code.
 
 The public contract covers CLI commands, manifest schema 2, the independently versioned JSON result formats, and exit codes 0/1/2. Path options accept both equality and space-separated syntax, such as `--manifest-path=PATH` and `--manifest-path PATH`, including explicit tool paths and qlidoc's `--output`. Empty, missing, and repeated values are usage errors. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
 
