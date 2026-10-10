@@ -33,7 +33,7 @@ python3 scripts/qrate_project.py --component qlifmt --destination /tmp/qlifmt-pr
 The destination must not exist. It receives the component's `qrates/` and `rust/`
 trees, the corresponding qlippy trees when required, all locked registry sources
 and checksums in `vendor/`, license notices, the boundary policy, these
-instructions, and the standalone verification scripts. There is no root Qargo
+instructions, and the standalone verification scripts. There is no root qargo
 Cargo manifest. Relative source/dependency relationships are preserved. This
 does not create a repository or publish anything.
 
@@ -41,7 +41,7 @@ does not create a repository or publish anything.
 digests, sizes, executable modes, directories, and optional configuration
 presence. Its framed SHA-256 identity excludes its own record, checkout paths,
 timestamps, caches, Git state and build outputs. Qrate inputs and this complete
-Rust project are separate artifacts. No Qargo result schema is extended.
+Rust project are separate artifacts. No qargo result schema is extended.
 
 The initial extraction supports the current explicit crates.io and local qlippy
 dependency graph. Git dependencies and custom Cargo configuration fail until
@@ -53,7 +53,7 @@ special files, escaped local references, and inherited dependencies are rejected
 
 Supply a resolved Rust installation directory (the result of `rustc --print
 sysroot`, not a rustup shim directory), with Cargo, Clippy, Rustfmt and Rustdoc,
-and an installed four-executable Qargo bundle. Neither may require the original
+and an installed four-executable qargo bundle. Neither may require the original
 checkout. Then run the copied verifier:
 
 ```sh
@@ -70,7 +70,7 @@ environment and frozen vendored dependencies. It rejects ancestor Cargo
 configuration, custom compiler wrappers/configuration, and metadata paths outside
 the extracted closure. It builds the library/CLI, runs engine and snapshot tests,
 doctests, Clippy and Rustdoc, compares direct and embedded CLI behavior, and uses
-the supplied Qargo to validate original/relocated qrate input and source IDs.
+the supplied qargo to validate original/relocated qrate input and source IDs.
 
 On macOS the Cargo commands run in a dedicated Seatbelt sandbox that permits
 reads from captured inputs and writes only to fresh build/test state. On Linux,

@@ -314,7 +314,7 @@ mod tests {
         let tool = SelectedExecutable::capture(&original).unwrap();
         let stage = tool.path.parent().unwrap().to_path_buf();
         let mut command = tool.command().unwrap();
-        // Deliberate same-user tampering of Qargo's private state is detected.
+        // Deliberate same-user tampering of qargo's private state is detected.
         tool.stage
             .directory
             .set_permissions(fs::Permissions::from_mode(0o700))

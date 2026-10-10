@@ -1,4 +1,4 @@
-# Qargo first principles and architecture
+# qargo first principles and architecture
 
 **Exact. Immutable. Bound. Explicit. Independent.**
 
@@ -26,7 +26,7 @@ only Qleisli's bundled, version-aligned std qrate has privileged status.
 | Immutable | An observed subject and a published artifact retain their identity. | Keep captured bytes and their digest private and read-only. Give each checker/tool a separate materialized working copy. Publish complete artifacts without replacement; reuse requires exact agreement. |
 | Bound | A result applies only to the input and tool that produced it. | Bind checked qrates in one type. Hold executable snapshots and child cleanup guards through response and artifact validation. Only accepted, captured output bytes may reach the effect phase. |
 | Explicit | An operation's authority and outcome are visible. | Represent commands and input selection as closed variants. Preserve source-free help/version, skipped empty checks, syntax-only processing, unavailable QLT, selected-tool failures, and partial formatting progress. |
-| Independent | Each component owns one authority. | Qleisli owns acceptance; Qargo owns qrate capture and orchestration; qlippy owns shared support and advisory linting; qlifmt/qlidoc own syntax transformations; qleisliup owns lifecycle/authentication; Cargo builds the Rust implementation outside Qargo operations. |
+| Independent | Each component owns one authority. | Qleisli owns acceptance; qargo owns qrate capture and orchestration; qlippy owns shared support and advisory linting; qlifmt/qlidoc own syntax transformations; qleisliup owns lifecycle/authentication; Cargo builds the Rust implementation outside qargo operations. |
 
 Immutability does not prohibit an explicit formatting operation. Formatting
 derives a candidate from an immutable subject, validates it, then checks that the
@@ -73,9 +73,9 @@ The phases constrain dependencies:
 Qlippy's `support` module is logically separate
 from its linter product. Formatter/documenter consumers cannot depend on lint
 rules, product defaults, or ordinary-checker execution. Root component adapters
-are wiring only; Qargo retains its own orchestration and response validation.
+are wiring only; qargo retains its own orchestration and response validation.
 The [boundary policy](../QRATEBOUNDARY.md#dependency-direction-and-adapter-ownership)
-forbids reverse component-to-Qargo dependencies, including build/test edges and
+forbids reverse component-to-qargo dependencies, including build/test edges and
 source inclusions. Component CLIs and tests use their own packages; the public
 bundle includes those canonical sources through audited alias/include adapters.
 Each private Cargo environment has its own workspace, lockfile and toolchain

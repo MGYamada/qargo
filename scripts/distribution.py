@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build, verify, and collect binary release assets outside Qargo operations."""
+"""Build, verify, and collect binary release assets outside qargo operations."""
 
 import argparse
 import gzip
