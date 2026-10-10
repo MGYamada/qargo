@@ -164,11 +164,11 @@ class ProjectBoundaryTests(unittest.TestCase):
         original = path.read_text()
         for header in ("dev-dependencies", "build-dependencies", "target.'cfg(target_os = \"none\")'.dependencies"):
             path.write_text(original + '\n[' + header + ']\nrenamed = { package = "qargo", path = "../..", optional = true }\n')
-            with self.assertRaisesRegex(RuntimeError, "Reverse Qargo dependency"):
+            with self.assertRaisesRegex(RuntimeError, "Reverse qargo dependency"):
                 audit(self.root)
         path.write_text(original)
-        path.write_text(original + '\n[target.\'cfg(target_os = "none")\'.dependencies]\nqargo = "=0.1.8"\n')
-        with self.assertRaisesRegex(RuntimeError, "Reverse Qargo dependency"):
+        path.write_text(original + '\n[target.\'cfg(target_os = "none")\'.dependencies]\nqargo = "=0.1.9"\n')
+        with self.assertRaisesRegex(RuntimeError, "Reverse qargo dependency"):
             audit(self.root)
         path.write_text(original)
 

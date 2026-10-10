@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify source-release executables; never part of a Qargo runtime operation."""
+"""Verify source-release executables; never part of a qargo runtime operation."""
 
 import argparse
 import hashlib
@@ -196,7 +196,7 @@ def verify_qrate(qrate, binaries, tools, environment):
         report = invoke(binaries["qlidoc"], args, environment)
         require(report["format"] == "qlidoc.result" and report["result"]["tool"] == tools["qlidoc"], "Incorrect standalone documentation identity")
         require(report["result"]["source_id"] == expected_source_id, "Standalone documentation source mismatch")
-        require(files_under(destination) == documentation, "Standalone and Qargo documentation differ")
+        require(files_under(destination) == documentation, "Standalone and qargo documentation differ")
         spaced_args = [str(qrate / "src"), "--output", str(destination)]
         require(invoke(binaries["qlidoc"], spaced_args, environment) == report, "Space-separated output changed repeated documentation")
 

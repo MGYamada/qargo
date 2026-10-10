@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Portable Rust project capture. Developer tooling, never a Qargo operation."""
+"""Portable Rust project capture. Developer tooling, never a qargo operation."""
 
 import argparse
 import hashlib
@@ -134,7 +134,7 @@ def audit(root, components=QRATES, bundle=True):
                         for value in package.values()), "Inherited package metadata")
         for alias, dep in dependencies(data):
             require((dep.get("package", alias) if isinstance(dep, dict) else alias)
-                    not in ("qargo", "qargo_tools"), "Reverse Qargo dependency")
+                    not in ("qargo", "qargo_tools"), "Reverse qargo dependency")
             if isinstance(dep, dict):
                 require(not dep.get("workspace"), "Inherited dependency: " + alias)
                 require("git" not in dep, "Git dependencies require an explicit fixed source capture implementation")

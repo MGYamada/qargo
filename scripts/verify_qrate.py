@@ -167,7 +167,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--toolchain", type=Path, required=True, help="Resolved Rust sysroot, containing bin/cargo and bin/rustc")
-    parser.add_argument("--bundle-bin", type=Path, required=True, help="Explicit installed bundle for external comparisons/Qargo validation")
+    parser.add_argument("--bundle-bin", type=Path, required=True, help="Explicit installed bundle for external comparisons/qargo validation")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     verify(args.project, args.toolchain, args.bundle_bin, args.output)

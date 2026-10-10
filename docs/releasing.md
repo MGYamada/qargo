@@ -1,6 +1,8 @@
 # Release checklist
 
-The crates.io package is named `qargo` and installs `qargo`, `qlippy`, `qlifmt`, and `qlidoc` together. The standard bundle and its three qrates share version 0.1.8 for distribution convenience under [QRATEBOUNDARY.md](../QRATEBOUNDARY.md); the tools remain ordinary independent qrates. Keep Qleisli exactly at 0.2.1, Rust 1.85 as the MSRV, and unsafe code forbidden. Manifest schema 2 requires an explicit `edition = "2026"` under `[qrate]`; independent result schema versions remain 1. Keep every valid manifest, example, and fixture explicit about its edition. Cargo manifests retain Rust edition `"2024"`.
+The crates.io package is named `qargo` and installs `qargo`, `qlippy`, `qlifmt`, and `qlidoc` together. The standard bundle and its three qrates share version 0.1.9 for distribution convenience under [QRATEBOUNDARY.md](../QRATEBOUNDARY.md); the tools remain ordinary independent qrates. Keep Qleisli exactly at 0.2.1, Rust 1.85 as the MSRV, and unsafe code forbidden. Manifest schema 2 requires an explicit `edition = "2026"` under `[qrate]`; independent result schema versions remain 1. Keep every valid manifest, example, and fixture explicit about its edition. Cargo manifests retain Rust edition `"2024"`.
+
+**0.1.9 is an unpublished candidate.** This preparation expands the README non-affiliation notice to include qleisliup and qleisliup-init and adds the Rust and Cargo trademark attribution. Runtime behavior, public schemas, and the exact Qleisli 0.2.1 dependency are unchanged. Validate this candidate independently; the publication records below apply to their recorded commits. Publication requires separate authorization.
 
 **0.1.8 is published and verified.** It was published on 2026-10-05 (UTC) to [crates.io](https://crates.io/crates/qargo/0.1.8) and [GitHub](https://github.com/MGYamada/qargo/releases/tag/v0.1.8) from verified commit `4f30b2fc1b56d1d4ad44bfb5c32fc59afc034206`. The annotated tag and published crate retain that commit; subsequent publication-record updates must not move or replace either.
 
@@ -32,7 +34,7 @@ The internal library name remains `qargo_tools`; it is not an executable or the 
 
 1. Check the crates.io `qargo` namespace, publisher ownership, and whether the intended version already exists. Never replace an existing version.
 2. Update the changelog with the release date and make the README's version and installation instructions match the intended package. Commit the complete candidate, including Cargo configuration and lockfile, all three qrates, documentation, CI, verifiers, license, and notices. Exclude generated `target/` directories and caches.
-3. Run formatting, all Rust targets, Rust doctests, Clippy with warnings denied, and Rustdoc with warnings denied. Run `scripts/test_qrate_project.py` and `scripts/qrate_project.py` for identity, release-version and architectural checks. Root workspace checks do not cover the independent component workspaces; require the [extraction checks](qrate-development.md) for all three. These are developer operations outside Qargo commands.
+3. Run formatting, all Rust targets, Rust doctests, Clippy with warnings denied, and Rustdoc with warnings denied. Run `scripts/test_qrate_project.py` and `scripts/qrate_project.py` for identity, release-version and architectural checks. Root workspace checks do not cover the independent component workspaces; require the [extraction checks](qrate-development.md) for all three. These are developer operations outside qargo commands.
 4. Require Linux/macOS × Rust 1.85/stable bundle CI for that candidate. Before every release, manually dispatch `Verify independent qrate extraction` (`qrate-extraction.yml`) for the exact candidate and require all three components on both OSes and both Rust toolchains to pass. This full extraction matrix is a release gate, not a push/PR trigger; lightweight boundary audits do not replace it. It verifies each extracted component while the original checkout is unreadable. Record its candidate commit and run URL. The bundle matrix builds an extracted Git source archive and the standalone `.crate`, installs the four packaged executables, checks package inventory against candidate sources, and runs the runtime verifier. Also require all three supported native binary distribution jobs and the complete asset-collection job. Linux ARM64 remains excluded from the supported release scope because pinned Qleisli 0.2.1 fails ordinary checking (issue #18); do not publish an ARM64 Linux asset. Use that exact verified commit for publication.
 
 After dependency preparation, the source checks include:
@@ -51,9 +53,9 @@ On the clean candidate, validate crates.io packaging without skipping its build 
 cargo package --list -p qargo
 cargo package --locked -p qargo
 mkdir -p /path/to/temporary-package
-tar -xzf target/package/qargo-0.1.8.crate -C /path/to/temporary-package
-cargo install --locked --path /path/to/temporary-package/qargo-0.1.8 --bins --root /path/to/temporary-install
-python3 scripts/verify_package.py --source-root=. --crate=target/package/qargo-0.1.8.crate --bin-dir=/path/to/temporary-install/bin
+tar -xzf target/package/qargo-0.1.9.crate -C /path/to/temporary-package
+cargo install --locked --path /path/to/temporary-package/qargo-0.1.9 --bins --root /path/to/temporary-install
+python3 scripts/verify_package.py --source-root=. --crate=target/package/qargo-0.1.9.crate --bin-dir=/path/to/temporary-install/bin
 cargo publish --dry-run --locked -p qargo --registry crates-io
 ```
 
@@ -72,12 +74,12 @@ cargo +1.85.0 fetch --locked
 MACOSX_DEPLOYMENT_TARGET=11.0 cargo +1.85.0 build --release --frozen --bins --target=aarch64-apple-darwin
 python3 scripts/test_install.py
 python3 scripts/distribution.py build --source-root=. --bin-dir=target/aarch64-apple-darwin/release --target=aarch64-apple-darwin --output-dir=target/binary-assets
-python3 scripts/distribution.py verify --source-root=. --archive=target/binary-assets/qargo-0.1.8-aarch64-apple-darwin.tar.gz --target=aarch64-apple-darwin
+python3 scripts/distribution.py verify --source-root=. --archive=target/binary-assets/qargo-0.1.9-aarch64-apple-darwin.tar.gz --target=aarch64-apple-darwin
 ```
 
 Use an empty output directory; archive generation and collection refuse to replace files. The build verifies the candidate's runtime behavior before archiving. The archive verifier repeats runtime checks on extracted binaries and performs a real Cargo-free installation with local responses for the production HTTPS URLs, followed by installed-bundle runtime checks. Source, binary, and crate verification remain independent. No verification calls a publication endpoint.
 
-After all three supported native jobs pass, the collection job validates the complete archive inventories and produces `qargo-0.1.8-release-assets`, containing exactly the three `.tar.gz` files, `install.sh`, and `SHA256SUMS`. This is an Actions artifact, not a public GitHub release. Download this artifact from the exact verified candidate workflow run. To collect already downloaded per-target artifacts locally:
+After all three supported native jobs pass, the collection job validates the complete archive inventories and produces `qargo-0.1.9-release-assets`, containing exactly the three `.tar.gz` files, `install.sh`, and `SHA256SUMS`. This is an Actions artifact, not a public GitHub release. Download this artifact from the exact verified candidate workflow run. To collect already downloaded per-target artifacts locally:
 
 ```sh
 python3 scripts/distribution.py collect --source-root=. --artifact-dir=/path/to/native-artifacts --output-dir=/path/to/empty-release-assets
@@ -96,10 +98,10 @@ cargo publish --locked -p qargo --registry crates-io
 [Published crate versions cannot be replaced](https://doc.rust-lang.org/cargo/reference/publishing.html). Wait for registry availability and verify a fresh installation:
 
 ```sh
-cargo install qargo --version=0.1.8 --locked --bins --root /path/to/fresh-install
+cargo install qargo --version=0.1.9 --locked --bins --root /path/to/fresh-install
 ```
 
-Check all four version commands and run the package/runtime verifiers against that registry installation. All executables must report 0.1.8, and Qargo must discover its installed siblings. Record the publication result and candidate commit.
+Check all four version commands and run the package/runtime verifiers against that registry installation. All executables must report 0.1.9, and qargo must discover its installed siblings. Record the publication result and candidate commit.
 
 ## Publish a GitHub source and binary release when requested
 
@@ -112,16 +114,16 @@ verifier separate allows this check to cover older tags that predate it.
 Local inventory-only inspection uses:
 
 ```sh
-python3 scripts/distribution.py verify-published-assets --artifact-dir=/path/to/downloaded-assets --version=0.1.8
+python3 scripts/distribution.py verify-published-assets --artifact-dir=/path/to/downloaded-assets --version=0.1.9
 ```
 
 This inventory check does not replace content/checksum or runtime validation.
 The `collect` command continues to accept nested Actions artifact directories.
 
-This step requires authorization for the GitHub release channel. Check the remote `v0.1.8` tag and release before creating either; do not force-push or replace existing release data.
+This step requires authorization for the GitHub release channel. Check the remote `v0.1.9` tag and release before creating either; do not force-push or replace existing release data.
 
-Create and push an annotated `v0.1.8` tag for the verified candidate and create a formal GitHub release titled `Qargo v0.1.8`, using the changelog entry as release notes. Attach all five files from that candidate's verified `qargo-0.1.8-release-assets` artifact at creation, then publish with `--verify-tag --latest --prerelease=false --draft=false`. Never expose a formal/latest release with only some supported target assets, or overwrite an existing tag/release/asset. GitHub also supplies source archives. Confirm that the tag and source archive identify the verified candidate and include all three complete qrates without generated outputs. When the same version is also published on crates.io, retain that exact candidate commit for the tag; subsequent documentation updates must not move the tag or replace the package.
+Create and push an annotated `v0.1.9` tag for the verified candidate and create a formal GitHub release titled `qargo v0.1.9`, using the changelog entry as release notes. Attach all five files from that candidate's verified `qargo-0.1.9-release-assets` artifact at creation, then publish with `--verify-tag --latest --prerelease=false --draft=false`. Never expose a formal/latest release with only some supported target assets, or overwrite an existing tag/release/asset. GitHub also supplies source archives. Confirm that the tag and source archive identify the verified candidate and include all three complete qrates without generated outputs. When the same version is also published on crates.io, retain that exact candidate commit for the tag; subsequent documentation updates must not move the tag or replace the package.
 
-After publication, run the `Verify published release` workflow with version `0.1.8`. It re-downloads every release asset, checks its recorded SHA-256 against the tagged candidate, and repeats installer and installed-runtime verification on all three supported native environments using the actual release URLs, including default latest resolution and explicit version selection. Remove the README's unpublished-candidate notice only after both requested publication channels have been verified, and link the published package/release without moving their identities.
+After publication, run the `Verify published release` workflow with version `0.1.9`. It re-downloads every release asset, checks its recorded SHA-256 against the tagged candidate, and repeats installer and installed-runtime verification on all three supported native environments using the actual release URLs, including default latest resolution and explicit version selection. Remove the README's unpublished-candidate notice only after both requested publication channels have been verified, and link the published package/release without moving their identities.
 
 Reflect the release on the default branch through a pull request when repository rules require one. Preserve the verified candidate commits in the merge, satisfy all required checks, and update the README to link the published release and package.

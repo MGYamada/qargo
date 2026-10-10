@@ -1,5 +1,5 @@
 #!/bin/sh
-# Install a verified standard bundle; this is never a Qargo runtime operation.
+# Install a verified standard bundle; this is never a qargo runtime operation.
 
 fail() {
     printf 'qargo installer: %s\n' "$*" >&2
@@ -239,7 +239,7 @@ main() {
         Darwin) mv -fh "$switch_link" "$managed/current" ;;
     esac
     committed=yes
-    printf 'Installed Qargo %s (%s) under %s\n' "$version" "$target" "$prefix"
+    printf 'Installed qargo %s (%s) under %s\n' "$version" "$target" "$prefix"
     case ":${PATH:-}:" in
         *":$prefix/bin:"*) ;;
         *) printf 'Add this directory to PATH: %s/bin\n' "$prefix" ;;

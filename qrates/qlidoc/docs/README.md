@@ -1,7 +1,7 @@
 # qlidoc
 
-qlidoc 0.1.8 generates descriptive Markdown from Qleisli source syntax. It is
-one of the three standard Qargo qrates, alongside qlippy and qlifmt. Its Rust
+qlidoc 0.1.9 generates descriptive Markdown from Qleisli source syntax. It is
+one of the three standard qargo qrates, alongside qlippy and qlifmt. Its Rust
 engine, CLI and Rust tests are qrate inputs; Cargo configuration remains
 outside this qrate. Qargo never runs Cargo or Rustdoc.
 
