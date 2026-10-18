@@ -106,11 +106,7 @@ owns its reserved namespace, distribution, and semantic integration. Neither the
 three standard tools nor any other internal or external qrate acquires this
 status by being bundled or adopting a similar name.
 
-Qargo currently consumes the stdlib embedded in its exactly pinned Qleisli 0.2.1
-implementation. Its identity is bound to that checker distribution and the actual
-host executable. This policy adds no independently resolved std package or new
-manifest field. Privileged distribution status, version metadata, and hashes are
-not mathematical evidence and do not extend Qleisli checking to Rust code.
+The development migration targets the stdlib embedded in exact Qleisli `=0.3.0-beta`. Its private descriptor supplies the actual full version, manifest and sole canonical source inventory after the existing embedded-manifest gate. Qargo records those bytes separately from local source identity and observed native paths. std's reserved namespace/distribution role grants no semantic exception: its bodies undergo ordinary independent checking. Metadata grants no Rust-code checking or mathematical evidence. Published qargo 0.1.9 and its immutable artifacts retain exact Qleisli 0.2.1. See the [linked migration](docs/linked-qleisli-030.md); no independently resolved std package or version selector is added.
 
 ## Implementation boundary
 

@@ -62,11 +62,14 @@ pub(super) fn publish(
 ) -> Result<String, Diagnostic> {
     let qrate = subject.qrate();
     let checked = subject.checked();
+    subject.effective_std().require_tool(tool)?;
     let record = json!({
-        "format":"qargo.build-record", "version":1, "input_id":qrate.input_id(),
+        "format":"qargo.build-record", "version":2, "input_id":qrate.input_id(),
         "qrate":{"name":qrate.manifest().qrate.name,"version":qrate.manifest().qrate.version},
         "source_count":checked.source_count(), "qleisli_check":checked.qleisli_check(),
         "profile":PROFILE, "tool":tool,
+        "effective_std":subject.effective_std().value(),
+        "source_configuration_id":checked.configuration_id(),"native_decisions":checked.native_summary(),
         "steps":[{"name":"manifest","status":"passed","reason":null},
                  {"name":"snapshot","status":"passed","reason":null},
                  {"name":"qleisli","status":checked.qleisli_check()["status"],"reason":checked.qleisli_check()["reason"]},
@@ -124,8 +127,11 @@ mod tests {
             fs::write(directory.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.0\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
         }
         let captured = capture(Some(&root.join("Qargo.toml"))).unwrap();
-        let checked = captured.check().unwrap();
         let tool = crate::report::tool_info("qargo", crate::VERSION).unwrap();
+        let effective_std = super::super::environment::EffectiveStd::capture(&tool).unwrap();
+        let checked = captured
+            .check(&effective_std, &captured.source_configuration())
+            .unwrap();
         let old = home.path().join("old");
         let failed = publish(&checked, &tool, || {
             fs::rename(&root, &old).unwrap();
@@ -150,9 +156,12 @@ mod tests {
         let frozen = capture(Some(&directory.path().join("Qargo.toml"))).unwrap();
         fs::write(directory.path().join("src/module.qli"), "invalid syntax").unwrap();
         fs::write(directory.path().join("Qargo.toml"), "invalid manifest").unwrap();
-        let checked = frozen.check().unwrap();
-        assert_eq!(checked.checked().qleisli_check()["status"], "passed");
         let tool = crate::report::tool_info("qargo", crate::VERSION).unwrap();
+        let effective_std = super::super::environment::EffectiveStd::capture(&tool).unwrap();
+        let checked = frozen
+            .check(&effective_std, &frozen.source_configuration())
+            .unwrap();
+        assert_eq!(checked.checked().qleisli_check()["status"], "passed");
         let artifact = publish(&checked, &tool, || Ok(())).unwrap();
         assert_eq!(
             fs::read_to_string(
@@ -183,5 +192,80 @@ mod tests {
             assert_eq!(&record["tool"], expected_tool);
         }
         assert_eq!(publish(&checked, &tool, || Ok(())).unwrap(), artifact);
+    }
+
+    #[test]
+    fn exact_reuse_rejects_changed_environment_or_configuration_without_overwrite() {
+        let root = tempfile::tempdir().unwrap();
+        for name in ["src", "tests", "docs"] {
+            fs::create_dir(root.path().join(name)).unwrap();
+        }
+        fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"empty\"\nversion=\"9.8.7\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+        let captured = capture(Some(&root.path().join("Qargo.toml"))).unwrap();
+        let tool = crate::report::tool_info("qargo", crate::VERSION).unwrap();
+        let environment = super::super::environment::EffectiveStd::capture(&tool).unwrap();
+        let subject = captured
+            .check(&environment, &captured.source_configuration())
+            .unwrap();
+        assert!(subject.checked().native_summary().is_none());
+        let artifact = publish(&subject, &tool, || Ok(())).unwrap();
+        assert_eq!(publish(&subject, &tool, || Ok(())).unwrap(), artifact);
+        let path = root.path().join(&artifact).join("build-record.json");
+        let original = fs::read(&path).unwrap();
+        let record: Value = serde_json::from_slice(&original).unwrap();
+        assert_eq!(record["version"], 2);
+        assert_eq!(
+            record["qleisli_check"],
+            json!({"status":"not_run","reason":"no_sources"})
+        );
+        let mut changes = Vec::new();
+        let mut changed = record.clone();
+        changed["version"] = json!(1);
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["effective_std"]["qleisli_version"] = json!("0.2.1");
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["effective_std"]["std"]["version"] = json!("0.2.1");
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["effective_std"]["std"]["manifest_sha256"] = json!("sha256:wrong");
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["effective_std"]["std"]["modules"][0]["sha256"] = json!("sha256:wrong");
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["effective_std"]["std"]["modules"]
+            .as_array_mut()
+            .unwrap()
+            .remove(0);
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["effective_std"]["std"]["modules"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"name":"std::unregistered","sha256":"sha256:wrong"}));
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["effective_std"]["std"]["content_id"] = json!("sha256:wrong");
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["source_configuration_id"] = json!("sha256:wrong");
+        changes.push(changed);
+        let mut changed = record.clone();
+        changed["native_decisions"] = json!({"count":1});
+        changes.push(changed);
+        for changed in changes {
+            let bytes = json_bytes(&changed).unwrap();
+            fs::write(&path, &bytes).unwrap();
+            assert_eq!(
+                publish(&subject, &tool, || Ok(())).err().unwrap().id,
+                "artifact_mismatch"
+            );
+            assert_eq!(fs::read(&path).unwrap(), bytes);
+            fs::write(&path, &original).unwrap();
+        }
+        assert_eq!(publish(&subject, &tool, || Ok(())).unwrap(), artifact);
+        assert_eq!(fs::read(path).unwrap(), original);
     }
 }

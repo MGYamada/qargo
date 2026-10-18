@@ -14,19 +14,26 @@ Since version 0.1.7, the tools have independent Rust environments and extraction
 
 Version 0.1.9 is published and verified, available through [crates.io](https://crates.io/crates/qargo/0.1.9) and the [GitHub source and binary release](https://github.com/MGYamada/qargo/releases/tag/v0.1.9). Binary installation requires no Cargo on Linux x86_64 and macOS x86_64/ARM64. Since version 0.1.3, qargo requires manifest schema 2 and an explicit Qleisli edition; migrate schema-1 manifests as described below.
 
+The development migration targets exact Qleisli `=0.3.0-beta` without selecting
+a new qargo release version. It records the actual linked std and captured source
+configuration, uses qargo result/build-record schema 2 and retains child schema 1.
+This does not replace published 0.1.9 or its Qleisli 0.2.1 artifacts. Dependency
+availability, component/package/native installation and release checks for the
+migration remain unvalidated; see the [linked migration contract](docs/linked-qleisli-030.md).
+
 Linux ARM64 is unsupported in 0.1.9 because the pinned Qleisli 0.2.1 file loader fails during ordinary checking ([issue #18](https://github.com/MGYamada/qargo/issues/18)). No ARM64 Linux binary is distributed; installing from source or crates.io on that architecture does not resolve the checker defect. The installer reports this limitation before downloading or changing files.
 
 **Qargo manages Qleisli packages. Cargo builds, packages, and installs the Rust implementation outside qargo operations.** Qargo commands never invoke Cargo. They do not translate mathematical tests into Rust tests or Qleisli documentation into Rustdoc.
 
 Each standard qrate ([qlippy](qrates/qlippy/Qargo.toml), [qlifmt](qrates/qlifmt/Qargo.toml), and [qlidoc](qrates/qlidoc/Qargo.toml)) contains its complete Rust engine, CLI, tests, and a short `src/smoke.qli` identity operation, with no `.qlt` files. Shared support belongs to qlippy. Qargo snapshots and identifies both `.rs` and `.qli` inputs, checks the `.qli` source, and leaves Rust compilation to developer Cargo configuration outside the qrates. Each engine also accepts external Qleisli sources. The published `qargo` crate compiles these same engine sources as internal modules; the three private packages each have an independent Cargo workspace for development.
 
-A qrate's semantic surface is its Qleisli modules and contracts; its raw input identity also tracks host implementation inputs for provenance. Checking a bundled smoke sample does not certify the Rust engine. The acceptance implementation is the linked Qleisli 0.2.1 checker and its embedded stdlib, regardless of any `qleisli` on PATH. Results record that linked version, profile, and host executable digest. Future qrate-selected acceptance toolchains and checker/stdlib/proof-backend bindings are described in the [toolchain design note](docs/toolchains.md).
+A qrate's semantic surface is its Qleisli modules and contracts; its raw input identity also tracks host implementation inputs for provenance. Checking a bundled smoke sample does not certify the Rust engine. The development target links Qleisli `=0.3.0-beta` and its actual embedded std descriptor. Nonempty checking selects one native kernel through Qleisli's existing explicit selection contract, including `QLEISLI_KERNEL`; a PATH `qleisli` does not select the linked frontend. Observed native paths and `finite-v0` are diagnostic/adapter metadata, not binary attestation or source-preservation proof. The [toolchain design](docs/toolchains.md) distinguishes future acceptance selection.
 
 The [ecosystem policy](docs/ecosystem-policy.md) puts a curated stdlib at the center. Future extensions require trusted sources, authenticated publisher namespaces, and fixed identities. Public registry and automatic semver resolution are deferred; arbitrary qrate build hooks, native procedural macros, dependency-install scripts, and global feature unification will not be introduced. Cargo's command structure does not determine Qleisli's governance.
 
 The [tooling adoption plan](docs/adoption-plan.md) sets the implementation order for local diagnostic explanations, compatibility comparisons, documentation examples, and scoped review records. Upstream toolchain, structured-repair, and QLT protocols determine their later integration.
 
-The [qleisliup compatibility plan](docs/toolchains.md#qleisliup-compatibility-plan) starts with offline proxy execution of a complete qargo bundle, then coordinates an exact linked-Qleisli update with the manager's initial production language distribution. Qargo and qlippy currently use their linked Qleisli 0.2.1 checker. That library update can precede external-checker integration, which requires a separate upstream protocol and qargo contract. Qargo does not read `qleisli-toolchain.toml` or manager state in this release.
+The [qleisliup compatibility plan](docs/toolchains.md#qleisliup-compatibility-plan) starts with offline proxy execution of a complete qargo bundle. The named linked-library migration can precede an external acceptance adapter; it adds no manager-state dependency or new selector. Qargo still does not interpret `qleisli-toolchain.toml`. Actual standalone/linked/std distribution alignment remains a separate validation gate.
 
 ## Installation
 
@@ -87,7 +94,7 @@ Source builds on macOS also require the Xcode command line developer tools, incl
 
 ## Build from source
 
-Rust 1.85 or newer is required. The implementation links exactly Qleisli 0.2.1. Clone the repository, or extract a complete source archive, and start in its top-level directory:
+Rust 1.85 or newer is required. The development source targets exact Qleisli `=0.3.0-beta`; published qargo 0.1.9 retains its exact 0.2.1 dependency. The commands below require a reviewed available dependency and locked closure. A development-only local link must be labeled explicitly and does not establish registry/package readiness; follow the [migration gates](docs/linked-qleisli-030.md#validation-status).
 
 ```sh
 git clone https://github.com/MGYamada/qargo.git
@@ -133,7 +140,11 @@ target/release/qargo fmt --manifest-path=qrates/qlippy/Qargo.toml --check
 target/release/qargo doc --manifest-path=qrates/qlippy/Qargo.toml
 ```
 
-Use either of the other qrate manifests with the same commands. Qargo operates on one qrate at a time. For `lint` and `fmt`, an explicit standalone source root cannot be combined with `--manifest-path`; use one input mode per command. `check` uses ordinary Qleisli source/IR checking. `build` writes an exact input snapshot, public module index, and build record under the qrate's `target/qargo/`; it does not run document generation. The smoke sources export `identity` and pass checking and linting. Empty source roots succeed with `source_count=0` and a Qleisli check marked `not_run` with reason `no_sources`.
+Use either of the other qrate manifests with the same commands. Qargo operates on one qrate at a time. For `lint` and `fmt`, an explicit standalone source root cannot be combined with `--manifest-path`; use one input mode per command. `check` uses ordinary Qleisli source/IR checking. `build` writes an exact input snapshot, public module index, and build record under the qrate's `target/qargo/`; it does not run document generation. The smoke sources export `identity`; their migrated checking/linting is a required validation gate. Valid empty source roots report `source_count=0` and `not_run/no_sources` without native selection. Invalid empty-input configuration and early capture failures have null result; nonempty qargo check/build compiler/loader failures after capture retain a bound failed result and environment/configuration metadata. Child qlippy retains its existing source/tool-bound failure fields; parent lint adds its configuration ID.
+
+For development nonempty check/build/lint, provide a matching native kernel
+explicitly; qargo does not build, install or download one. Managed and standalone
+configuration precedence differ as specified in the [migration contract](docs/linked-qleisli-030.md#source-configuration).
 
 `qargo test` still fails with an explicit `backend_unavailable` diagnostic because QLT execution is not implemented. No fallback test runner is used.
 
@@ -154,8 +165,8 @@ qlippy freezes original bytes, runs ordinary Qleisli source/IR checks, and then 
 | Rule | Group | Diagnostic |
 | --- | --- | --- |
 | `unused_import` | `idiom` | No possible import use in bodies, meanings, static arguments, or capability requirements |
-| `redundant_repeat_one` | `complexity` | `repeat_static(1, …)` or `repeat_op(1, …)` |
-| `double_inverse` | `complexity` | `inverse_op(inverse_op(…))` |
+| `redundant_repeat_one` | `complexity` | `power(op, 1)` in an applied or static-operation position |
+| `double_inverse` | `complexity` | `adjoint(adjoint(op))` as a static operation |
 
 Ambiguous shadowing conservatively retains imports. Suggestions are prose. `--deny-warnings` makes a warning-bearing result fail with exit 1; otherwise warnings succeed.
 
@@ -167,11 +178,11 @@ qlidoc also accepts a `.qli` file or source directory. It generates `index.md` a
 
 Formatting and documentation require syntax parsing only, so they accept syntactically valid sources with type or ownership errors. They mark ordinary Qleisli checking as `not_run` with reason `syntax_only` (or `no_sources`). They do not certify types, ownership, contracts, or mathematical correctness.
 
-All four tools support `--help`, `--version`, and `--format=json`. Independent version-1 `qargo.result`, `qlippy.result`, `qlifmt.result`, and `qlidoc.result` envelopes preserve original UTF-8 byte spans and Unicode scalar line/column coordinates. Exit codes are 0 for success, 1 for execution/validation failure or required formatting, and 2 for usage errors. Qargo validates child responses and artifacts against captured inputs and the actual executable identity.
+All four tools support `--help`, `--version`, and `--format=json`. The development parent `qargo.result` envelope is version 2 for every command; `qlippy.result`, `qlifmt.result` and `qlidoc.result` remain version 1. Shapes, UTF-8 spans, Unicode scalar coordinates and exit codes 0/1/2 retain their specified meanings. Existing child version-1 transport remains closed; accepting a parent version-2 envelope does not accept a child version 2.
 
 ## 0.1.x support and compatibility
 
-Linux x86_64 and macOS are validated with Rust 1.85 and stable. Linux ARM64, Windows and Android are outside the supported 0.1.9 platforms. Distribution from 0.1.1 includes GitHub source archives and the `qargo` crates.io package; version 0.1.5 adds prebuilt bundles for Linux x86_64 and both macOS architectures. All Rust packages forbid unsafe code.
+Published 0.1.9 was validated on Linux x86_64 and macOS with Rust 1.85 and stable; Linux ARM64, Windows and Android remain outside that release's support. Those results do not validate the linked migration. Source/package and native distribution validation must be repeated before a future release; no product version or new installer is selected here. All Rust packages retain the unsafe-code prohibition.
 
 The public contract covers CLI commands, manifest schema 2, the independently versioned JSON result formats, and exit codes 0/1/2. Path options accept both equality and space-separated syntax, such as `--manifest-path=PATH` and `--manifest-path PATH`, including explicit tool paths and qlidoc's `--output`. Empty, missing, and repeated values are usage errors. Incompatible manifest or result changes require a new schema version independently of the product version. Diagnostic prose and internal Rust library APIs are not stable interfaces. Build records and lint results are metadata, not mathematical evidence; the ordinary Qleisli trust boundary is preserved.
 
@@ -188,10 +199,10 @@ cargo test --frozen --doc
 cargo clippy --frozen --all-targets -- -D warnings
 RUSTDOCFLAGS='-D warnings' cargo doc --frozen --no-deps
 cargo build --release --frozen --bins
-python3 scripts/verify_release.py --source-root=. --bin-dir=target/release
+QLEISLI_KERNEL=/absolute/matching/qleisli-kernel python3 scripts/verify_release.py --source-root=. --bin-dir=target/release --qleisli-source-root=/absolute/intended/Qleisli
 ```
 
-Engine tests generate temporary sources from Rust strings. Bundled smoke samples exercise mixed Rust/Qleisli snapshots, checking, linting, formatting, documentation, and input identity. CI builds an extracted Git source archive and runs the release verifier on all four OS/toolchain combinations. Cargo and Rustdoc traps prove that runtime operations do not start either developer tool. Python 3 is only required for the verifier. CI also builds the standalone `.crate`, installs its four executables, compares packaged sources with the candidate, and runs the runtime verifier on the installation. See the [release checklist](docs/releasing.md) for publication steps.
+Engine tests generate temporary sources from Rust strings. The source/archive, independent-component, package, native-install and Cargo/Rustdoc-trap checks remain required. No such success for the linked migration is claimed by this documentation draft. The developer verifier requires the explicitly intended Qleisli dependency source and its matching, already built native checker; it never resolves or builds either. This source association must come from the recorded developer build, such as its actual Cargo dependency metadata, rather than qargo self-report alone. The comparison is not binary-source attestation. Registry availability, official lockfiles, package validation and native installation remain pending; the historical 0.1.9 installer still requires its original Qleisli 0.2.1 pair. Distinguish an explicit local-source experiment from registry-resolved/package validation. See the [release checklist](docs/releasing.md).
 
 ## License
 

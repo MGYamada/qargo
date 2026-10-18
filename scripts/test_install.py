@@ -112,7 +112,7 @@ exec {real_mv} "$@"
 
     def release(self, version=PRODUCT_VERSION, target=None, *, extra=None, link=None,
                 duplicate=False, wrong_version=False, nonexecutable=False, absolute=False,
-                unsafe_mode=False):
+                unsafe_mode=False, qleisli_version="0.2.1"):
         target = target or host_target()
         name = f"qargo-{version}-{target}"
         directory = self.downloads / ("v" + version)
@@ -122,7 +122,7 @@ exec {real_mv} "$@"
             files = {"LICENSE": b"license\n", "NOTICE": b"notice\n"}
             for tool in TOOLS:
                 reported = "9.9.9" if wrong_version and tool == "qlidoc" else version
-                files["bin/" + tool] = f"#!/bin/sh\nprintf '%s\\n' '{tool} {reported} (Qleisli 0.2.1, finite-v0)'\n".encode()
+                files["bin/" + tool] = f"#!/bin/sh\nprintf '%s\\n' '{tool} {reported} (Qleisli {qleisli_version}, finite-v0)'\n".encode()
             for label, data in files.items():
                 entry = tarfile.TarInfo(name + "/" + label)
                 if absolute and label == "NOTICE":
@@ -206,6 +206,17 @@ class InstallerTests(unittest.TestCase):
         self.success(self.fixture.run("--version", "0.1.4"))
         self.assertEqual(self.fixture.current(), old)
 
+    def test_development_beta_cannot_masquerade_as_a_historical_release_pair(self):
+        # Synthetic transport fixture only: no beta registry/install claim.
+        for version in ("0.1.4", "0.1.9"):
+            with self.subTest(version=version), InstallerFixture() as fixture:
+                fixture.release(version, qleisli_version="0.3.0-beta")
+                result = fixture.run("--version", version)
+                self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertIn("Incorrect executable version: qargo", result.stderr)
+                self.assertFalse(fixture.prefix.exists())
+                self.assertFalse(fixture.marker.exists())
+
     def test_all_platform_cpu_mappings_and_rosetta(self):
         for system, arch, target in (
             ("Linux", "x86_64", "x86_64-unknown-linux-musl"),
@@ -220,7 +231,7 @@ class InstallerTests(unittest.TestCase):
         self.fixture.release(target="aarch64-apple-darwin")
         self.success(self.fixture.run(environment={"QARGO_TEST_OS": "Darwin", "QARGO_TEST_ARCH": "x86_64", "QARGO_TEST_ROSETTA": "1"}))
 
-    def test_linux_arm64_explains_checker_blocker_without_downloading_or_changing_installation(self):
+    def test_linux_arm64_remains_unsupported_without_downloading_or_changing_installation(self):
         self.fixture.release()
         self.success(self.fixture.run())
         previous = self.fixture.current()
@@ -228,8 +239,8 @@ class InstallerTests(unittest.TestCase):
         for arch in ("aarch64", "arm64"):
             result = self.fixture.run(environment={"QARGO_TEST_OS": "Linux", "QARGO_TEST_ARCH": arch})
             self.failure(result)
-            self.assertIn("Linux ARM64 is unavailable with Qleisli 0.2.1", result.stderr)
-            self.assertIn("/issues/18", result.stderr)
+            self.assertIn("Linux ARM64 is unsupported by this installer", result.stderr)
+            self.assertIn("native host validation is required", result.stderr)
             self.assertEqual(self.fixture.current(), previous)
             self.assertEqual(self.fixture.requests.read_bytes(), requests)
 

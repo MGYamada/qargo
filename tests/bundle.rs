@@ -56,14 +56,14 @@ fn all_four_executables_bind_version_to_the_actual_engine() {
         let (output, report) = run(binary, &["--version"]);
         assert!(output.status.success(), "{name}: {report}");
         assert_eq!(report["format"], format!("{name}.result"));
-        assert_eq!(report["version"], 1);
+        assert_eq!(report["version"], if name == "qargo" { 2 } else { 1 });
         assert_eq!(report["command"], "version");
         assert_eq!(report["outcome"], "ok");
         assert_eq!(report["diagnostics"], json!([]));
         let tool = report["result"].get("tool").unwrap_or(&report["result"]);
         assert_eq!(tool["name"], name);
         assert_eq!(tool["version"], "0.1.9");
-        assert_eq!(tool["qleisli_version"], "0.2.1");
+        assert_eq!(tool["qleisli_version"], "0.3.0-beta");
         assert_eq!(tool["profile"], "finite-v0");
         assert_eq!(
             tool["executable_sha256"],

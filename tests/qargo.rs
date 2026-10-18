@@ -212,7 +212,7 @@ fn manifest_edition_is_required_and_validated_before_every_qrate_operation() {
         for command in ["check", "build", "lint", "fmt", "doc", "test"] {
             let rejected = run(qrate.path(), command, &[]);
             assert_eq!(rejected.exit_code, 1, "{command}: {manifest}");
-            assert_eq!(rejected.envelope.version, 1);
+            assert_eq!(rejected.envelope.version, 2);
             assert_eq!(rejected.envelope.diagnostics[0].id, expected_id);
             assert_eq!(rejected.envelope.diagnostics[0].category, "qargo");
             assert!(rejected.envelope.result.is_none());
@@ -350,8 +350,13 @@ fn full_input_budget_builds_are_reusable_and_aggregate_overflow_is_rejected() {
 fn standalone_lint_needs_no_qrate_and_preserves_warnings() {
     let source = tempfile::tempdir().unwrap();
     fs::write(
+        source.path().join("Qargo.toml"),
+        "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
+    )
+    .unwrap();
+    fs::write(
         source.path().join("module.qli"),
-        "// 雪\r\nuse std::quantum::x;\r\nunitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+        "// 雪\r\nuse std::gate::x;\r\nunitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
     )
     .unwrap();
     let tool = format!("--qlippy={}", env!("CARGO_BIN_EXE_qlippy"));
@@ -398,7 +403,7 @@ fn cli_misuse_is_exit_two_and_json_is_one_object() {
         assert!(output.stderr.is_empty());
         let response: Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(response["format"], "qargo.result");
-        assert_eq!(response["version"], 1);
+        assert_eq!(response["version"], 2);
     }
     let output = Command::new(env!("CARGO_BIN_EXE_qargo"))
         .args(["--help", "--format=json"])
@@ -507,6 +512,11 @@ fn selected_tools_do_not_fall_back_and_bad_transport_is_rejected() {
 #[test]
 fn closed_child_schema_identity_and_coordinates_are_checked() {
     let source = tempfile::tempdir().unwrap();
+    fs::write(
+        source.path().join("Qargo.toml"),
+        "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
+    )
+    .unwrap();
     let tool = tempfile::tempdir().unwrap();
     fs::write(
         source.path().join("module.qli"),
@@ -520,7 +530,7 @@ fn closed_child_schema_identity_and_coordinates_are_checked() {
     let valid = json!({
         "format":"qlippy.result","version":1,"command":"lint","outcome":"ok","diagnostics":[],
         "result":{"source_count":1,"source_id":frozen.source_id(),"qleisli_check":{"status":"passed","reason":null},
-          "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest,"qleisli_version":"0.2.1","profile":"finite-v0"}}
+          "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest,"qleisli_version":"0.3.0-beta","profile":"finite-v0"}}
     });
     let args = [
         OsString::from("lint"),

@@ -129,7 +129,7 @@ def audit(root, components=QRATES, bundle=True):
         require(package["edition"] == "2024" and package["rust-version"] == "1.85",
                 "Rust edition/MSRV changed")
         require(data["lints"]["rust"]["unsafe_code"] == "forbid", "Unsafe code must remain forbidden")
-        require(data["dependencies"]["qleisli"] == "=0.2.1", "Qleisli must remain exactly pinned")
+        require(data["dependencies"]["qleisli"] == "=0.3.0-beta", "Qleisli must remain exactly pinned")
         require(not any(isinstance(value, dict) and value.get("workspace")
                         for value in package.values()), "Inherited package metadata")
         for alias, dep in dependencies(data):

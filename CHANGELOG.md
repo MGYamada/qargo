@@ -1,5 +1,12 @@
 # Changelog
 
+## Linked Qleisli migration — development draft
+
+- Specify the authorized exact Qleisli `=0.3.0-beta` compatibility migration and current AST spellings, preserving the existing three advisory lint rules and syntax-only formatter/documentation boundary.
+- Bind the actual linked std descriptor and normalized captured source configuration separately from source/qrate identities. Version only parent qargo result/build records to 2; child schemas stay 1.
+- Require explicit nonempty native selection without fallback; valid empty inputs make no native call, invalid configuration fails without fallback, and observed native metadata grants no source/target proof.
+- Preserve published qargo 0.1.9 from `0722fa78fe16dcf504b260103fe00f0d24d0cf88` and its original 0.2.1 artifacts. This unreleased migration selects no new qargo release version. Recorded local development checks and their source-window limits are in `docs/linked-qleisli-030.md`; official registry resolution, full isolated extraction, package/native installation and hosted release gates remain pending.
+
 ## 0.1.9 — 2026-10-11
 
 - Expand the README non-affiliation notice to cover Qleisli and its tools, including qleisliup and qleisliup-init.

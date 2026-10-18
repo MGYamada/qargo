@@ -11,7 +11,8 @@ import tempfile
 from verify_release import PRODUCT_VERSION, QRATES, TOOLS, files_under, qrate_inputs, require, verify
 
 
-def verify_package(source_root, archive_path, bin_dir):
+def verify_package(source_root, archive_path, bin_dir, qleisli_source_root=None):
+    require(qleisli_source_root is not None, "Package verification requires explicit --qleisli-source-root")
     source_root = source_root.resolve()
     prefix = "qargo-" + PRODUCT_VERSION
     with tarfile.open(archive_path, "r:gz") as archive:
@@ -72,10 +73,10 @@ def verify_package(source_root, archive_path, bin_dir):
                 "Dependency is not available from a registry")
         compiler = [dependency for dependency in package["dependencies"]
                     if dependency["name"] == "qleisli"]
-        require(len(compiler) == 1 and compiler[0]["req"] == "=0.2.1", "Incorrect Qleisli requirement")
+        require(len(compiler) == 1 and compiler[0]["req"] == "=0.3.0-beta", "Incorrect Qleisli requirement")
         require(set(files_under(bin_dir.resolve())) == set(TOOLS), "Incorrect installed executable set")
 
-    verify(source_root, bin_dir)
+    verify(source_root, bin_dir, qleisli_source_root)
     print("Package verification passed: complete candidate sources, registry-only dependencies, "
           "and four installed executables.")
 
@@ -85,8 +86,9 @@ def main():
     parser.add_argument("--source-root", type=Path, required=True)
     parser.add_argument("--crate", type=Path, required=True)
     parser.add_argument("--bin-dir", type=Path, required=True)
+    parser.add_argument("--qleisli-source-root", type=Path, required=True)
     args = parser.parse_args()
-    verify_package(args.source_root, args.crate, args.bin_dir)
+    verify_package(args.source_root, args.crate, args.bin_dir, args.qleisli_source_root)
 
 
 if __name__ == "__main__":

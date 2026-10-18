@@ -8,10 +8,13 @@ from pathlib import Path
 import shutil
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
-from capture_build import audit_linux_access, build_binding, external_tree, generated_inputs, linux_resource_inputs
+from capture_build import (audit_linux_access, build_binding, capture_kernel, external_tree,
+                           generated_inputs, linux_resource_inputs, verify_native_unchanged)
 from qrate_project import QRATES, audit, audit_metadata, audit_vendor, copy_tree, extract, sha256, snapshot
-from verify_qrate import isolated_config
+from verify_qrate import compare_entrypoints, isolated_config, require_lint_case
 from verify_release import verify_versions
 
 SOURCE = Path(__file__).resolve().parents[1]
@@ -279,6 +282,143 @@ class ProjectBoundaryTests(unittest.TestCase):
         after = generated_inputs(target)
         self.assertNotEqual(before, after)
         self.assertEqual(before[0]["path"], after[0]["path"])
+
+
+class ExtractionNativeContextTests(unittest.TestCase):
+    """Host-only filesystem/response controls; no compiler or native invocation."""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="qrate-native-context-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name).resolve()
+        self.forbid_process = patch("subprocess.Popen", side_effect=AssertionError("No processes in host units"))
+        self.forbid_process.start()
+        self.addCleanup(self.forbid_process.stop)
+
+    def executable(self):
+        path = self.root / "kernel"
+        path.write_bytes(b"inert selected executable bytes")
+        path.chmod(0o755)
+        return path
+
+    def test_kernel_capture_is_canonical_file_only_and_changed_bytes_refuse(self):
+        kernel = self.executable()
+        alias = self.root / "selected-alias"
+        alias.symlink_to(kernel)
+        selected, inventory = capture_kernel(alias)
+        self.assertEqual(selected, kernel)
+        self.assertEqual(len(inventory), 1)
+        self.assertEqual((inventory[0]["path"], inventory[0]["kind"], inventory[0]["executable"]),
+                         (".", "file", True))
+        native = {"inventories": {str(selected): inventory}}
+        verify_native_unchanged(native, self.root / "unused-toolchain")
+        audit_linux_access(f'1 execve("{selected}", [], []) = 0\n', [selected])
+        with self.assertRaisesRegex(RuntimeError, "Unrecorded"):
+            audit_linux_access(f'1 openat(AT_FDCWD, "sibling", O_RDONLY) = 3<{self.root / "sibling"}>\n',
+                               [selected])
+        kernel.write_bytes(b"changed bytes")
+        with self.assertRaisesRegex(RuntimeError, "Native inputs changed"):
+            verify_native_unchanged(native, self.root / "unused-toolchain")
+
+    def test_missing_directory_nonexecuting_and_special_kernel_refuse_without_reading(self):
+        with self.assertRaises(FileNotFoundError):
+            capture_kernel(self.root / "missing")
+        with self.assertRaisesRegex(RuntimeError, "regular executable"):
+            capture_kernel(self.root)
+        kernel = self.executable()
+        kernel.chmod(0o644)
+        with self.assertRaisesRegex(RuntimeError, "regular executable"):
+            capture_kernel(kernel)
+        if hasattr(os, "mkfifo"):
+            fifo = self.root / "pipe"
+            os.mkfifo(fifo)
+            with self.assertRaisesRegex(RuntimeError, "regular executable"):
+                capture_kernel(fifo)
+
+    def test_isolated_environment_keeps_only_the_explicit_kernel_selection(self):
+        project = self.root / "project"
+        development = project / "rust/qlippy"
+        (development / ".cargo").mkdir(parents=True)
+        (development / ".cargo/config.toml").write_text(
+            '[source.crates-io]\nreplace-with="captured"\n[source.captured]\ndirectory="../../vendor"\n')
+        (development / "rust-toolchain.toml").write_text(
+            '[toolchain]\nchannel="1.85.0"\nprofile="minimal"\ncomponents=["clippy","rustfmt"]\n')
+        work = self.root / "work"
+        work.mkdir()
+        kernel, _ = capture_kernel(self.executable())
+        with patch.dict(os.environ, {"QLEISLI_KERNEL": "/not/the/selected/kernel", "UNADMITTED": "ambient"}):
+            environment = isolated_config(project, "qlippy", work, {"QLEISLI_KERNEL": str(kernel)})
+        self.assertEqual(environment["QLEISLI_KERNEL"], str(kernel))
+        self.assertNotIn("UNADMITTED", environment)
+
+    def test_lint_refusals_cannot_mask_the_actual_positive_or_fault(self):
+        def report(fixture):
+            failed = fixture in ("syntax", "type")
+            check = {"status": "failed", "reason": "compiler_error"} if failed else {
+                "status": "not_run", "reason": "no_sources"} if fixture == "empty" else {
+                "status": "passed", "reason": None}
+            diagnostic = [{"category": "compiler", "severity": "error",
+                           "id": "parse" if fixture == "syntax" else "unknown_name"}] if failed else []
+            return {"format": "qlippy.result", "version": 1, "command": "lint",
+                    "outcome": "error" if failed else "ok", "diagnostics": diagnostic,
+                    "result": {"source_count": 0 if fixture == "empty" else 1, "qleisli_check": check}}
+        for fixture in ("empty", "valid", "gate", "syntax", "type"):
+            envelope = report(fixture)
+            result = SimpleNamespace(returncode=1 if fixture in ("syntax", "type") else 0)
+            require_lint_case("qlippy", fixture, ["src"], True, result, envelope)
+        changed = report("gate")
+        changed["result"]["qleisli_check"] = {"status": "failed", "reason": "compiler_error"}
+        with self.assertRaisesRegex(RuntimeError, "positive/empty"):
+            require_lint_case("qlippy", "gate", ["src"], True, SimpleNamespace(returncode=0), changed)
+        for id in ("project", "kernel", "type_mismatch"):
+            changed = report("type")
+            changed["diagnostics"][0]["id"] = id
+            with self.assertRaisesRegex(RuntimeError, "wrong compiler"):
+                require_lint_case("qlippy", "type", ["src"], True, SimpleNamespace(returncode=1), changed)
+        changed = report("valid")
+        changed["result"]["source_count"] = True
+        with self.assertRaisesRegex(RuntimeError, "actual source"):
+            require_lint_case("qlippy", "valid", ["src"], True, SimpleNamespace(returncode=0), changed)
+
+    def test_comparison_stages_real_manifests_and_keeps_identity_gate_empty_and_faults(self):
+        seen = set()
+        digest = "sha256:" + "a" * 64
+        originals = {"valid": "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+                     "gate": "pub unitary fn had(q:Q<Bit>)->Q<Bit>{h(q)}",
+                     "syntax": "not a module {{{",
+                     "type": "pub unitary fn invalid()->Q<Bit>{missing()}"}
+
+        def fake_run(command, cwd, **kwargs):
+            source = cwd / "src/smoke.qli"
+            fixture = next((name for name, text in originals.items()
+                            if source.exists() and source.read_text() == text), "empty")
+            seen.add(fixture)
+            manifest_path = cwd / "Qargo.toml"
+            self.assertEqual(manifest_path.exists(), fixture != "empty")
+            if fixture != "empty":
+                data = json.loads(json.dumps(__import__("tomllib").loads(manifest_path.read_text())))
+                self.assertEqual((data["schema-version"], data["qrate"]["edition"]), (2, "2026"))
+            self.assertEqual(kwargs["env"]["QLEISLI_KERNEL"], "/explicit/selected/kernel")
+            args = command[1:]
+            lint = args in (["src"], ["src", "--deny-warnings"],
+                            ["src", "--format=json"], ["src", "--deny-warnings", "--format=json"])
+            failed = lint and fixture in ("syntax", "type")
+            check = {"status": "failed", "reason": "compiler_error"} if failed else {
+                "status": "not_run", "reason": "no_sources"} if fixture == "empty" else {
+                "status": "passed", "reason": None}
+            diagnostics = [{"id": "parse" if fixture == "syntax" else "unknown_name",
+                            "category": "compiler", "severity": "error"}] if failed else []
+            envelope = {"format": "qlippy.result", "version": 1, "command": "lint" if lint else "control",
+                        "outcome": "error" if failed else "ok", "diagnostics": diagnostics,
+                        "result": {"source_count": 0 if fixture == "empty" else 1,
+                                   "qleisli_check": check, "tool": {"executable_sha256": digest}}}
+            return SimpleNamespace(returncode=1 if failed else 0, stderr=b"",
+                                   stdout=(json.dumps(envelope).encode() if "--format=json" in args else b"same text"))
+        with patch("verify_qrate.subprocess.run", side_effect=fake_run), \
+             patch("verify_qrate.file_digest", return_value=digest):
+            compare_entrypoints("qlippy", self.root / "standalone", self.root / "bundled", self.root,
+                                {"QLEISLI_KERNEL": "/explicit/selected/kernel"})
+        self.assertEqual(seen, {"empty", *originals})
 
 
 if __name__ == "__main__":

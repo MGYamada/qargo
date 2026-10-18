@@ -7,6 +7,7 @@ use serde_json::{Value, json};
 use crate::report::{Diagnostic, Report, ToolIdentity, tool_info};
 use crate::tools;
 
+use super::environment::EffectiveStd;
 use super::manifest;
 use super::request::{QrateOperation, Request};
 use super::subject::CapturedSubject;
@@ -48,9 +49,14 @@ fn qrate_operation_with_verifier(
             }),
         ));
     }
-    let subject = match qrate.check() {
+    let effective_std = EffectiveStd::capture(&tool)?;
+    let configuration = qrate.source_configuration();
+    let configuration_id = crate::adapter::configuration_id(&configuration);
+    let subject = match qrate.check(&effective_std, &configuration) {
         Ok(subject) => subject,
-        Err(diagnostic) if diagnostic.category != "compiler" => return Err(diagnostic),
+        Err(diagnostic) if diagnostic.category != "compiler" || qrate.sources().count() == 0 => {
+            return Err(diagnostic);
+        }
         Err(diagnostic) => {
             verify(&orchestrator)?;
             return Ok(failed(
@@ -58,7 +64,8 @@ fn qrate_operation_with_verifier(
                 qrate.remap(diagnostic),
                 json!({
                     "input_id":qrate.input_id(),"source_count":qrate.sources().count(),"source_id":qrate.sources().source_id(),
-                    "qleisli_check":{"status":"failed","reason":"compiler_error"},"tool":tool
+                    "qleisli_check":{"status":"failed","reason":"compiler_error"},"tool":tool,
+                    "effective_std":effective_std.value(),"source_configuration_id":configuration_id,"native_decisions":null
                 }),
             ));
         }
@@ -66,7 +73,9 @@ fn qrate_operation_with_verifier(
     let checked = subject.checked();
     let mut result = json!({
         "input_id":qrate.input_id(),"source_count":checked.source_count(),"source_id":qrate.sources().source_id(),
-        "qleisli_check":checked.qleisli_check(),"tool":tool
+        "qleisli_check":checked.qleisli_check(),"tool":tool,
+        "effective_std":subject.effective_std().value(),
+        "source_configuration_id":checked.configuration_id(),"native_decisions":checked.native_summary()
     });
     if let QrateOperation::Build = operation {
         match build::publish(&subject, &tool, || verify(&orchestrator)) {
@@ -99,14 +108,22 @@ pub(super) fn execute(request: &Request) -> Result<Report, Diagnostic> {
             executable,
             deny_warnings,
         } => {
-            let subject = CapturedSubject::capture(input)?;
+            let subject = CapturedSubject::capture_for_lint(input)?;
+            let configuration = subject.lint_configuration()?;
             let orchestrator = ToolIdentity::capture("qargo", crate::VERSION)?;
-            let report = tools::lint(
+            let mut report = tools::lint(
                 subject.sources(),
+                &configuration,
                 executable.as_deref(),
                 *deny_warnings,
                 &orchestrator,
             )?;
+            // The parent records only the configuration it actually staged;
+            // this does not attest the child executable's bundled library.
+            if let Some(result) = report.envelope.result.as_mut() {
+                result["source_configuration_id"] =
+                    json!(crate::adapter::configuration_id(&configuration));
+            }
             Ok(subject.bind_report(report, orchestrator.to_value()))
         }
         Request::Format {

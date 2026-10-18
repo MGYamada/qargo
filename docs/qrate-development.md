@@ -53,14 +53,17 @@ special files, escaped local references, and inherited dependencies are rejected
 
 Supply a resolved Rust installation directory (the result of `rustc --print
 sysroot`, not a rustup shim directory), with Cargo, Clippy, Rustfmt and Rustdoc,
-and an installed four-executable qargo bundle. Neither may require the original
-checkout. Then run the copied verifier:
+and an installed four-executable qargo bundle. Also supply an explicitly selected,
+already built native checker compatible with the actual captured Qleisli dependency.
+Provision it outside the original checkout before denying access to that checkout.
+These inputs must not require the original checkout. Then run the copied verifier:
 
 ```sh
 python3 /tmp/qlifmt-project/scripts/verify_qrate.py \
   --project /tmp/qlifmt-project \
   --toolchain /absolute/resolved/rust-toolchain \
   --bundle-bin /absolute/installed/bundle/bin \
+  --qleisli-kernel /absolute/matching/qleisli-kernel \
   --output /tmp/qlifmt-verification
 ```
 
@@ -72,13 +75,29 @@ the extracted closure. It builds the library/CLI, runs engine and snapshot tests
 doctests, Clippy and Rustdoc, compares direct and embedded CLI behavior, and uses
 the supplied qargo to validate original/relocated qrate input and source IDs.
 
+The selected checker is strictly resolved to one regular executable. Its exact
+file bytes/executable flag and canonical path are captured in the native inventory
+and admitted environment as QLEISLI_KERNEL, then rechecked at completion. Its parent
+source/target directory is not admitted. This is a build-input observation, not
+binary/source authentication; actual checks establish protocol compatibility.
+The verifier neither builds/downloads a checker nor falls back to another one.
+
+Nonempty direct/embedded CLI comparison fixtures include real schema-2/edition-2026
+manifests. The unchanged identity and new one-qubit bare-H controls must pass actual
+qlippy source checking; syntax and absent-name faults must reach their compiler
+diagnostics. The historical fixture label `type` remains an absent-name fault, not
+a claimed type-mismatch test. Empty fixtures keep their deliberate no-manifest
+control. Formatter/documentation comparisons remain syntax-only.
+
 On macOS the Cargo commands run in a dedicated Seatbelt sandbox that permits
 reads from captured inputs and writes only to fresh build/test state. On Linux,
 `strace` is required to audit successful opens and executable launches against
 the admitted paths. Directory-only descriptors permit path traversal; subsequent
 file-content opens remain audited. Failed executable probes supply no executable
 bytes, and interleaved syscall entries/returns are matched by process identity.
-Unrecorded native reads fail verification. The on-demand extraction workflow
+Unrecorded reads in those guarded Cargo stages fail verification. Direct runtime
+comparison subprocesses are not wrapped by that guard; this is not a whole-process
+read attestation. The on-demand extraction workflow
 also makes the original checkout unreadable while running the copied verifier.
 
 Native build records bind the actual Rust installation, compiler/helper binaries,

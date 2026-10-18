@@ -13,5 +13,5 @@ pub mod snapshot;
 #[path = "../source.rs"]
 pub mod source;
 
-pub const QLEISLI_VERSION: &str = "0.2.1";
+pub const QLEISLI_VERSION: &str = "0.3.0-beta";
 pub const PROFILE: &str = "finite-v0";

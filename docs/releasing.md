@@ -1,6 +1,6 @@
 # Release checklist
 
-The crates.io package is named `qargo` and installs `qargo`, `qlippy`, `qlifmt`, and `qlidoc` together. The standard bundle and its three qrates share version 0.1.9 for distribution convenience under [QRATEBOUNDARY.md](../QRATEBOUNDARY.md); the tools remain ordinary independent qrates. Keep Qleisli exactly at 0.2.1, Rust 1.85 as the MSRV, and unsafe code forbidden. Manifest schema 2 requires an explicit `edition = "2026"` under `[qrate]`; independent result schema versions remain 1. Keep every valid manifest, example, and fixture explicit about its edition. Cargo manifests retain Rust edition `"2024"`.
+The public package remains `qargo` with four executables and independent tool qrates. The authorized development target is exact Qleisli `=0.3.0-beta`, Rust 1.85, Rust edition 2024 and explicit Qleisli edition 2026. Parent result/build-record schemas become 2; child schemas remain 1. This source migration selects no new product release version and replaces no published artifact. The [linked migration](linked-qleisli-030.md#validation-status) remains unvalidated for registry/package/native installation and supported-host release checks.
 
 **0.1.9 is published and verified.** It was published on 2026-10-10 (UTC) to [crates.io](https://crates.io/crates/qargo/0.1.9) and [GitHub](https://github.com/MGYamada/qargo/releases/tag/v0.1.9) from verified commit `0722fa78fe16dcf504b260103fe00f0d24d0cf88`. The annotated tag and published crate retain that commit; subsequent publication-record updates must not move or replace either. This release expands the README non-affiliation notice, adds the Rust and Cargo trademark attribution, and standardizes the product spelling. Runtime behavior, public schemas, and the exact Qleisli 0.2.1 dependency are unchanged.
 
@@ -28,13 +28,26 @@ Version 0.1.6 was published on 2026-10-03 to [crates.io](https://crates.io/crate
 
 The [source/package matrix](https://github.com/MGYamada/qargo/actions/runs/37080281022), [native distribution and complete asset collection](https://github.com/MGYamada/qargo/actions/runs/37080280990), and [published-release verification](https://github.com/MGYamada/qargo/actions/runs/37081714657) all passed for that commit. Real versioned/latest installations passed on Linux x86_64 and macOS x86_64/ARM64. A fresh crates.io installation passed package/runtime verification; its archive matched the dry-run package byte-for-byte (SHA-256 `e985680e072d23f0402bad9ed133429a05a1a81940ec3ab277b0ae7af2a04ac0`). The GitHub source archive matched all 80 tracked files at the tagged commit.
 
+## Development migration gates
+
+Keep published 0.1.9 at its original commit, dependency, schemas and assets.
+A local-source validation must name the actual linked Qleisli source and exact
+resolved closure; it is separate from ordinary registry-resolved, packaged and
+installed validation. Neither establishes the other. The inspector/verifier and
+installer must be reviewed for the new native-context/record contract before
+readiness is claimed; `verify_release.py` and installer work remain pending.
+
+No new installer, product version or publication is selected. The concrete
+0.1.9 commands below are retained as the historical release procedure and must
+not be reused to publish these changed development sources as 0.1.9.
+
 ## Package layout
 
 The public `qargo` package compiles all three engines from their canonical `qrates/<tool>/src/` files as internal Rust modules. Its normalized manifest has registry dependencies only. All four CLI targets, engine sources, tests, smoke samples, handwritten qrate documentation, README, lockfile, license, and notices are included in the `.crate`. Generated output and caches are excluded.
 
 The internal library name remains `qargo_tools`; it is not an executable or the crates.io package name. Independent Cargo workspaces under `rust/<tool>/` remain unpublished and support independent engine development. Their manifests, lockfiles, toolchain declarations and canonical qrate trees are transferred together for independent development, with a captured qlippy support dependency when needed. They are not separately published crates. A qrate snapshot alone omits the developer Cargo configuration and is not a standalone Rust build package.
 
-## Prepare and validate
+## Historical 0.1.9 preparation and validation procedure
 
 1. Check the crates.io `qargo` namespace, publisher ownership, and whether the intended version already exists. Never replace an existing version.
 2. Update the changelog with the release date and make the README's version and installation instructions match the intended package. Commit the complete candidate, including Cargo configuration and lockfile, all three qrates, documentation, CI, verifiers, license, and notices. Exclude generated `target/` directories and caches.

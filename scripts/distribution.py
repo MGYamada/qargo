@@ -114,9 +114,10 @@ def archive_files(source_root, archive_path, target):
     return files
 
 
-def build(source_root, bin_dir, target, output_dir):
+def build(source_root, bin_dir, target, output_dir, qleisli_source_root=None):
+    require(qleisli_source_root is not None, "Developer distribution requires explicit --qleisli-source-root")
     # Runtime verification also binds the candidate's canonical qrate sources.
-    verify(source_root, bin_dir)
+    verify(source_root, bin_dir, qleisli_source_root)
     files = {"bin/" + tool: (bin_dir / tool).read_bytes() for tool in TOOLS}
     files.update({name: (source_root / name).read_bytes() for name in ("LICENSE", "NOTICE")})
     for tool in TOOLS:
@@ -135,7 +136,8 @@ def build(source_root, bin_dir, target, output_dir):
     print("Built " + str(path))
 
 
-def verify_archive(source_root, archive_path, target):
+def verify_archive(source_root, archive_path, target, qleisli_source_root=None):
+    require(qleisli_source_root is not None, "Developer archive verification requires explicit --qleisli-source-root")
     files = archive_files(source_root, archive_path, target)
     with tempfile.TemporaryDirectory(prefix="qargo-binary-verify-") as directory:
         root = Path(directory)
@@ -144,14 +146,14 @@ def verify_archive(source_root, archive_path, target):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(content)
             path.chmod(0o755 if label.startswith("bin/") else 0o644)
-        verify(source_root, root / "bin")
+        verify(source_root, root / "bin", qleisli_source_root)
         # Exercise the real installer with local responses for the production URLs.
         from test_install import InstallerFixture
         with InstallerFixture() as fixture:
             fixture.add_archive(PRODUCT_VERSION, target, archive_path)
             result = fixture.run("--version", PRODUCT_VERSION)
             require(result.returncode == 0, "Installer failed: " + result.stderr)
-            verify(source_root, fixture.prefix / "bin")
+            verify(source_root, fixture.prefix / "bin", qleisli_source_root)
             repeated = fixture.run()
             require(repeated.returncode == 0, "Repeated/latest installation failed: " + repeated.stderr)
             require(not fixture.marker.exists(), "Installer invoked a developer tool or Python/jq")
@@ -191,6 +193,8 @@ def main():
         child.add_argument("--source-root", type=Path, default=Path(__file__).resolve().parent.parent)
         if command != "collect":
             child.add_argument("--target", choices=TARGETS, required=True)
+            child.add_argument("--qleisli-source-root", type=Path, required=True,
+                               help="Explicit intended Qleisli dependency source; select its matching kernel with QLEISLI_KERNEL")
         if command == "build":
             child.add_argument("--bin-dir", type=Path, required=True)
         elif command == "verify":
@@ -203,9 +207,9 @@ def main():
     if args.command == "verify-published-assets":
         verify_published_assets(args.artifact_dir, args.version)
     elif args.command == "build":
-        build(args.source_root.resolve(), args.bin_dir.resolve(), args.target, args.output_dir)
+        build(args.source_root.resolve(), args.bin_dir.resolve(), args.target, args.output_dir, args.qleisli_source_root.resolve())
     elif args.command == "verify":
-        verify_archive(args.source_root.resolve(), args.archive, args.target)
+        verify_archive(args.source_root.resolve(), args.archive, args.target, args.qleisli_source_root.resolve())
     else:
         collect(args.source_root.resolve(), args.artifact_dir, args.output_dir)
 

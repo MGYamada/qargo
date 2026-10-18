@@ -91,30 +91,30 @@ fn public_default_and_private_option_preserve_all_module_pages() {
 fn signatures_retain_static_parameters_constraints_and_meaning_bindings() {
     let input = sources(
         "api.qli",
-        "pub meaning M:Bit=permutation_by(flip);\npub unitary fn apply[static U:Op<Bit,M>](q:Q<Bit>)->Q<Bit> requires Apply(U), Adjoint(U), Controlled(U) {U(q)}\npub basis fn flip(b:Bit)->Bit{not b}",
+        "pub meaning M:Bit=permutation_by(flip);\npub unitary fn apply[const U:Op<Bit,M>](q:Q<Bit>)->Q<Bit> requires Applicable(U), Adjointable(U), Controllable(U) {U(q)}\npub classical fn flip(b:Bit)->Bit{not b}",
     );
     let output = render_files(&input, false).unwrap();
     let text = page(&output, "modules/api.md");
     assert!(text.contains("pub meaning M:Bit=permutation_by(flip);"));
-    assert!(text.contains("[static U:Op<Bit,M>]"));
-    assert!(text.contains("requires Apply(U), Adjoint(U), Controlled(U)"));
+    assert!(text.contains("[const U:Op<Bit,M>]"));
+    assert!(text.contains("requires Applicable(U), Adjointable(U), Controllable(U)"));
     assert!(!text.contains("{U(q)}"));
-    assert!(text.contains("pub basis fn flip(b:Bit)->Bit\n```"));
+    assert!(text.contains("pub classical fn flip(b:Bit)->Bit\n```"));
 }
 
 #[test]
 fn every_declaration_kind_and_signature_comment_is_documented() {
     let input = sources(
         "kinds.qli",
-        "pub meaning P:Bit=phase_by(phase);\npub basis fn phase(b:Bit)->Bit /* { comment } */ {b}\npub iso fn isometry(q:Q<Bit>)->Q<Bit>{q}\npub unitary fn unit(q:Q<Bit>)->Q<Bit>{q}\npub observe fn measurement(q:Q<Bit>)->CBit{true}",
+        "pub meaning P:Bit=phase_by(phase);\npub classical fn phase(b:Bit)->Bit /* { comment } */ {b}\npub isometry fn preparation(q:Q<Bit>)->Q<Bit>{q}\npub unitary fn unit(q:Q<Bit>)->Q<Bit>{q}\npub observe fn measurement(q:Q<Bit>)->Bit{1}",
     );
     let output = render_files(&input, false).unwrap();
     let text = page(&output, "modules/kinds.md");
-    for name in ["P", "phase", "isometry", "unit", "measurement"] {
+    for name in ["P", "phase", "preparation", "unit", "measurement"] {
         assert!(text.contains(&format!("## {name} (public)")));
     }
-    assert!(text.contains("pub basis fn phase(b:Bit)->Bit /* { comment } */\n```"));
-    assert!(!text.contains("{true}"));
+    assert!(text.contains("pub classical fn phase(b:Bit)->Bit /* { comment } */\n```"));
+    assert!(!text.contains("{1}"));
 }
 
 #[test]
@@ -430,7 +430,7 @@ fn cli_is_one_json_envelope_with_portable_relative_paths_and_usage_exit_codes() 
     assert!(version.status.success());
     let version: Value = serde_json::from_slice(&version.stdout).unwrap();
     assert_eq!(version["result"]["version"], "0.1.9");
-    assert_eq!(version["result"]["qleisli_version"], "0.2.1");
+    assert_eq!(version["result"]["qleisli_version"], "0.3.0-beta");
     for args in [
         vec!["--format=json"],
         vec!["", "--format=json"],

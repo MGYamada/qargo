@@ -223,9 +223,12 @@ fn render_comments(output: &mut String, comments: &[DocComment]) {
 
 fn render_signature(output: &mut String, source: &str, decl: &Decl, tokens: &[Token]) {
     let end = match &decl.body {
-        FnBody::Meaning { .. } => decl.span.end,
+        FnBody::Meaning { .. }
+        | FnBody::MeaningReference { .. }
+        | FnBody::MeaningCompose { .. }
+        | FnBody::MeaningTensor { .. } => decl.span.end,
         FnBody::Quantum(block) => block.span.start,
-        FnBody::Basis(_) => tokens
+        FnBody::Natural(_) | FnBody::Basis(_) => tokens
             .iter()
             .find(|token| {
                 token.span.start >= decl.return_type.span.end
@@ -406,5 +409,49 @@ fn publication_error(error: qlippy_engine::support::publication::PublicationErro
             "Existing documentation artifacts are inconsistent; nothing was overwritten.",
         ),
         error => output_error(error.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn current_body_forms_render_original_signatures_without_evaluation() {
+        let source = r#"pub static fn width[const n: Nat]() -> Nat { n + 1 }
+pub classical fn flip(x: Bit) -> Bit { not x }
+pub meaning original: Bit = permutation_by(flip);
+pub meaning reference_target: Bit = reference(provider);
+pub meaning composition_target: Bit = compose(original, reference_target);
+pub meaning tensor_target: (Bit, Bit) = tensor(original, reference_target);
+fn hidden(q: Q<Bit>) -> Q<Bit> { q }
+"#
+        .replace('\n', "\r\n");
+        let files = Files::from([("module.qli".into(), source.into_bytes())]);
+        let pages = render_files(&files, false).unwrap();
+        let page = std::str::from_utf8(&pages["modules/module.md"]).unwrap();
+        for signature in [
+            "pub static fn width[const n: Nat]() -> Nat",
+            "pub classical fn flip(x: Bit) -> Bit",
+            "pub meaning original: Bit = permutation_by(flip);",
+            "pub meaning reference_target: Bit = reference(provider);",
+            "pub meaning composition_target: Bit = compose(original, reference_target);",
+            "pub meaning tensor_target: (Bit, Bit) = tensor(original, reference_target);",
+        ] {
+            assert!(
+                page.contains(&format!("```qli\n{signature}\n```")),
+                "{signature}"
+            );
+        }
+        assert!(page.contains(DISCLAIMER));
+        assert!(!page.contains("{ n + 1 }"));
+        assert!(!page.contains("{ not x }"));
+        assert!(!page.contains("hidden"));
+        assert!(!page.contains('\r'));
+        let all = render_files(&files, true).unwrap();
+        let all_page = std::str::from_utf8(&all["modules/module.md"]).unwrap();
+        assert!(all_page.contains("## hidden (private)"));
+        assert!(all_page.contains("```qli\nfn hidden(q: Q<Bit>) -> Q<Bit>\n```"));
+        // provider is intentionally unresolved: rendering is syntax-only.
     }
 }

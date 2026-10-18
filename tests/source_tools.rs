@@ -206,7 +206,7 @@ fn response(tool: &Path, sources: &FrozenSources, command: &str) -> Value {
     let name = if command == "fmt" { "qlifmt" } else { "qlidoc" };
     let mut result = json!({"source_count":sources.count(), "source_id":sources.source_id(),
         "qleisli_check":{"status":"not_run","reason":"syntax_only"},
-        "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(tool).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}});
+        "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(tool).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"}});
     if command == "fmt" {
         result["formatted_source_id"] = json!(sources.source_id());
         result["changed_files"] = json!([]);

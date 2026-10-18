@@ -63,6 +63,26 @@ impl CapturedQrate {
         &self.sources
     }
 
+    /// Actual qrate manifest and nested source manifests from this one capture.
+    /// Source-root manifests retain their normal nearest-manifest precedence.
+    pub(super) fn source_configuration(&self) -> Files {
+        let mut configuration =
+            Files::from([("Qargo.toml".to_owned(), self.files["Qargo.toml"].clone())]);
+        let prefix = format!("{}/", self.manifest.source.root);
+        for (path, bytes) in &self.files {
+            if let Some(relative) = path.strip_prefix(&prefix) {
+                if Path::new(relative)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    == Some("Qargo.toml")
+                {
+                    configuration.insert(relative.to_owned(), bytes.clone());
+                }
+            }
+        }
+        configuration
+    }
+
     pub(super) fn held_directory(&self) -> &InputDirectory {
         &self.held_directory
     }
@@ -316,15 +336,21 @@ fn capture_with_hook(
     let held_roots = validate_manifest(&manifest, &held_directory)?;
     after_validation(&directory);
     let mut files = BTreeMap::from([("Qargo.toml".into(), raw)]);
-    for (root, held) in [
+    for (index, (root, held)) in [
         &manifest.source.root,
         &manifest.tests.root,
         &manifest.docs.root,
     ]
     .into_iter()
     .zip(&held_roots)
+    .enumerate()
     {
-        for (path, bytes) in held.collect(None)? {
+        let captured = if index == 0 {
+            held.collect_qrate_source()?
+        } else {
+            held.collect(None)?
+        };
+        for (path, bytes) in captured {
             files.insert(format!("{root}/{path}"), bytes);
         }
     }
@@ -360,6 +386,70 @@ fn capture_with_hook(
 mod tests {
     use super::*;
     use std::os::unix::fs::symlink;
+
+    #[test]
+    fn qrate_configuration_uses_only_captured_owning_and_source_root_manifests() {
+        let home = tempfile::tempdir().unwrap();
+        for path in ["inputs/src/nested", "tests", "docs"] {
+            fs::create_dir_all(home.path().join(path)).unwrap();
+        }
+        let owning = "schema-version=2\n[qrate]\nname=\"configuration\"\nversion=\"0.1.0\"\nedition=\"2026\"\n[source]\nroot=\"inputs/src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n";
+        fs::write(home.path().join("Qargo.toml"), owning).unwrap();
+        // This intermediate ancestor is outside the explicit source boundary.
+        fs::write(
+            home.path().join("inputs/Qargo.toml"),
+            "invalid intermediate manifest",
+        )
+        .unwrap();
+        let captured = capture(Some(&home.path().join("Qargo.toml"))).unwrap();
+        assert_eq!(
+            captured.source_configuration(),
+            Files::from([("Qargo.toml".to_owned(), owning.as_bytes().to_vec())])
+        );
+        assert!(!captured.files().contains_key("inputs/Qargo.toml"));
+        let root = "schema-version=2\n[qrate]\nedition='2026'\n# exact source-root configuration\n";
+        let nested = "schema-version=2\n[qrate]\nedition='2027'\n";
+        fs::write(home.path().join("inputs/src/Qargo.toml"), root).unwrap();
+        fs::write(home.path().join("inputs/src/nested/Qargo.toml"), nested).unwrap();
+        let changed = capture(Some(&home.path().join("Qargo.toml"))).unwrap();
+        assert_eq!(
+            changed.source_configuration(),
+            Files::from([
+                ("Qargo.toml".to_owned(), root.as_bytes().to_vec()),
+                ("nested/Qargo.toml".to_owned(), nested.as_bytes().to_vec()),
+            ])
+        );
+        assert_eq!(
+            captured.sources().source_id(),
+            changed.sources().source_id()
+        );
+        assert_ne!(captured.input_id(), changed.input_id());
+        assert_ne!(
+            crate::adapter::configuration_id(&captured.source_configuration()),
+            crate::adapter::configuration_id(&changed.source_configuration())
+        );
+        fs::write(home.path().join("inputs/src/nested/Qargo.toml"), root).unwrap();
+        assert_eq!(
+            changed.source_configuration()["nested/Qargo.toml"],
+            nested.as_bytes()
+        );
+    }
+
+    #[test]
+    fn invalid_manifest_directories_cannot_disappear_from_qrate_configuration() {
+        for invalid in ["src/Qargo.toml", "src/nested/Qargo.toml"] {
+            let root = tempfile::tempdir().unwrap();
+            for path in [invalid, "tests", "docs"] {
+                fs::create_dir_all(root.path().join(path)).unwrap();
+            }
+            fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"bound\"\nversion=\"1.0.0\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+            let diagnostic = capture(Some(&root.path().join("Qargo.toml")))
+                .err()
+                .unwrap();
+            assert_eq!(diagnostic.category, "compiler");
+            assert!(diagnostic.message.contains("regular"));
+        }
+    }
 
     #[test]
     fn validated_root_and_its_ancestor_cannot_be_redirected_before_capture() {

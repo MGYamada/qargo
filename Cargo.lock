@@ -273,9 +273,11 @@ dependencies = [
 
 [[package]]
 name = "qleisli"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fe5ad5a9b795a0e5790646cca124e0d9e41762ad2be8759ab50641d895279c1"
+version = "0.3.0-beta"
+dependencies = [
+ "rustix",
+ "toml",
+]
 
 [[package]]
 name = "quote"
