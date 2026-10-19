@@ -651,3 +651,87 @@ fn distinct_case_sensitive_directories_are_not_rejected_by_spelling() {
     assert_eq!(run(qrate.path(), "check", &[]).exit_code, 0);
     assert_eq!(run(qrate.path(), "build", &[]).exit_code, 0);
 }
+
+#[cfg(unix)]
+#[test]
+fn build_metadata_keeps_the_project_captured_before_native_checking() {
+    let qrate = qrate();
+    fs::write(
+        qrate.path().join("src/main.qli"),
+        "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+    )
+    .unwrap();
+    let stages = tempfile::tempdir().unwrap();
+    let tool = tempfile::tempdir().unwrap();
+    let mutation = tool.path().join("changed-manifests");
+    let kernel = fs::canonicalize(
+        std::env::var_os("QLEISLI_KERNEL").expect("runtime tests require an actual native checker"),
+    )
+    .unwrap();
+    // Change only the child's private materialization before delegating every
+    // request to the real checker. Captured user inputs remain untouched.
+    let wrapper = script(
+        tool.path(),
+        r#"set -eu
+if [ ! -e "$QARGO_MUTATION_LOG" ]; then
+    find "$TMPDIR" -type f -name Qargo.toml -exec sh -c '
+        for path do
+            printf "%s\n" "schema-version=2" "[qrate]" "edition=\"2027\"" > "$path"
+            printf "%s\n" "$path" >> "$QARGO_MUTATION_LOG"
+        done
+    ' sh {} +
+fi
+exec "$QARGO_REAL_KERNEL" "$@""#,
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_qargo"))
+        .current_dir(qrate.path())
+        .env("TMPDIR", stages.path())
+        .env("QLEISLI_KERNEL", &wrapper)
+        .env("QARGO_REAL_KERNEL", kernel)
+        .env("QARGO_MUTATION_LOG", &mutation)
+        .args(["build", "--format=json"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stderr.is_empty());
+    let changed = fs::read_to_string(mutation).unwrap();
+    assert!(
+        !changed.is_empty(),
+        "the hostile checker must change a staged manifest"
+    );
+    for path in changed.lines() {
+        assert!(Path::new(path).starts_with(stages.path()));
+    }
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["outcome"], "ok");
+    let result = &response["result"];
+    assert_eq!(result["qleisli_check"]["status"], "passed");
+    assert!(result["native_decisions"]["count"].as_u64().unwrap() > 0);
+    assert_eq!(result["native_decisions"]["complete"], true);
+    assert_eq!(
+        result["native_decisions"]["entry_request_checked"],
+        Value::Null
+    );
+    assert_eq!(result["effective_std"]["std"]["edition"], "2026");
+    let artifact = qrate.path().join(result["artifact_path"].as_str().unwrap());
+    assert_eq!(
+        fs::read_to_string(qrate.path().join("Qargo.toml")).unwrap(),
+        MANIFEST
+    );
+    assert_eq!(
+        fs::read_to_string(artifact.join("snapshot/Qargo.toml")).unwrap(),
+        MANIFEST
+    );
+    let index: Value =
+        serde_json::from_slice(&fs::read(artifact.join("module-index.json")).unwrap()).unwrap();
+    assert_eq!(
+        index,
+        json!([{"name":"main","path":"main.qli","declarations":[{"name":"identity","kind":"unitary"}]}])
+    );
+}

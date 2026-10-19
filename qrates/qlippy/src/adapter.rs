@@ -3,7 +3,6 @@
 use std::path::Path;
 
 use qleisli::frontend::ast::FnKind;
-use qleisli::frontend::compile::check_project_report_with_kernel;
 use qleisli::frontend::project::{ModuleOrigin, Project, SourcePolicy};
 use qleisli::interchange::native::Kernel;
 use serde_json::{Value, json};
@@ -138,15 +137,15 @@ fn check_selected(
         });
     }
     let stage = sources.stage_with_configuration(configuration)?;
-    // Validate explicit manifests before kernel selection. This is source loading,
-    // not a substitute for the independent native check below.
-    Project::load_with_policy(stage.root(), SourcePolicy::default())
+    // Capture one project and its edition before native selection.
+    // Checking and metadata use these retained source and manifest bytes.
+    let project = Project::load_with_policy(stage.root(), SourcePolicy::default())
         .map_err(|diagnostic| compiler_diagnostic(diagnostic, stage.root()))?;
     let owned;
     let kernel = if let Some(kernel) = selected {
         kernel
     } else {
-        owned = Kernel::selected().map_err(|error| {
+        owned = Kernel::selected(project.edition()).map_err(|error| {
             Diagnostic::error(
                 "project",
                 "compiler",
@@ -155,9 +154,8 @@ fn check_selected(
         })?;
         &owned
     };
-    let report = check_project_report_with_kernel(stage.root(), SourcePolicy::default(), kernel)
-        .map_err(|diagnostic| compiler_diagnostic(diagnostic, stage.root()))?;
-    let project = Project::load_with_policy(stage.root(), SourcePolicy::default())
+    let report = project
+        .check_report_with_kernel(kernel)
         .map_err(|diagnostic| compiler_diagnostic(diagnostic, stage.root()))?;
     let mut modules = Vec::new();
     let mut seen = std::collections::BTreeSet::new();
@@ -364,7 +362,10 @@ mod tests {
         .unwrap();
         assert!(check(&sources, &Files::new()).is_err());
         let empty = FrozenSources::from_files(Files::new()).unwrap();
-        let absent = Kernel::new("/nonexistent/qargo-no-native-checker");
+        let absent = Kernel::new(
+            "/nonexistent/qargo-no-native-checker",
+            qleisli::edition::Edition::E2026,
+        );
         let checked = check_with_kernel(&empty, &Files::new(), &absent).unwrap();
         assert_eq!(
             checked.qleisli_check(),

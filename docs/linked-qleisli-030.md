@@ -81,6 +81,12 @@ existing explicit selection, including `QLEISLI_KERNEL`. Missing, incompatible
 or failed checking returns failure without fallback, build, download or install.
 This adds no manager selector. Formatter/documentation remain syntax-only.
 
+Capture one `Project` from the materialized inputs before kernel selection.
+Select the bound kernel using that project's actual `edition()`, check the same
+retained project, and produce its module index without reloading source or
+configuration after checking. Bundled std metadata and product versions do not
+select the user's constitutional edition.
+
 Parent `qargo.result` becomes version 2 for all commands, including early errors,
 usage and version. `qargo.build-record` becomes version 2. The closed diagnostic
 and ToolIdentity shapes remain unchanged; all child envelopes remain version 1.
@@ -154,6 +160,23 @@ The local development locks replace only Qleisli with the selected beta. Existin
 other packages retain their versions and records; each component additionally
 needs eight TOML-parse packages already pinned in the root development lock.
 These path-substituted locks do not establish official registry resolution.
+
+A separate 2026-10-19 follow-up validates the explicit-edition API migration.
+The current normal Rust 1.98.1 and MSRV 1.85.0 source windows each pass all
+173 bundle tests, including a real-native regression that changes only the
+child-private staged manifest after Project capture. Strict all-target Clippy
+passes. Each independent component passes the same 60/17/20 tests, doctest
+commands and warning-free Rustdoc on both toolchains. All builds retain frozen
+locks and an explicit local Qleisli source override; no registry fallback or
+new product version is selected.
+
+The four refreshed bundle binaries are deployed under the Qleisli repository's
+root `bin/`. Actual runtime verification passes with the intended Qleisli/std
+source and selected native checker. Fresh standalone/bundle comparisons pass
+100 qlippy, 100 qlifmt and 110 qlidoc pairs. Source, checker and executable
+identities remain unchanged within the recorded validation windows. These are
+developer observations, not isolated-build or binary/source attestations; the
+preceding 172-test and host-test records retain their original scope.
 
 Complete isolated extraction, actual beta registry availability with the linked
 descriptor, package/native installation and official supported-host release
