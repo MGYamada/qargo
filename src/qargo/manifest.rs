@@ -321,7 +321,7 @@ fn capture_with_hook(
             "Qargo manifest schema 2 does not support dependency tables.",
         );
         diagnostic.suggestion = Some(
-            "Remove [dependencies] and [dev-dependencies] from Qargo.toml. Use local Qleisli source modules; keep Rust engine dependencies in developer Cargo.toml outside the qrate. Qrate dependency resolution is deferred.".into(),
+            "Remove [dependencies] and [dev-dependencies] from Qargo.toml. The linked Qleisli toolchain selects its canonical std; to use another std version, select the matching Qleisli toolchain. Use local Qleisli source modules; keep Rust engine dependencies in developer Cargo.toml outside the qrate. Qrate dependency resolution is deferred.".into(),
         );
         return Err(diagnostic);
     }

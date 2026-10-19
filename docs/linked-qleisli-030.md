@@ -178,6 +178,16 @@ identities remain unchanged within the recorded validation windows. These are
 developer observations, not isolated-build or binary/source attestations; the
 preceding 172-test and host-test records retain their original scope.
 
+A separate diagnostic-only follow-up for #171 explains that the linked Qleisli
+toolchain selects canonical std and another std version requires its matching
+toolchain. The [inert first-source and before/after observations](../tests/fixtures/qleisli-beta-compat/std-selection-diagnostics.json.gz)
+retain five complete projects and 25 CLI pairs: explicit matching/older/development
+std and ordinary dependency tables still refuse in all six qrate operations;
+the one-Bit no-dependency identity still reaches actual native checking. Only
+rejection prose and the rebuilt qargo executable identity differ. Formatting and
+the normal candidate build pass; the earlier full normal/MSRV matrix retains its
+original source window. No acceptance rule or result schema changes.
+
 Complete isolated extraction, actual beta registry availability with the linked
 descriptor, package/native installation and official supported-host release
 checks remain unvalidated. The explicit native preparation and caller wiring

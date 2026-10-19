@@ -84,7 +84,7 @@ To migrate a schema-1 manifest, set `schema-version = 2` and add `edition = "202
 
 Explicit --manifest-path takes precedence; otherwise search current and ancestor directories for Qargo.toml. A malformed found manifest is an error, never grounds for continuing upward.
 
-Dependency tables, including [dependencies] and [dev-dependencies], are unsupported and rejected with an invalid_manifest diagnostic and a suggestion to use local Qleisli modules and external developer Cargo configuration. Unsupported Cargo-style dependency commands such as qargo add remain usage errors with suggestions for supported local operations.
+Dependency tables, including [dependencies] and [dev-dependencies], are unsupported and rejected with an invalid_manifest diagnostic. The suggestion explains that canonical std is selected by the linked Qleisli toolchain, and another std version requires the matching toolchain. It also directs users to local Qleisli modules and external developer Cargo configuration. Unsupported Cargo-style dependency commands such as qargo add remain usage errors with suggestions for supported local operations.
 
 ## Commands
 
