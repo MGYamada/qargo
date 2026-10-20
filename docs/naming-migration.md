@@ -66,6 +66,9 @@ are a user choice. Parent envelopes/build records are qlirgo.result and
 qlirgo.build-record version 2; the linter uses qlinty.result version 1. qlifmt and
 qlidoc envelopes remain version 1. Other fields/contracts retain their shapes.
 Product versions, manifest versions and protocol versions remain independent.
+Qrate versions may carry SemVer prerelease identifiers (for example 0.2.0-beta
+or 0.3.0-alpha), preserved byte-exactly through configuration and build capture.
+The selected bundled qrate version remains 0.2.0 by explicit release policy.
 
 Artifacts use target/qlirgo. Archives use qlirgo-<version>-<target>, install state
 uses lib/qlirgo, and all four binaries must have one release and linked beta

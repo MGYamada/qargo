@@ -179,24 +179,32 @@ fn missing_or_invalid_editions_are_errors_for_every_manifest_spelling() {
 }
 
 #[test]
-fn new_only_manifests_reach_the_real_beta_checker_for_nonempty_sources() {
-    let root = project(&NAMES[..1], MANIFEST);
-    fs::write(
-        root.path().join("src/main.qli"),
-        "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
-    )
-    .unwrap();
-    for command in ["check", "build", "lint"] {
+fn prerelease_versions_reach_the_real_beta_checker_for_nonempty_sources() {
+    for version in ["0.2.0", "0.2.0-beta", "0.3.0-alpha", "1.0.0-rc.1"] {
+        let manifest = MANIFEST.replace("0.2.0", version);
+        let root = project(&NAMES[..1], &manifest);
+        fs::write(
+            root.path().join("src/main.qli"),
+            "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+        )
+        .unwrap();
+        for command in ["check", "build", "lint"] {
+            assert_eq!(
+                managed(root.path(), command, &[], 0)["result"]["qleisli_check"]["status"],
+                "passed",
+                "{version}: {command}"
+            );
+        }
         assert_eq!(
-            managed(root.path(), command, &[], 0)["result"]["qleisli_check"]["status"],
+            standalone(&root.path().join("src"), 0)["result"]["qleisli_check"]["status"],
             "passed"
         );
+        assert!(!root.path().join("Qargo.toml").exists());
+        assert_eq!(
+            fs::read(root.path().join("Qlirgo.toml")).unwrap(),
+            manifest.as_bytes()
+        );
     }
-    assert_eq!(
-        standalone(&root.path().join("src"), 0)["result"]["qleisli_check"]["status"],
-        "passed"
-    );
-    assert!(!root.path().join("Qargo.toml").exists());
 }
 
 #[test]
@@ -256,4 +264,112 @@ fn old_linter_json_is_rejected_without_running_a_fallback() {
         1,
     );
     assert_eq!(value["diagnostics"][0]["id"], "invalid_tool_response");
+}
+
+#[test]
+fn prerelease_versions_preserve_raw_manifests_build_records_and_input_identities() {
+    for names in [&NAMES[..1], &NAMES[1..], &NAMES[..]] {
+        let mut inputs = std::collections::BTreeSet::new();
+        let mut configurations = std::collections::BTreeSet::new();
+        let mut sources = std::collections::BTreeSet::new();
+        for version in [
+            "0.2.0",
+            "0.2.0-beta",
+            "0.3.0-alpha",
+            "1.0.0-rc.1",
+            "1.0.0-0",
+            "1.0.0-alpha.0",
+            "1.0.0-x-y-z.--",
+            "1.0.0-01a",
+        ] {
+            let manifest = MANIFEST.replace("0.2.0", version);
+            let root = project(names, &manifest);
+            for command in ["check", "build", "lint", "fmt", "doc", "test"] {
+                let value = managed(root.path(), command, &[], i32::from(command == "test"));
+                if command == "test" {
+                    assert_eq!(value["diagnostics"][0]["id"], "backend_unavailable");
+                }
+                if command == "build" {
+                    inputs.insert(value["result"]["input_id"].as_str().unwrap().to_owned());
+                    configurations.insert(
+                        value["result"]["source_configuration_id"]
+                            .as_str()
+                            .unwrap()
+                            .to_owned(),
+                    );
+                    sources.insert(value["result"]["source_id"].as_str().unwrap().to_owned());
+                    let artifact = root
+                        .path()
+                        .join(value["result"]["artifact_path"].as_str().unwrap());
+                    let record: Value = serde_json::from_slice(
+                        &fs::read(artifact.join("build-record.json")).unwrap(),
+                    )
+                    .unwrap();
+                    assert_eq!(record["qrate"]["version"], version);
+                    for name in names {
+                        assert_eq!(
+                            fs::read(artifact.join("snapshot").join(name)).unwrap(),
+                            manifest.as_bytes()
+                        );
+                    }
+                }
+                for name in names {
+                    assert_eq!(
+                        fs::read(root.path().join(name)).unwrap(),
+                        manifest.as_bytes()
+                    );
+                }
+            }
+        }
+        assert_eq!(inputs.len(), 8);
+        assert_eq!(configurations.len(), 8);
+        assert_eq!(sources.len(), 1);
+    }
+}
+
+#[test]
+fn malformed_versions_fail_before_tool_selection_or_artifact_publication() {
+    for names in [&NAMES[..1], &NAMES[1..], &NAMES[..]] {
+        for version in [
+            "",
+            "1.2",
+            "1.2.3.4",
+            "01.2.3",
+            "1.02.3",
+            "1.2.03",
+            "v1.2.3",
+            "1.2.3-",
+            "1.2.3-.alpha",
+            "1.2.3-alpha.",
+            "1.2.3-alpha..1",
+            "1.2.3-01",
+            "1.2.3-beta.01",
+            "1.2.3-β",
+            "1.2.3-alpha_1",
+            "1.2.3-alpha/1",
+            "1.2.3-alpha 1",
+            " 1.2.3-alpha",
+            "1.2.3-alpha ",
+            "1.2.3+build",
+            "1.2.3-alpha+build",
+        ] {
+            let manifest = MANIFEST.replace("0.2.0", version);
+            let root = project(names, &manifest);
+            for command in ["check", "build", "lint", "fmt", "doc", "test"] {
+                let options: &[&str] = match command {
+                    "lint" => &["--qlinty", "/nonexistent-child"],
+                    "fmt" => &["--qlifmt", "/nonexistent-child"],
+                    "doc" => &["--qlidoc", "/nonexistent-child"],
+                    _ => &[],
+                };
+                let value = managed(root.path(), command, options, 1);
+                assert_eq!(
+                    value["diagnostics"][0]["id"], "invalid_manifest",
+                    "{version}: {command}"
+                );
+                assert!(value["result"].is_null());
+                assert!(!root.path().join("target").exists());
+            }
+        }
+    }
 }

@@ -29,6 +29,11 @@ Qleisli beta use. Qleisli itself completes its naming/manifest migration at its
 0.3.0 stable release; this repository does not change that dependency's std or loader.
 See the [naming contract](docs/naming-migration.md) and [linked development history](docs/linked-qleisli-030.md).
 
+Qrate manifests can declare prereleases such as `version = "0.2.0-beta"` or
+`version = "0.3.0-alpha"`, including numbered identifiers such as `rc.1`. The
+[version syntax](docs/specification.md) keeps the full declared value in input
+identities and build records. This does not add qrate dependency resolution.
+
 Linux ARM64 remains outside the supported distribution targets. Published qargo
 0.1.9 retains its Qleisli 0.2.1 loader limitation ([issue #18](https://github.com/MGYamada/qlirgo/issues/18));
 new platform support requires fresh validation.

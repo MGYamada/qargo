@@ -154,6 +154,29 @@ fn root_path(value: &str) -> Result<PathBuf, Diagnostic> {
     Ok(path.to_path_buf())
 }
 
+fn valid_qrate_version(value: &str) -> bool {
+    let decimal = |part: &str| {
+        !part.is_empty()
+            && part.bytes().all(|c| c.is_ascii_digit())
+            && (part.len() == 1 || !part.starts_with('0'))
+    };
+    let (core, prerelease) = match value.split_once('-') {
+        Some((core, prerelease)) => (core, Some(prerelease)),
+        None => (value, None),
+    };
+    let mut parts = core.split('.');
+    if !(0..3).all(|_| parts.next().is_some_and(decimal)) || parts.next().is_some() {
+        return false;
+    }
+    prerelease.is_none_or(|prerelease| {
+        prerelease.split('.').all(|part| {
+            !part.is_empty()
+                && part.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'-')
+                && (!part.bytes().all(|c| c.is_ascii_digit()) || decimal(part))
+        })
+    })
+}
+
 fn validate_manifest(
     manifest: &Manifest,
     directory: &InputDirectory,
@@ -200,18 +223,11 @@ fn validate_manifest(
             "Qrate names must begin with an ASCII letter and contain only ASCII letters, digits, hyphens and underscores.",
         ));
     }
-    let version: Vec<_> = manifest.qrate.version.split('.').collect();
-    if version.len() != 3
-        || version.iter().any(|part| {
-            part.is_empty()
-                || !part.bytes().all(|c| c.is_ascii_digit())
-                || (part.len() > 1 && part.starts_with('0'))
-        })
-    {
+    if !valid_qrate_version(&manifest.qrate.version) {
         return Err(Diagnostic::error(
             "invalid_manifest",
             "qlirgo",
-            "Qrate version must be canonical decimal MAJOR.MINOR.PATCH.",
+            "Qrate version must be canonical decimal MAJOR.MINOR.PATCH with an optional -PRERELEASE suffix of nonempty dot-separated ASCII letters, digits or hyphens; numeric identifiers must not have leading zeroes.",
         ));
     }
     let roots = [

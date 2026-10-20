@@ -12,6 +12,9 @@ package and all release gates. This beta is not the latest formal release.
 - Qlirgo prefers Qlirgo.toml and accepts Qargo.toml fallback. Dual manifests must
   be byte-identical; explicit schema 2 and edition "2026" remain mandatory. Both
   files are retained identically in bundled qrates during the beta transition.
+- Qrate versions can include prerelease identifiers, for example 0.2.0-beta,
+  0.3.0-alpha or 1.0.0-rc.1. Exact declared bytes remain in snapshots, identities
+  and build records. The bundle still declares qrate base version 0.2.0.
 - Qleisli remains exactly 0.3.0-beta. Its whole naming/manifest migration belongs
   to 0.3.0 stable. Nonempty check/build/lint require the matching native checker
   from Qleisli, explicitly selected by absolute QLEISLI_KERNEL. The qlirgo archive

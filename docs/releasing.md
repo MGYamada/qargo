@@ -9,7 +9,9 @@ Qleisli 0.3.0 stable migration and complete revalidation. Follow-up betas use
 Root Cargo [package].version is the release authority. The root package,
 independent private Rust engines and their exact support dependency use the
 complete version 0.2.0-beta. The three bundled qrates keep literal base version
-0.2.0; their schema-2 version grammar is unchanged. scripts/release_version.py
+0.2.0 by the selected bundle policy. Schema-2 qrate manifests also support
+prerelease versions for independently versioned qrates; this does not implicitly
+change bundled declarations. scripts/release_version.py
 validates stable, -beta and -beta.N spellings (canonical decimal N >= 1) and
 derives only the bundled-qrate base. Runtime tool compatibility always compares
 the full prerelease identity, never the base. No edition is inferred.

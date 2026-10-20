@@ -88,7 +88,21 @@ root = "tests"
 root = "docs"
 ```
 
-Names use ASCII letters/digits, hyphens and underscores, beginning with a letter. Versions are nonnegative canonical decimal MAJOR.MINOR.PATCH. Every valid manifest must explicitly include `edition = "2026"` under `[qrate]`. The edition is a TOML string, and `"2026"` is the only supported Qleisli edition. Omission has no default and is an `invalid_manifest` error; numeric/date/boolean/array values are also invalid. Other strings produce `unsupported_edition`. Qrate operations validate the edition before processing sources or invoking tools, including for empty roots. The captured raw manifest binds the edition to the input identity and build snapshot. The Rust implementation uses its own explicit Cargo edition `"2024"`.
+Names use ASCII letters/digits, hyphens and underscores, beginning with a letter. Versions use nonnegative canonical decimal MAJOR.MINOR.PATCH with an optional
+`-PRERELEASE` suffix. The suffix follows the [SemVer 2.0 prerelease identifier
+syntax](https://semver.org/spec/v2.0.0.html#spec-item-9): one or more nonempty
+ASCII letter/digit/hyphen identifiers separated by dots; purely numeric
+identifiers cannot have leading zeroes. For example, `0.2.0-beta`, `0.3.0-alpha`,
+`1.0.0-rc.1`, `1.0.0-alpha.0` and `1.0.0-0` are valid. Empty identifiers,
+`beta.01`, whitespace, non-ASCII characters, prefixes such as `v`, and `+build`
+metadata are rejected. This adds prerelease spelling to schema 2; it does not
+introduce version ranges, dependency resolution or a version-ordering API.
+The exact string remains qrate metadata: raw manifest bytes, input and
+configuration identities, snapshots and build records preserve it without
+stripping or substituting the suffix. Prerelease labels are not checking or
+trust claims. Qrate versions remain independent of product/protocol versions.
+
+Every valid manifest must explicitly include `edition = "2026"` under `[qrate]`. The edition is a TOML string, and `"2026"` is the only supported Qleisli edition. Omission has no default and is an `invalid_manifest` error; numeric/date/boolean/array values are also invalid. Other strings produce `unsupported_edition`. Qrate operations validate the edition before processing sources or invoking tools, including for empty roots. The captured raw manifest binds the edition to the input identity and build snapshot. The Rust implementation uses its own explicit Cargo edition `"2024"`.
 
 To migrate a schema-1 manifest, set `schema-version = 2` and add `edition = "2026"` under `[qrate]`. Unsupported schema versions produce `unsupported_manifest_version` with this migration suggestion; the parent result envelope is version 2 and child envelopes remain version 1. All valid manifest examples and fixtures must include the edition, and future editions must receive explicit support before they can be accepted.
 
