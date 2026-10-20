@@ -105,24 +105,22 @@ fn bundled_sources() -> Option<&'static Files> {
     static BUNDLED: std::sync::OnceLock<Option<Files>> = std::sync::OnceLock::new();
     BUNDLED
         .get_or_init(|| {
-            let empty = tempfile::tempdir().ok()?;
-            let project = qleisli::frontend::project::Project::load_with_policy(
-                empty.path(),
-                qleisli::frontend::project::SourcePolicy::default(),
-            )
-            .ok()?;
-            project
-                .modules
-                .values()
-                .filter(|module| module.origin == qleisli::frontend::project::ModuleOrigin::Bundled)
-                .map(|module| {
-                    let relative = module.path.strip_prefix("<bundled>/std").ok()?.to_str()?;
-                    Some((
-                        format!("std://{}", relative.replace('\\', "/")),
-                        module.source.as_bytes().to_vec(),
-                    ))
-                })
-                .collect::<Option<Files>>()
+            let bundle = qleisli::frontend::project::bundled_std().ok()?;
+            let mut files = Files::new();
+            for (name, source) in bundle.modules() {
+                let suffix = name.strip_prefix("std::")?;
+                let relative = format!("{}.qli", suffix.replace("::", "/"));
+                if crate::snapshot::portable_relative(Path::new(&relative)).ok()? != relative {
+                    return None;
+                }
+                if files
+                    .insert(format!("std://{relative}"), source.as_bytes().to_vec())
+                    .is_some()
+                {
+                    return None;
+                }
+            }
+            Some(files)
         })
         .as_ref()
 }
@@ -479,7 +477,13 @@ mod tests {
     #[test]
     fn bundled_locations_are_bound_to_actual_linked_source_bytes() {
         let sources = FrozenSources::from_files(Files::new()).unwrap();
-        let valid = json!({"path":"std://arithmetic.qli","start":0,"end":1,"line":1,"column":1});
+        let bundle = qleisli::frontend::project::bundled_std().unwrap();
+        let (_, text) = bundle
+            .modules()
+            .find(|(name, _)| *name == "std::gate")
+            .unwrap();
+        let end = text.chars().next().unwrap().len_utf8();
+        let valid = json!({"path":"std://gate.qli","start":0,"end":end,"line":1,"column":1});
         assert!(location_valid(&valid, &sources, true));
         let mut invalid = valid.clone();
         invalid["end"] = json!(usize::MAX);
@@ -487,8 +491,11 @@ mod tests {
         let mut invalid = valid.clone();
         invalid["line"] = json!(2);
         assert!(!location_valid(&invalid, &sources, true));
-        let mut invalid = valid;
+        let mut invalid = valid.clone();
         invalid["path"] = json!("std://missing.qli");
         assert!(!location_valid(&invalid, &sources, true));
+        let mut stale = valid;
+        stale["path"] = json!("std://arithmetic.qli");
+        assert!(!location_valid(&stale, &sources, true));
     }
 }

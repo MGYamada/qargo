@@ -115,6 +115,17 @@ impl InputDirectory {
             "Descriptor-anchored input capture is unavailable on this platform.",
         ))
     }
+    pub fn collect_source_context(&self) -> Result<Files, Diagnostic> {
+        self.collect(None)
+    }
+    pub fn collect_qrate_source(&self) -> Result<Files, Diagnostic> {
+        self.collect(None)
+    }
+    pub fn inherited_source_manifest(&self) -> Result<Option<Vec<u8>>, Diagnostic> {
+        Err(input_error(
+            "Descriptor-anchored input capture is unavailable on this platform.",
+        ))
+    }
     pub fn collect(&self, _: Option<&str>) -> Result<Files, Diagnostic> {
         Err(input_error(
             "Descriptor-anchored input capture is unavailable on this platform.",
@@ -368,8 +379,115 @@ mod anchored {
             self.read_checked(name, &self.stat(name)?)
         }
 
+        /// Capture the nearest manifest from actual held descriptor ancestry.
+        /// Pathname aliases never choose a different configuration subject.
+        pub fn inherited_source_manifest(&self) -> Result<Option<Vec<u8>>, Diagnostic> {
+            self.inherited_source_manifest_with_hook(&mut |_| {})
+        }
+
+        fn inherited_source_manifest_with_hook(
+            &self,
+            after_parent: &mut impl FnMut(usize),
+        ) -> Result<Option<Vec<u8>>, Diagnostic> {
+            fn verify(
+                root: &InputDirectory,
+                ancestors: &[(InputDirectory, InputDirectory, Option<Stat>)],
+            ) -> Result<(), Diagnostic> {
+                root.validate()?;
+                for (child, parent, expected) in ancestors {
+                    let current =
+                        fs::openat(&child.0.fd, "..", flags(), Mode::empty()).map_err(io_error)?;
+                    if !same_object(
+                        &fs::fstat(&current).map_err(io_error)?,
+                        &fs::fstat(&parent.0.fd).map_err(io_error)?,
+                    ) {
+                        return Err(input_error(
+                            "Inherited source configuration ancestry changed during capture.",
+                        ));
+                    }
+                    let actual =
+                        match fs::statat(&parent.0.fd, "Qargo.toml", AtFlags::SYMLINK_NOFOLLOW) {
+                            Err(rustix::io::Errno::NOENT) => None,
+                            Err(error) => return Err(io_error(error)),
+                            Ok(stat) => Some(stat),
+                        };
+                    match (expected.as_ref(), actual.as_ref()) {
+                        (None, None) => {}
+                        (Some(before), Some(after))
+                            if FileType::from_raw_mode(after.st_mode) == FileType::RegularFile
+                                && unchanged_file(before, after) => {}
+                        _ => {
+                            return Err(input_error(
+                                "Inherited source configuration ancestry changed during capture.",
+                            ));
+                        }
+                    }
+                }
+                Ok(())
+            }
+            self.validate()?;
+            let mut current = self.clone();
+            let mut ancestors = Vec::new();
+            loop {
+                let fd =
+                    fs::openat(&current.0.fd, "..", flags(), Mode::empty()).map_err(io_error)?;
+                let before = fs::fstat(&fd).map_err(io_error)?;
+                if same_object(&before, &fs::fstat(&current.0.fd).map_err(io_error)?) {
+                    verify(self, &ancestors)?;
+                    return Ok(None);
+                }
+                if ancestors.len() >= DIRECTORY_DEPTH {
+                    return Err(input_error(
+                        "Inherited source configuration exceeds the 64-directory capture limit.",
+                    ));
+                }
+                let parent = Self(Arc::new(Directory {
+                    fd,
+                    parent: None,
+                    name: OsString::new(),
+                    anchor: None,
+                }));
+                after_parent(ancestors.len() + 1);
+                let expected =
+                    match fs::statat(&parent.0.fd, "Qargo.toml", AtFlags::SYMLINK_NOFOLLOW) {
+                        Err(rustix::io::Errno::NOENT) => None,
+                        Err(error) => return Err(io_error(error)),
+                        Ok(expected) => {
+                            if FileType::from_raw_mode(expected.st_mode) != FileType::RegularFile {
+                                return Err(Diagnostic::error(
+                                    "project",
+                                    "compiler",
+                                    "The nearest Qargo.toml must be a regular, non-symlink file.",
+                                ));
+                            }
+                            Some(expected)
+                        }
+                    };
+                let captured = expected
+                    .as_ref()
+                    .map(|stat| parent.read_checked(OsStr::new("Qargo.toml"), stat))
+                    .transpose()?;
+                ancestors.push((current, parent.clone(), expected));
+                verify(self, &ancestors)?;
+                if captured.is_some() {
+                    return Ok(captured);
+                }
+                current = parent;
+            }
+        }
+
         pub fn collect(&self, extension: Option<&str>) -> Result<Files, Diagnostic> {
             self.collect_with_hook(extension, &mut |_, _| {})
+        }
+
+        /// Capture source and edition manifests in one bounded anchored traversal.
+        pub fn collect_source_context(&self) -> Result<Files, Diagnostic> {
+            self.collect_filtered(None, true, true, &mut |_, _| {})
+        }
+
+        /// Preserve all qrate source-root files while validating manifest entry types.
+        pub fn collect_qrate_source(&self) -> Result<Files, Diagnostic> {
+            self.collect_filtered(None, false, true, &mut |_, _| {})
         }
 
         fn collect_with_hook(
@@ -377,11 +495,23 @@ mod anchored {
             extension: Option<&str>,
             hook: &mut impl FnMut(&Path, CapturePoint),
         ) -> Result<Files, Diagnostic> {
+            self.collect_filtered(extension, false, false, hook)
+        }
+
+        fn collect_filtered(
+            &self,
+            extension: Option<&str>,
+            source_context: bool,
+            validate_manifests: bool,
+            hook: &mut impl FnMut(&Path, CapturePoint),
+        ) -> Result<Files, Diagnostic> {
             let mut state = Capture {
                 files: Files::new(),
                 total: 0,
                 visited: 0,
                 extension,
+                source_context,
+                validate_manifests,
             };
             self.walk(Path::new(""), 0, &mut state, hook)?;
             Ok(state.files)
@@ -448,15 +578,30 @@ mod anchored {
             for (name, expected) in &inventory {
                 let path = relative.join(name);
                 let label = portable_relative(&path)?;
+                if state.validate_manifests
+                    && name.as_os_str() == OsStr::new("Qargo.toml")
+                    && FileType::from_raw_mode(expected.st_mode) != FileType::RegularFile
+                {
+                    return Err(Diagnostic::error(
+                        "project",
+                        "compiler",
+                        format!("Qargo.toml must be a regular, non-symlink file: {label}"),
+                    ));
+                }
                 match FileType::from_raw_mode(expected.st_mode) {
                     FileType::Directory => {
                         self.child_checked(name, expected)?
                             .walk(&path, depth + 1, state, hook)?
                     }
                     FileType::RegularFile => {
-                        if state.extension.is_some_and(|suffix| {
-                            path.extension().and_then(|part| part.to_str()) != Some(suffix)
-                        }) {
+                        if (state.source_context
+                            && path.extension().and_then(|part| part.to_str()) != Some("qli")
+                            && path.file_name().and_then(|part| part.to_str())
+                                != Some("Qargo.toml"))
+                            || state.extension.is_some_and(|suffix| {
+                                path.extension().and_then(|part| part.to_str()) != Some(suffix)
+                            })
+                        {
                             continue;
                         }
                         let bytes = self.read_checked(name, expected)?;
@@ -508,6 +653,8 @@ mod anchored {
         total: usize,
         visited: usize,
         extension: Option<&'a str>,
+        source_context: bool,
+        validate_manifests: bool,
     }
 
     #[cfg(test)]
@@ -515,6 +662,92 @@ mod anchored {
         use super::*;
         use std::fs;
         use std::os::unix::fs::symlink;
+
+        #[test]
+        fn inherited_manifest_uses_held_ancestry_despite_a_transient_parent_alias() {
+            let home = tempfile::tempdir().unwrap();
+            let first = home.path().join("first");
+            let second = home.path().join("second");
+            for path in [&first, &second] {
+                fs::create_dir_all(path.join("src")).unwrap();
+            }
+            let expected = b"schema-version=2\n[qrate]\nedition='2026'\n# first\n";
+            fs::write(first.join("Qargo.toml"), expected).unwrap();
+            fs::write(
+                second.join("Qargo.toml"),
+                b"schema-version=2\n[qrate]\nedition='2027'\n# second\n",
+            )
+            .unwrap();
+            let alias = home.path().join("alias");
+            symlink(&first, &alias).unwrap();
+            let held = InputDirectory::open(&alias.join("src")).unwrap();
+            let actual = held
+                .inherited_source_manifest_with_hook(&mut |index| {
+                    assert_eq!(index, 1);
+                    fs::remove_file(&alias).unwrap();
+                    symlink(&second, &alias).unwrap();
+                    assert_eq!(
+                        fs::canonicalize(alias.join("src")).unwrap(),
+                        fs::canonicalize(second.join("src")).unwrap()
+                    );
+                    fs::remove_file(&alias).unwrap();
+                    symlink(&first, &alias).unwrap();
+                })
+                .unwrap()
+                .unwrap();
+            assert_eq!(actual, expected);
+            held.verify().unwrap();
+        }
+
+        #[test]
+        fn a_new_nearer_manifest_invalidates_recorded_ancestor_absence() {
+            let home = tempfile::tempdir().unwrap();
+            let parent = home.path().join("outer");
+            fs::create_dir_all(parent.join("src")).unwrap();
+            fs::write(
+                home.path().join("Qargo.toml"),
+                b"schema-version=2\n[qrate]\nedition='2026'\n",
+            )
+            .unwrap();
+            let held = InputDirectory::open(&parent.join("src")).unwrap();
+            let diagnostic = held
+                .inherited_source_manifest_with_hook(&mut |index| {
+                    if index == 2 {
+                        fs::write(
+                            parent.join("Qargo.toml"),
+                            b"schema-version=2\n[qrate]\nedition='2027'\n",
+                        )
+                        .unwrap();
+                    }
+                })
+                .err()
+                .unwrap();
+            assert!(diagnostic.message.contains("ancestry changed"));
+        }
+
+        #[test]
+        fn unrelated_ancestor_sibling_changes_do_not_change_configuration() {
+            let home = tempfile::tempdir().unwrap();
+            let parent = home.path().join("outer");
+            fs::create_dir_all(parent.join("src")).unwrap();
+            let expected = b"schema-version=2\n[qrate]\nedition='2026'\n";
+            fs::write(home.path().join("Qargo.toml"), expected).unwrap();
+            let held = InputDirectory::open(&parent.join("src")).unwrap();
+            let actual = held
+                .inherited_source_manifest_with_hook(&mut |index| {
+                    if index == 2 {
+                        fs::write(parent.join("unrelated.txt"), b"other input").unwrap();
+                    }
+                })
+                .unwrap()
+                .unwrap();
+            assert_eq!(actual, expected);
+            assert_eq!(
+                fs::read(parent.join("unrelated.txt")).unwrap(),
+                b"other input"
+            );
+            held.verify().unwrap();
+        }
 
         #[test]
         fn root_replacement_after_open_cannot_redirect_capture() {
@@ -792,7 +1025,40 @@ impl FrozenSources {
 
     /// Materialize a fresh copy for one checker or tool invocation.
     pub fn stage(&self) -> Result<SourceStage, Diagnostic> {
+        self.stage_configuration(None)
+    }
+
+    /// Stage actual captured edition manifests, independently of .qli source_id.
+    pub fn stage_with_configuration(
+        &self,
+        configuration: &Files,
+    ) -> Result<SourceStage, Diagnostic> {
+        validate_source_configuration(self, configuration)?;
+        self.stage_configuration(Some(configuration))
+    }
+
+    fn stage_configuration(
+        &self,
+        configuration: Option<&Files>,
+    ) -> Result<SourceStage, Diagnostic> {
         let directory = materialize(&self.files)?;
+        if let Some(configuration) = configuration {
+            for (label, bytes) in configuration {
+                let path = directory.path().join(label);
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent).map_err(|error| input_error(error.to_string()))?;
+                }
+                let mut file = OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(path)
+                    .map_err(|error| {
+                        input_error(format!("Cannot stage source configuration: {error}"))
+                    })?;
+                file.write_all(bytes)
+                    .map_err(|error| input_error(error.to_string()))?;
+            }
+        }
         let canonical_root = fs::canonicalize(directory.path())
             .map_err(|error| input_error(format!("Cannot resolve private snapshot: {error}")))?;
         Ok(SourceStage {
@@ -804,4 +1070,51 @@ impl FrozenSources {
     pub fn count(&self) -> usize {
         self.files.len()
     }
+}
+
+/// Existing capture ceilings also cover staged source/configuration together.
+pub fn validate_source_configuration(
+    sources: &FrozenSources,
+    configuration: &Files,
+) -> Result<(), Diagnostic> {
+    if (sources.count() != 0 || !configuration.is_empty())
+        && !configuration.contains_key("Qargo.toml")
+    {
+        return Err(Diagnostic::error(
+            "project",
+            "compiler",
+            "Captured source configuration requires root Qargo.toml with an explicit edition; no edition is inferred.",
+        ));
+    }
+    if sources.count() + configuration.len() > CAPTURED_FILE_COUNT {
+        return Err(input_error(
+            "Source and configuration exceed the 4096-file capture limit.",
+        ));
+    }
+    let mut total: usize = sources.files().values().map(Vec::len).sum();
+    for (label, bytes) in configuration {
+        let path = Path::new(label);
+        if portable_relative(path)? != *label
+            || path.file_name().and_then(|name| name.to_str()) != Some("Qargo.toml")
+        {
+            return Err(input_error(
+                "Source configuration must contain only canonical Qargo.toml paths.",
+            ));
+        }
+        if bytes.len() > 65_536 {
+            return Err(input_error(
+                "Qargo.toml exceeds the 65536-byte manifest limit.",
+            ));
+        }
+        total = total
+            .checked_add(bytes.len())
+            .ok_or_else(|| input_error("Source/configuration byte accounting overflow."))?;
+        if total > TOTAL_BYTES {
+            return Err(input_error(
+                "Source and configuration exceed the 16 MiB capture limit.",
+            ));
+        }
+        std::str::from_utf8(bytes).map_err(|_| input_error("Qargo.toml must be UTF-8."))?;
+    }
+    Ok(())
 }

@@ -217,7 +217,12 @@ fn cargo_style_dependency_requests_include_actionable_diagnostics() {
 #[test]
 fn external_lint_cli_preserves_warnings_denial_and_source_locations() {
     let root = tempfile::tempdir().unwrap();
-    let source = "// 日本語 🦀\r\nuse std::quantum::h;\r\nuse std::quantum::x;\r\nunitary fn once(q:Q<Bit>)->Q<Bit>{repeat_static(1,h,q)}\r\n";
+    fs::write(
+        root.path().join("Qargo.toml"),
+        "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
+    )
+    .unwrap();
+    let source = "// 日本語 🦀\r\nunitary fn had(q:Q<Bit>)->Q<Bit>{h(q)}\r\nuse std::gate::x;\r\nunitary fn once(q:Q<Bit>)->Q<Bit>{power(had,1)(q)}\r\n";
     fs::write(root.path().join("library.qli"), source).unwrap();
     let path = root.path().to_str().unwrap();
     let tool = format!("--qlippy={}", env!("CARGO_BIN_EXE_qlippy"));
@@ -241,7 +246,7 @@ fn external_lint_cli_preserves_warnings_denial_and_source_locations() {
             .as_u64()
             .unwrap() as usize;
         let end = report["diagnostics"][1]["primary"]["end"].as_u64().unwrap() as usize;
-        assert_eq!(&source[start..end], "repeat_static(1,h,q)");
+        assert_eq!(&source[start..end], "power(had,1)");
         assert!(report["diagnostics"][1]["suggestion"].is_string());
     }
     assert_eq!(
@@ -253,6 +258,11 @@ fn external_lint_cli_preserves_warnings_denial_and_source_locations() {
 #[test]
 fn actual_compiler_rejection_survives_the_child_transport() {
     let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("Qargo.toml"),
+        "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
+    )
+    .unwrap();
     fs::write(
         root.path().join("library.qli"),
         "unitary fn bad(q:Q<Bit>)->Q<Bit>{let moved=q; q}",

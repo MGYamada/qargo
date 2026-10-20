@@ -4,8 +4,9 @@ use serde_json::{Value, json};
 
 use crate::adapter::{self, CheckedSources};
 use crate::report::{Diagnostic, Report};
-use crate::snapshot::{FrozenSources, InputDirectory};
+use crate::snapshot::{Files, FrozenSources, InputDirectory};
 
+use super::environment::EffectiveStd;
 use super::manifest::{self, CapturedQrate};
 use super::request::SourceSelection;
 
@@ -14,6 +15,7 @@ pub(super) enum CapturedSubject {
     Standalone {
         sources: FrozenSources,
         original_root: InputDirectory,
+        configuration: Option<Files>,
     },
 }
 
@@ -29,8 +31,41 @@ impl CapturedSubject {
                 Ok(Self::Standalone {
                     sources,
                     original_root,
+                    configuration: None,
                 })
             }
+        }
+    }
+
+    pub(super) fn capture_for_lint(selection: &SourceSelection) -> Result<Self, Diagnostic> {
+        match selection {
+            SourceSelection::Qrate { manifest } => Ok(Self::Qrate(Box::new(manifest::capture(
+                manifest.as_deref(),
+            )?))),
+            SourceSelection::Standalone(root) => {
+                let (sources, configuration, original_root) =
+                    adapter::CapturedCheckInput::capture(root)?.into_parts();
+                Ok(Self::Standalone {
+                    sources,
+                    original_root,
+                    configuration: Some(configuration),
+                })
+            }
+        }
+    }
+
+    pub(super) fn lint_configuration(&self) -> Result<Files, Diagnostic> {
+        match self {
+            Self::Qrate(qrate) => Ok(qrate.source_configuration()),
+            Self::Standalone {
+                configuration: Some(configuration),
+                ..
+            } => Ok(configuration.clone()),
+            Self::Standalone { .. } => Err(Diagnostic::error(
+                "input",
+                "qargo",
+                "Lint source configuration was not captured.",
+            )),
         }
     }
 
@@ -72,6 +107,7 @@ impl CapturedSubject {
 pub(super) struct CheckedQrate<'a> {
     qrate: &'a CapturedQrate,
     checked: CheckedSources,
+    effective_std: EffectiveStd,
 }
 
 impl CapturedQrate {
@@ -84,10 +120,22 @@ impl CapturedQrate {
         diagnostic
     }
 
-    pub(super) fn check(&self) -> Result<CheckedQrate<'_>, Diagnostic> {
+    pub(super) fn check(
+        &self,
+        effective_std: &EffectiveStd,
+        configuration: &Files,
+    ) -> Result<CheckedQrate<'_>, Diagnostic> {
+        if configuration != &self.source_configuration() {
+            return Err(Diagnostic::error(
+                "snapshot_mismatch",
+                "tool",
+                "Source configuration differs from the captured qrate inputs.",
+            ));
+        }
         Ok(CheckedQrate {
             qrate: self,
-            checked: adapter::check(self.sources())?,
+            checked: adapter::check(self.sources(), configuration)?,
+            effective_std: effective_std.clone(),
         })
     }
 }
@@ -99,5 +147,34 @@ impl CheckedQrate<'_> {
 
     pub(super) fn checked(&self) -> &CheckedSources {
         &self.checked
+    }
+
+    pub(super) fn effective_std(&self) -> &EffectiveStd {
+        &self.effective_std
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unrelated_configuration_cannot_be_checked_under_the_qrate_input_id() {
+        let root = tempfile::tempdir().unwrap();
+        for name in ["src", "tests", "docs"] {
+            std::fs::create_dir(root.path().join(name)).unwrap();
+        }
+        std::fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"bound\"\nversion=\"2.1.0\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+        let qrate = manifest::capture(Some(&root.path().join("Qargo.toml"))).unwrap();
+        let tool = crate::report::tool_info("qargo", crate::VERSION).unwrap();
+        let environment = EffectiveStd::capture(&tool).unwrap();
+        let mut configuration = qrate.source_configuration();
+        configuration
+            .get_mut("Qargo.toml")
+            .unwrap()
+            .extend_from_slice(b"# different captured bytes\n");
+        let diagnostic = qrate.check(&environment, &configuration).err().unwrap();
+        assert_eq!(diagnostic.id, "snapshot_mismatch");
+        assert_eq!(qrate.sources().count(), 0);
     }
 }

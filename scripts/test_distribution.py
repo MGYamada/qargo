@@ -11,7 +11,7 @@ import unittest
 from unittest.mock import patch
 
 from distribution import (TARGETS, archive_files, binary_platform, build, bundle_name,
-                          collect, verify_published_assets)
+                          collect, main, verify_archive, verify_published_assets)
 from verify_release import TOOLS
 
 
@@ -51,6 +51,7 @@ class DistributionTests(unittest.TestCase):
         self.root = Path(self.temporary.name)
         self.source = self.root / "source"
         self.source.mkdir()
+        self.qleisli_source = self.root / "explicit-intended-qleisli"
         for name in ("LICENSE", "NOTICE", "install.sh"):
             (self.source / name).write_text(name + "\n")
 
@@ -61,9 +62,57 @@ class DistributionTests(unittest.TestCase):
             (binaries / tool).write_bytes(executable(target))
         directory = directory or self.root / target
         with patch("distribution.verify") as verifier:
-            build(self.source, binaries, target, directory)
-            verifier.assert_called_once_with(self.source, binaries)
+            build(self.source, binaries, target, directory, self.qleisli_source)
+            verifier.assert_called_once_with(self.source, binaries, self.qleisli_source)
         return directory / (bundle_name(target) + ".tar.gz")
+
+    def test_missing_explicit_dependency_source_refuses_before_archive_or_runtime(self):
+        with patch("distribution.verify") as verifier, patch("distribution.archive_files") as archive:
+            with self.assertRaisesRegex(RuntimeError, "explicit --qleisli-source-root"):
+                build(self.source, self.root / "bins", TARGETS[0], self.root / "output")
+            with self.assertRaisesRegex(RuntimeError, "explicit --qleisli-source-root"):
+                verify_archive(self.source, self.root / "archive", TARGETS[0])
+            verifier.assert_not_called()
+            archive.assert_not_called()
+        self.assertFalse((self.root / "output").exists())
+
+    def test_build_and_verify_cli_forward_explicit_source_without_changing_collection(self):
+        for command in ("build", "verify"):
+            args = ["distribution.py", command, "--source-root=" + str(self.source),
+                    "--target=" + TARGETS[0], "--qleisli-source-root=" + str(self.qleisli_source)]
+            if command == "build":
+                args += ["--bin-dir=" + str(self.root / "bins"), "--output-dir=" + str(self.root / "output")]
+                with patch("sys.argv", args), patch("distribution.build") as operation:
+                    main()
+                    operation.assert_called_once_with(self.source.resolve(), (self.root / "bins").resolve(),
+                                                      TARGETS[0], self.root / "output", self.qleisli_source.resolve())
+            else:
+                args += ["--archive=" + str(self.root / "archive")]
+                with patch("sys.argv", args), patch("distribution.verify_archive") as operation:
+                    main()
+                    operation.assert_called_once_with(self.source.resolve(), self.root / "archive",
+                                                      TARGETS[0], self.qleisli_source.resolve())
+
+    def test_archive_and_installed_runtime_checks_keep_the_same_explicit_source(self):
+        # Transport mock only: no installer, native process or beta readiness.
+        from unittest.mock import MagicMock
+        archive = self.bundle(TARGETS[0])
+        fixture = MagicMock()
+        fixture.__enter__.return_value = fixture
+        fixture.prefix = self.root / "fake-installed"
+        link = fixture.prefix / "lib/qargo/current"
+        link.parent.mkdir(parents=True)
+        link.symlink_to("releases/" + bundle_name(TARGETS[0]))
+        fixture.marker = self.root / "never-started"
+        fixture.run.return_value.returncode = 0
+        fixture.run.return_value.stderr = ""
+        with patch("distribution.verify") as verifier, patch("test_install.InstallerFixture", return_value=fixture):
+            verify_archive(self.source, archive, TARGETS[0], self.qleisli_source)
+            self.assertEqual(verifier.call_count, 2)
+            for call in verifier.call_args_list:
+                self.assertEqual(call.args[0], self.source)
+                self.assertEqual(call.args[2], self.qleisli_source)
+            self.assertEqual(verifier.call_args_list[1].args[1], fixture.prefix / "bin")
 
     def test_all_target_headers_and_cpu_rejection(self):
         for target in TARGETS:

@@ -40,7 +40,7 @@ fn fixture(command: &str, dynamic_paths: bool) -> (tempfile::TempDir, Value) {
     let name = if command == "fmt" { "qlifmt" } else { "qlidoc" };
     let mut result = json!({"source_count":1,"source_id":frozen.source_id(),
         "qleisli_check":{"status":"not_run","reason":"syntax_only"},
-        "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(&script).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}});
+        "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(&script).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"}});
     if command == "fmt" {
         result["formatted_source_id"] = json!("unverified child identity");
         result["changed_files"] = json!([]);
@@ -218,7 +218,7 @@ fn descendant_fixture(command: &str, rejection: &str) -> (tempfile::TempDir, Det
     };
     let mut result = json!({"source_count":1,"source_id":frozen.source_id(),
         "qleisli_check":if command == "lint" { json!({"status":"failed","reason":"compiler_error"}) } else { json!({"status":"not_run","reason":"syntax_only"}) },
-        "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(&script).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}});
+        "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(&script).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"}});
     if command == "fmt" {
         result["formatted_source_id"] = Value::Null;
         result["changed_files"] = json!([]);

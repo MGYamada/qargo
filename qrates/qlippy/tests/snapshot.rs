@@ -4,6 +4,14 @@ use qlippy_engine::adapter;
 use qlippy_engine::report::coordinates;
 use qlippy_engine::snapshot::{Files, FrozenSources, collect_tree, digest_files, materialize};
 
+fn configuration() -> Files {
+    Files::from([(
+        "Qargo.toml".to_owned(),
+        b"schema-version=2\n[qrate]\nname=\"snapshot\"\nversion=\"3.2.1\"\nedition=\"2026\"\n"
+            .to_vec(),
+    )])
+}
+
 const IDENTITY: &str = "pub unitary fn identity(q: Q<Bit>) -> Q<Bit> { q }\n";
 
 #[test]
@@ -23,7 +31,7 @@ fn changed_working_copies_cannot_change_the_subject_or_later_checks() {
     assert_eq!(collect_tree(second.root(), None).unwrap(), *sources.files());
     assert_eq!(sources.source_id(), original_id);
     assert_eq!(sources.files()["library.qli"], IDENTITY.as_bytes());
-    let checked = adapter::check(&sources).unwrap();
+    let checked = adapter::check(&sources, &configuration()).unwrap();
     assert_eq!(checked.qleisli_check()["status"], "passed");
     assert_eq!(checked.source_count(), 1);
     assert_eq!(checked.module_index()[0]["path"], "library.qli");
@@ -34,7 +42,7 @@ fn empty_capture_has_no_compiler_or_bundled_module_claim() {
     let root = tempfile::tempdir().unwrap();
     fs::write(root.path().join(".gitkeep"), b"").unwrap();
     let sources = FrozenSources::capture(root.path()).unwrap();
-    let checked = adapter::check(&sources).unwrap();
+    let checked = adapter::check(&sources, &configuration()).unwrap();
     assert_eq!(checked.source_count(), 0);
     assert!(checked.project().is_none());
     assert_eq!(checked.qleisli_check()["status"], "not_run");
@@ -52,9 +60,9 @@ fn frozen_bytes_survive_mutation_and_deletion_of_original_inputs() {
     fs::write(&file, "unitary fn broken(q: Q<Bit>) -> Q<Bit> { q; q }").unwrap();
     let changed = FrozenSources::capture(root.path()).unwrap();
     assert_ne!(changed.source_id(), original_id);
-    assert!(adapter::check(&changed).is_err());
+    assert!(adapter::check(&changed, &configuration()).is_err());
     fs::remove_file(file).unwrap();
-    let checked = adapter::check(&sources).unwrap();
+    let checked = adapter::check(&sources, &configuration()).unwrap();
     assert_eq!(checked.qleisli_check()["status"], "passed");
     assert_eq!(checked.module_index()[0]["path"], "library.qli");
     assert_eq!(
@@ -100,7 +108,10 @@ fn private_items_and_bundled_modules_do_not_enter_public_index() {
         format!("{IDENTITY}unitary fn hidden(q: Q<Bit>) -> Q<Bit> {{ q }}").into_bytes(),
     );
     let sources = FrozenSources::from_files(files).unwrap();
-    let index = adapter::check(&sources).unwrap().module_index().clone();
+    let index = adapter::check(&sources, &configuration())
+        .unwrap()
+        .module_index()
+        .clone();
     assert_eq!(index.as_array().unwrap().len(), 1);
     assert_eq!(index[0]["declarations"].as_array().unwrap().len(), 1);
     assert_eq!(index[0]["name"], "library");
@@ -112,7 +123,7 @@ fn compiler_diagnostics_have_original_coordinates_and_no_temporary_path() {
     let mut files = Files::new();
     files.insert("bad.qli".into(), source.as_bytes().to_vec());
     let sources = FrozenSources::from_files(files).unwrap();
-    let diagnostic = adapter::check(&sources).err().unwrap();
+    let diagnostic = adapter::check(&sources, &configuration()).err().unwrap();
     assert_eq!(diagnostic.category, "compiler");
     assert_eq!(diagnostic.id, "ownership");
     assert!(!diagnostic.message.contains("qargo-snapshot-"));
@@ -145,7 +156,7 @@ fn capture_rejects_invalid_source_bytes_at_the_normal_checker() {
     let mut files = Files::new();
     files.insert("bad.qli".into(), vec![0xff]);
     let sources = FrozenSources::from_files(files).unwrap();
-    let diagnostic = adapter::check(&sources).err().unwrap();
+    let diagnostic = adapter::check(&sources, &configuration()).err().unwrap();
     assert_eq!(diagnostic.category, "compiler");
     assert_eq!(diagnostic.id, "project");
 }

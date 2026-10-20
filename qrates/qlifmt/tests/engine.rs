@@ -25,6 +25,18 @@ fn root(sources: &[(&str, &str)]) -> TempDir {
 }
 
 #[test]
+fn prelude_headers_and_public_reexports_survive_formatting() {
+    let source = "//! Module\n#![no_implicit_prelude]\n//! Explicit lookup\n/// Public gate\npub use std::gate::{x,z};\npub unitary fn f(q:Q<Bit>)->Q<Bit>{std::gate::x(q)}";
+    let original = files(source);
+    let formatted = format_files(&original).unwrap();
+    validate_formatted(&original, &formatted).unwrap();
+    let text = String::from_utf8(formatted["library.qli"].clone()).unwrap();
+    assert!(text.contains("#![no_implicit_prelude]\n"));
+    assert!(text.contains("pub use std::gate::"));
+    assert!(text.contains("std::gate::x(q)"));
+    assert_eq!(format_files(&formatted).unwrap(), formatted);
+}
+#[test]
 fn initial_style_is_four_spaces_and_idempotent() {
     let formatted = format_files(&files(SOURCE)).unwrap();
     assert_eq!(formatted["library.qli"], FORMATTED.as_bytes());
@@ -119,10 +131,10 @@ fn parser_failure_prevents_every_write_and_retains_binding() {
 #[test]
 fn formatting_accepts_type_ownership_and_unresolved_name_errors() {
     for source in [
-        "unitary fn bad(q:Q<Bit>)->CBit{q}",
+        "unitary fn bad(q:Q<Bit>)->Bit{q}",
         "unitary fn bad(q:Q<Bit>)->(Q<Bit>,Q<Bit>){(q,q)}",
         "use missing::module::function; unitary fn bad(q:Q<Bit>)->Q<Bit>{unknown(q)}",
-        "unitary fn bad[static U:Op<Bit>](q:Q<Bit>)->Q<Bit>{U(q)}",
+        "unitary fn bad[const U:Op<Bit>](q:Q<Bit>)->Q<Bit>{U(q)}",
     ] {
         let formatted = format_files(&files(source)).unwrap();
         validate_formatted(&files(source), &formatted).unwrap();
@@ -170,15 +182,15 @@ fn crlf_and_comment_only_files_are_preserved() {
 #[test]
 fn syntax_forms_and_static_combinators_are_preserved() {
     let source = "use std::basis::xor2;\n\
-        pub basis fn labels((a,b): (Bit,Bit), c:Bit)->(Bit,Bit){(not a and b xor c,1)}\n\
+        pub classical fn labels((a,b): (Bit,Bit), c:Bit)->(Bit,Bit){(not a and b xor c,1)}\n\
         pub meaning Perm:(Bit,Bit)=permutation_by(labels);\n\
         meaning Phase:Bit=phase_by(labels);\n\
-        iso fn prepare(q:Unit)->Q<Bit>{let q=init0(); q}\n\
-        observe fn observe_bit(q:Q<Bit>)->CBit{if true { measure_z(q) } else { false }}\n\
-        unitary fn lift(q:Q<Bit>)->Q<Bit>{do b<-q; pure(not b)}\n\
-        unitary fn operations[static U:Op<Bit,Phase>,static V:Op<Bit>](q:Q<Bit>)->Q<Bit> requires Apply(U),Adjoint(U),Controlled(V){\n\
-            let q=adjoint(U,q); let q=repeat_static(2,provider,q);\n\
-            let q=apply[conjugate_op(tensor_op(bind_op(provider,Phase),controlled_op(V)),then_op(repeat_op(2,U),inverse_op(V)))](q);\n\
+        isometry fn prepare(q:Unit)->Q<Bit>{let q=init0(); q}\n\
+        observe fn observe_bit(q:Q<Bit>)->Bit{if 1 { measure_z(q) } else { 0 }}\n\
+        unitary fn lift(q:Q<Bit>)->Q<Bit>{basis q as b { not b }}\n\
+        unitary fn operations[const U:Op<Bit,Phase>,const V:Op<Bit>](q:Q<Bit>)->Q<Bit> requires Applicable(U),Adjointable(U),Controllable(V){\n\
+            let q=adjoint(U)(q); let q=power(provider, 2)(q);\n\
+            let q=apply[conjugate_op(tensor_op(checked_op(provider,Phase),controlled(V)),then_op(power(U, 2),adjoint(V)))](q);\n\
             let q=apply_contract(provider,Phase,q);\n\
             with_computed(q,labels,Phase){|data,auxiliary| (data,auxiliary)}\n\
         }\n\
@@ -310,7 +322,7 @@ fn empty_roots_and_json_metadata_do_not_claim_a_check() {
                 serde_json::json!({"status":"not_run", "reason":"no_sources"})
             );
             assert_eq!(result["tool"]["version"], "0.1.9");
-            assert_eq!(result["tool"]["qleisli_version"], "0.2.1");
+            assert_eq!(result["tool"]["qleisli_version"], "0.3.0-beta");
         }
     }
 }

@@ -44,7 +44,7 @@ pub const REDUNDANT_REPEAT_ONE: Rule = Rule {
     group: Group::Complexity,
     promotion: Promotion::Advisory,
     default_severity: "warning",
-    description: "A static repeat or operation repeat has count one.",
+    description: "A power(op, 1) operation constructor has literal count one.",
     rationale: "Choosing a simpler spelling is advisory; a one-repetition constructor remains valid.",
 };
 
@@ -53,7 +53,7 @@ pub const DOUBLE_INVERSE: Rule = Rule {
     group: Group::Complexity,
     promotion: Promotion::Advisory,
     default_severity: "warning",
-    description: "An operation inverse directly contains another inverse.",
+    description: "A static adjoint(adjoint(op)) constructor nests two adjoints.",
     rationale: "Choosing a simpler spelling is advisory; nested inverses remain valid.",
 };
 

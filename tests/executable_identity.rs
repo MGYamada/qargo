@@ -105,7 +105,7 @@ fn replacing_the_host_path_never_reports_the_replacement_digest() {
     let report = json!({"format":"qlippy.result","version":1,"command":"lint","outcome":"ok","diagnostics":[],"result":{
         "source_count":0,"source_id":digest_files("qleisli.source.v1", &Files::new()),
         "qleisli_check":{"status":"not_run","reason":"no_sources"},
-        "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}}});
+        "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"}}});
     fs::write(&response, serde_json::to_vec(&report).unwrap()).unwrap();
     let output = Command::new(&qargo)
         .arg("lint")
@@ -163,7 +163,7 @@ fn a_rejected_host_identity_prevents_an_otherwise_valid_format_write() {
             "source_count":1,"source_id":digest_files("qleisli.source.v1", &inputs),
             "qleisli_check":{"status":"not_run","reason":"syntax_only"},
             "tool":{"name":"qlifmt","version":qargo_tools::VERSION,
-                "executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"},
+                "executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"},
             "formatted_source_id":digest_files("qleisli.source.v1", &formatted),
             "changed_files":["module.qli"],"updated_files":["module.qli"],"check":false,"diff":""
         }

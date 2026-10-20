@@ -212,7 +212,7 @@ fn manifest_edition_is_required_and_validated_before_every_qrate_operation() {
         for command in ["check", "build", "lint", "fmt", "doc", "test"] {
             let rejected = run(qrate.path(), command, &[]);
             assert_eq!(rejected.exit_code, 1, "{command}: {manifest}");
-            assert_eq!(rejected.envelope.version, 1);
+            assert_eq!(rejected.envelope.version, 2);
             assert_eq!(rejected.envelope.diagnostics[0].id, expected_id);
             assert_eq!(rejected.envelope.diagnostics[0].category, "qargo");
             assert!(rejected.envelope.result.is_none());
@@ -350,8 +350,13 @@ fn full_input_budget_builds_are_reusable_and_aggregate_overflow_is_rejected() {
 fn standalone_lint_needs_no_qrate_and_preserves_warnings() {
     let source = tempfile::tempdir().unwrap();
     fs::write(
+        source.path().join("Qargo.toml"),
+        "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
+    )
+    .unwrap();
+    fs::write(
         source.path().join("module.qli"),
-        "// 雪\r\nuse std::quantum::x;\r\nunitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+        "// 雪\r\nuse std::gate::x;\r\nunitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
     )
     .unwrap();
     let tool = format!("--qlippy={}", env!("CARGO_BIN_EXE_qlippy"));
@@ -398,7 +403,7 @@ fn cli_misuse_is_exit_two_and_json_is_one_object() {
         assert!(output.stderr.is_empty());
         let response: Value = serde_json::from_slice(&output.stdout).unwrap();
         assert_eq!(response["format"], "qargo.result");
-        assert_eq!(response["version"], 1);
+        assert_eq!(response["version"], 2);
     }
     let output = Command::new(env!("CARGO_BIN_EXE_qargo"))
         .args(["--help", "--format=json"])
@@ -507,6 +512,11 @@ fn selected_tools_do_not_fall_back_and_bad_transport_is_rejected() {
 #[test]
 fn closed_child_schema_identity_and_coordinates_are_checked() {
     let source = tempfile::tempdir().unwrap();
+    fs::write(
+        source.path().join("Qargo.toml"),
+        "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
+    )
+    .unwrap();
     let tool = tempfile::tempdir().unwrap();
     fs::write(
         source.path().join("module.qli"),
@@ -520,7 +530,7 @@ fn closed_child_schema_identity_and_coordinates_are_checked() {
     let valid = json!({
         "format":"qlippy.result","version":1,"command":"lint","outcome":"ok","diagnostics":[],
         "result":{"source_count":1,"source_id":frozen.source_id(),"qleisli_check":{"status":"passed","reason":null},
-          "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest,"qleisli_version":"0.2.1","profile":"finite-v0"}}
+          "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest,"qleisli_version":"0.3.0-beta","profile":"finite-v0"}}
     });
     let args = [
         OsString::from("lint"),
@@ -640,4 +650,88 @@ fn distinct_case_sensitive_directories_are_not_rejected_by_spelling() {
     .unwrap();
     assert_eq!(run(qrate.path(), "check", &[]).exit_code, 0);
     assert_eq!(run(qrate.path(), "build", &[]).exit_code, 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn build_metadata_keeps_the_project_captured_before_native_checking() {
+    let qrate = qrate();
+    fs::write(
+        qrate.path().join("src/main.qli"),
+        "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+    )
+    .unwrap();
+    let stages = tempfile::tempdir().unwrap();
+    let tool = tempfile::tempdir().unwrap();
+    let mutation = tool.path().join("changed-manifests");
+    let kernel = fs::canonicalize(
+        std::env::var_os("QLEISLI_KERNEL").expect("runtime tests require an actual native checker"),
+    )
+    .unwrap();
+    // Change only the child's private materialization before delegating every
+    // request to the real checker. Captured user inputs remain untouched.
+    let wrapper = script(
+        tool.path(),
+        r#"set -eu
+if [ ! -e "$QARGO_MUTATION_LOG" ]; then
+    find "$TMPDIR" -type f -name Qargo.toml -exec sh -c '
+        for path do
+            printf "%s\n" "schema-version=2" "[qrate]" "edition=\"2027\"" > "$path"
+            printf "%s\n" "$path" >> "$QARGO_MUTATION_LOG"
+        done
+    ' sh {} +
+fi
+exec "$QARGO_REAL_KERNEL" "$@""#,
+    );
+    let output = Command::new(env!("CARGO_BIN_EXE_qargo"))
+        .current_dir(qrate.path())
+        .env("TMPDIR", stages.path())
+        .env("QLEISLI_KERNEL", &wrapper)
+        .env("QARGO_REAL_KERNEL", kernel)
+        .env("QARGO_MUTATION_LOG", &mutation)
+        .args(["build", "--format=json"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stderr.is_empty());
+    let changed = fs::read_to_string(mutation).unwrap();
+    assert!(
+        !changed.is_empty(),
+        "the hostile checker must change a staged manifest"
+    );
+    for path in changed.lines() {
+        assert!(Path::new(path).starts_with(stages.path()));
+    }
+    let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(response["outcome"], "ok");
+    let result = &response["result"];
+    assert_eq!(result["qleisli_check"]["status"], "passed");
+    assert!(result["native_decisions"]["count"].as_u64().unwrap() > 0);
+    assert_eq!(result["native_decisions"]["complete"], true);
+    assert_eq!(
+        result["native_decisions"]["entry_request_checked"],
+        Value::Null
+    );
+    assert_eq!(result["effective_std"]["std"]["edition"], "2026");
+    let artifact = qrate.path().join(result["artifact_path"].as_str().unwrap());
+    assert_eq!(
+        fs::read_to_string(qrate.path().join("Qargo.toml")).unwrap(),
+        MANIFEST
+    );
+    assert_eq!(
+        fs::read_to_string(artifact.join("snapshot/Qargo.toml")).unwrap(),
+        MANIFEST
+    );
+    let index: Value =
+        serde_json::from_slice(&fs::read(artifact.join("module-index.json")).unwrap()).unwrap();
+    assert_eq!(
+        index,
+        json!([{"name":"main","path":"main.qli","declarations":[{"name":"identity","kind":"unitary"}]}])
+    );
 }

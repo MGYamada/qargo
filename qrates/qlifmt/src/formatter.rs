@@ -121,6 +121,9 @@ impl<'a> Writer<'a> {
 
 fn space_before(previous: Option<&TokenKind>, current: &TokenKind) -> bool {
     use TokenKind::*;
+    if matches!((previous, current), (Some(Hash), HeaderBang)) {
+        return false;
+    }
     if matches!(
         current,
         RParen | RBracket | RAngle | Comma | Colon | DoubleColon | Semicolon | LAngle | LBracket
@@ -148,6 +151,7 @@ fn format_source(source: &str) -> Result<Vec<u8>, Diagnostic> {
     let mut writer = Writer::new(newline);
     let mut blocks = 0usize;
     let mut delimiters = 0usize;
+    let mut module_header = false;
     let mut previous = None;
     let source_pieces = pieces(source)?;
     // Include adjacent punctuation in the width of each breakable token group.
@@ -177,6 +181,9 @@ fn format_source(source: &str) -> Result<Vec<u8>, Diagnostic> {
             }
             Piece::Token(kind, spelling) => {
                 use TokenKind::*;
+                if kind == Hash {
+                    module_header = true;
+                }
                 if kind == RBrace {
                     blocks = blocks.saturating_sub(1);
                     writer.newline();
@@ -207,6 +214,10 @@ fn format_source(source: &str) -> Result<Vec<u8>, Diagnostic> {
                     writer.newline();
                 } else if kind == Semicolon {
                     writer.newline();
+                }
+                if module_header && kind == RBracket {
+                    writer.newline();
+                    module_header = false;
                 }
                 previous = Some(kind);
             }

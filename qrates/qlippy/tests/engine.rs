@@ -6,10 +6,16 @@ use qlippy_engine::qlippy;
 use qlippy_engine::report::{Diagnostic, Envelope, Report};
 use tempfile::TempDir;
 
-const APPLY: &str = "unitary fn apply[static U:Op<Bit>](q:Q<Bit>)->Q<Bit> requires Apply(U){U(q)}";
+const APPLY: &str =
+    "unitary fn apply[const U:Op<Bit>](q:Q<Bit>)->Q<Bit> requires Applicable(U){U(q)}";
 
 fn root(files: &[(&str, &str)]) -> TempDir {
     let root = tempfile::tempdir().unwrap();
+    fs::write(
+        root.path().join("Qargo.toml"),
+        "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
+    )
+    .unwrap();
     for (path, source) in files {
         let path = root.path().join(path);
         fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -41,6 +47,12 @@ fn warnings(report: &Report) -> &[Diagnostic] {
     &report.envelope.diagnostics
 }
 
+#[test]
+fn public_reexports_are_not_suggested_for_unused_import_removal() {
+    let source = "#![no_implicit_prelude]\npub use std::gate::{x,z};";
+    let report = lint(&[("facade.qli", source)], false);
+    assert!(warnings(&report).is_empty());
+}
 #[test]
 fn rule_catalog_is_machine_readable_and_independent_of_checking() {
     let root = root(&[("invalid.qli", "this is not Qleisli")]);
@@ -101,29 +113,28 @@ fn rule_catalog_is_machine_readable_and_independent_of_checking() {
 
 #[test]
 fn unused_imports_are_advisory_and_used_calls_are_retained() {
-    let source =
-        "use std::quantum::h; use std::quantum::x; unitary fn flip(q:Q<Bit>)->Q<Bit>{x(q)}";
+    let source = "use std::gate::z; use std::gate::x; unitary fn flip(q:Q<Bit>)->Q<Bit>{x(q)}";
     let report = lint(&[("library.qli", source)], false);
     let diagnostics = warnings(&report);
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(diagnostics[0].id, "unused_import");
     let primary = diagnostics[0].primary.as_ref().unwrap();
     assert_eq!(primary.path, "library.qli");
-    assert_eq!(&source[primary.start..primary.end], "use std::quantum::h;");
+    assert_eq!(&source[primary.start..primary.end], "use std::gate::z;");
     let result = report.envelope.result.as_ref().unwrap();
     assert_eq!(result["qleisli_check"]["status"], "passed");
     assert_eq!(result["source_count"], 1);
-    assert_eq!(result["tool"]["qleisli_version"], "0.2.1");
+    assert_eq!(result["tool"]["qleisli_version"], "0.3.0-beta");
     assert_eq!(result["tool"]["profile"], "finite-v0");
 }
 
 #[test]
 fn one_repetition_points_to_complete_runtime_and_static_constructors() {
     let source = format!(
-        "use std::quantum::x; {APPLY}
+        "use std::gate::x; {APPLY}
          unitary fn flip(q:Q<Bit>)->Q<Bit>{{x(q)}}
-         unitary fn once(q:Q<Bit>)->Q<Bit>{{repeat_static(1,flip,q)}}
-         unitary fn once_op(q:Q<Bit>)->Q<Bit>{{apply[repeat_op(1,flip)](q)}}"
+         unitary fn once(q:Q<Bit>)->Q<Bit>{{power(flip, 1)(q)}}
+         unitary fn once_op(q:Q<Bit>)->Q<Bit>{{apply[power(flip, 1)](q)}}"
     );
     let report = lint(&[("library.qli", &source)], false);
     let diagnostics = warnings(&report);
@@ -136,14 +147,14 @@ fn one_repetition_points_to_complete_runtime_and_static_constructors() {
             &source[primary.start..primary.end]
         })
         .collect();
-    assert_eq!(snippets, ["repeat_static(1,flip,q)", "repeat_op(1,flip)"]);
+    assert_eq!(snippets, ["power(flip, 1)", "power(flip, 1)"]);
 }
 
 #[test]
 fn inverse_lint_covers_the_complete_outer_constructor() {
     let source = format!(
         "{APPLY} unitary fn identity(q:Q<Bit>)->Q<Bit>{{q}}
-         unitary fn twice(q:Q<Bit>)->Q<Bit>{{apply[inverse_op(inverse_op(identity))](q)}}"
+         unitary fn twice(q:Q<Bit>)->Q<Bit>{{apply[adjoint(adjoint(identity))](q)}}"
     );
     let report = lint(&[("library.qli", &source)], false);
     let diagnostics = warnings(&report);
@@ -152,7 +163,7 @@ fn inverse_lint_covers_the_complete_outer_constructor() {
     let primary = diagnostics[0].primary.as_ref().unwrap();
     assert_eq!(
         &source[primary.start..primary.end],
-        "inverse_op(inverse_op(identity))"
+        "adjoint(adjoint(identity))"
     );
 }
 
@@ -161,7 +172,7 @@ fn nested_static_combinators_are_traversed_for_all_rules() {
     let source = format!(
         "{APPLY} unitary fn identity(q:Q<Bit>)->Q<Bit>{{q}}
          unitary fn nested(q:Q<Bit>)->Q<Bit>{{
-             apply[conjugate_op(identity,then_op(repeat_op(1,identity),inverse_op(inverse_op(identity))))](q)
+             apply[conjugate_op(identity,then_op(power(identity, 1),adjoint(adjoint(identity))))](q)
          }}"
     );
     let report = lint(&[("library.qli", &source)], false);
@@ -175,11 +186,11 @@ fn nested_static_combinators_are_traversed_for_all_rules() {
 fn zero_many_and_single_inverse_are_not_redundant() {
     let source = format!(
         "{APPLY} unitary fn identity(q:Q<Bit>)->Q<Bit>{{q}}
-         unitary fn zero(q:Q<Bit>)->Q<Bit>{{repeat_static(0,identity,q)}}
-         unitary fn many(q:Q<Bit>)->Q<Bit>{{repeat_static(2,identity,q)}}
-         unitary fn zero_op(q:Q<Bit>)->Q<Bit>{{apply[repeat_op(0,identity)](q)}}
-         unitary fn many_op(q:Q<Bit>)->Q<Bit>{{apply[repeat_op(2,identity)](q)}}
-         unitary fn inverse(q:Q<Bit>)->Q<Bit>{{apply[inverse_op(identity)](q)}}"
+         unitary fn zero(q:Q<Bit>)->Q<Bit>{{power(identity, 0)(q)}}
+         unitary fn many(q:Q<Bit>)->Q<Bit>{{power(identity, 2)(q)}}
+         unitary fn zero_op(q:Q<Bit>)->Q<Bit>{{apply[power(identity, 0)](q)}}
+         unitary fn many_op(q:Q<Bit>)->Q<Bit>{{apply[power(identity, 2)](q)}}
+         unitary fn inverse(q:Q<Bit>)->Q<Bit>{{apply[adjoint(identity)](q)}}"
     );
     assert!(warnings(&lint(&[("library.qli", &source)], false)).is_empty());
 }
@@ -188,10 +199,10 @@ fn zero_many_and_single_inverse_are_not_redundant() {
 fn meaning_static_arguments_and_annotations_keep_imports() {
     let client = "use provider::flip; use provider::Flip; use provider::implementation;
         meaning LocalFlip:Bit=permutation_by(flip);
-        unitary fn apply[static U:Op<Bit,Flip>](q:Q<Bit>)->Q<Bit> requires Apply(U){U(q)}
-        unitary fn client(q:Q<Bit>)->Q<Bit>{apply[bind_op(implementation,Flip)](q)}";
-    let provider = "use std::quantum::x;
-        pub basis fn flip(b:Bit)->Bit{not b}
+        unitary fn apply[const U:Op<Bit,Flip>](q:Q<Bit>)->Q<Bit> requires Applicable(U){U(q)}
+        unitary fn client(q:Q<Bit>)->Q<Bit>{apply[checked_op(implementation,Flip)](q)}";
+    let provider = "use std::gate::x;
+        pub classical fn flip(b:Bit)->Bit{not b}
         pub meaning Flip:Bit=permutation_by(flip);
         pub unitary fn implementation(q:Q<Bit>)->Q<Bit>{x(q)}";
     let report = lint(&[("client.qli", client), ("provider.qli", provider)], false);
@@ -202,8 +213,8 @@ fn meaning_static_arguments_and_annotations_keep_imports() {
 #[test]
 fn imported_meaning_used_only_in_a_static_annotation_is_retained() {
     let client = "use meanings::Flip;
-        unitary fn apply[static U:Op<Bit,Flip>](q:Q<Bit>)->Q<Bit> requires Apply(U){U(q)}";
-    let meanings = "basis fn flip(b:Bit)->Bit{not b}
+        unitary fn apply[const U:Op<Bit,Flip>](q:Q<Bit>)->Q<Bit> requires Applicable(U){U(q)}";
+    let meanings = "classical fn flip(b:Bit)->Bit{not b}
         pub meaning Flip:Bit=permutation_by(flip);";
     assert!(
         warnings(&lint(
@@ -233,9 +244,9 @@ fn imported_operations_used_only_as_static_arguments_are_retained() {
 #[test]
 fn shadowed_import_names_are_conservatively_retained() {
     for source in [
-        "use std::quantum::x; unitary fn identity(x:Q<Bit>)->Q<Bit>{x}",
-        "use std::quantum::x; unitary fn identity(q:Q<Bit>)->Q<Bit>{let x=q;x}",
-        "use std::quantum::x; unitary fn identity[static x:Op<Bit>](q:Q<Bit>)->Q<Bit> requires Apply(x){q}",
+        "use std::gate::x; unitary fn identity(x:Q<Bit>)->Q<Bit>{x}",
+        "use std::gate::x; unitary fn identity(q:Q<Bit>)->Q<Bit>{let x=q;x}",
+        "use std::gate::x; unitary fn identity[const x:Op<Bit>](q:Q<Bit>)->Q<Bit> requires Applicable(x){q}",
     ] {
         assert!(warnings(&lint(&[("library.qli", source)], false)).is_empty());
     }
@@ -243,10 +254,10 @@ fn shadowed_import_names_are_conservatively_retained() {
 
 #[test]
 fn utf8_crlf_and_multiple_modules_keep_original_byte_spans() {
-    let first = "// 雪\r\nuse std::quantum::h;\r\nunitary fn identity(q:Q<Bit>)->Q<Bit>{q}\r\n";
-    let second = "// λ\r\nunitary fn identity(q:Q<Bit>)->Q<Bit>{ repeat_static(1,identity,q) }";
+    let first = "// 雪\r\nuse std::gate::z;\r\nunitary fn identity(q:Q<Bit>)->Q<Bit>{q}\r\n";
+    let second = "// λ\r\nunitary fn identity(q:Q<Bit>)->Q<Bit>{ power(identity, 1)(q) }";
     // The repeat function must be independent to avoid an ordinary recursive-call error.
-    let second = second.replace("repeat_static(1,identity,q)", "repeat_static(1,provider,q)")
+    let second = second.replace("power(identity, 1)(q)", "power(provider, 1)(q)")
         + "\r\nunitary fn provider(q:Q<Bit>)->Q<Bit>{q}";
     let report = lint(&[("a.qli", first), ("nested/b.qli", &second)], false);
     let diagnostics = warnings(&report);
@@ -259,45 +270,39 @@ fn utf8_crlf_and_multiple_modules_keep_original_byte_spans() {
     assert_eq!(repeat.line, 2);
     let before = &second[second.find("unitary").unwrap()..repeat.start];
     assert_eq!(repeat.column, before.chars().count() + 1);
-    assert_eq!(
-        &second[repeat.start..repeat.end],
-        "repeat_static(1,provider,q)"
-    );
+    assert_eq!(&second[repeat.start..repeat.end], "power(provider, 1)");
 }
 
 #[test]
 fn compiler_failures_prevent_all_advisory_lints() {
     let cases = [
-        ("type_mismatch", "unitary fn bad(q:Q<Bit>)->CBit{q}"),
+        ("type_mismatch", "unitary fn bad(q:Q<Bit>)->Bit{q}"),
         (
             "ownership",
             "unitary fn bad(q:Q<Bit>)->(Q<Bit>,Q<Bit>){(q,q)}",
         ),
-        (
-            "effect",
-            "use std::observe::measure_z; unitary fn bad(q:Q<Bit>)->CBit{measure_z(q)}",
-        ),
+        ("effect", "unitary fn bad(q:Q<Bit>)->Bit{measure_z(q)}"),
         (
             "contract",
-            "basis fn flip(b:Bit)->Bit{not b} meaning Flip:Bit=permutation_by(flip);
+            "classical fn flip(b:Bit)->Bit{not b} meaning Flip:Bit=permutation_by(flip);
              unitary fn wrong(q:Q<Bit>)->Q<Bit>{q}
-             unitary fn apply[static U:Op<Bit,Flip>](q:Q<Bit>)->Q<Bit> requires Apply(U){U(q)}
-             unitary fn bad(q:Q<Bit>)->Q<Bit>{apply[bind_op(wrong,Flip)](q)}",
+             unitary fn apply[const U:Op<Bit,Flip>](q:Q<Bit>)->Q<Bit> requires Applicable(U){U(q)}
+             unitary fn bad(q:Q<Bit>)->Q<Bit>{apply[checked_op(wrong,Flip)](q)}",
         ),
         (
             "capability",
-            "unitary fn bad[static U:Op<Bit>](q:Q<Bit>)->Q<Bit>{U(q)}",
+            "unitary fn bad[const U:Op<Bit>](q:Q<Bit>)->Q<Bit>{U(q)}",
         ),
     ];
     for (id, source) in cases {
-        let source = format!("use std::quantum::h; {source}");
+        let source = format!("use std::gate::z; {source}");
         let report = lint(&[("library.qli", &source)], false);
         assert_eq!(report.exit_code, 1, "{id}: {:?}", report.envelope);
         let result = report.envelope.result.as_ref().unwrap();
         assert_eq!(result["qleisli_check"]["status"], "failed");
         assert_eq!(result["source_count"], 1);
         assert!(result["source_id"].as_str().unwrap().starts_with("sha256:"));
-        assert_eq!(result["tool"]["qleisli_version"], "0.2.1");
+        assert_eq!(result["tool"]["qleisli_version"], "0.3.0-beta");
         assert_eq!(report.envelope.diagnostics.len(), 1);
         let diagnostic = &report.envelope.diagnostics[0];
         assert_eq!(diagnostic.category, "compiler", "{id}: {diagnostic:?}");
@@ -309,7 +314,7 @@ fn compiler_failures_prevent_all_advisory_lints() {
 
 #[test]
 fn denied_warnings_retain_the_actual_analysis_result() {
-    let source = "use std::quantum::h; unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
+    let source = "use std::gate::z; unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
     let report = lint(&[("library.qli", source)], true);
     assert_eq!(report.exit_code, 1);
     assert_eq!(report.envelope.outcome, "error");
@@ -378,7 +383,7 @@ fn binary_json_version_help_and_empty_roots_have_one_envelope() {
 fn binary_json_failures_use_consistent_exit_codes_and_results() {
     let root = root(&[(
         "library.qli",
-        "use std::quantum::h; unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+        "use std::gate::z; unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
     )]);
     for (options, expected_exit, result_present, severity) in [
         (vec!["--deny-warnings"], 1, true, "warning"),

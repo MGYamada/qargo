@@ -116,7 +116,7 @@ main() {
     case "$arch" in x86_64|amd64) cpu=x86_64 ;; aarch64|arm64) cpu=aarch64 ;; *) fail "Unsupported CPU: $arch" ;; esac
     case "$os" in
         Linux)
-            [ "$cpu" = x86_64 ] || fail "Linux ARM64 is unavailable with Qleisli 0.2.1; see https://github.com/MGYamada/qargo/issues/18."
+            [ "$cpu" = x86_64 ] || fail "Linux ARM64 is unsupported by this installer; native host validation is required."
             target=$cpu-unknown-linux-musl
             ;;
         Darwin) target=$cpu-apple-darwin ;;
@@ -177,6 +177,8 @@ main() {
     mkdir "$work/unpacked"
     tar -xzf "$work/$archive" --no-same-owner -C "$work/unpacked" || fail "Cannot extract archive."
     unpacked=$work/unpacked/$bundle
+    # Published legacy bundles retain exact Qleisli 0.2.1. The development beta
+    # migration selects no new qargo release/pair for this installer.
     for tool in qargo qlippy qlifmt qlidoc; do
         [ -f "$unpacked/bin/$tool" ] && [ ! -L "$unpacked/bin/$tool" ] && [ -x "$unpacked/bin/$tool" ] || fail "Invalid executable: $tool"
         actual_version=$("$unpacked/bin/$tool" --version) || fail "Cannot execute $tool on this system."
