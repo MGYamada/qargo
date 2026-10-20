@@ -141,7 +141,7 @@ files; it does not claim those files exist at the attempted destination.
 
 All three rules default to warning; --deny-warnings makes warnings fail without rewriting source. Suggestions are prose only.
 
-- unused_import: flag an import only when there is no possible use in declaration bodies, meaning references, static parameters/arguments or capability requirements. Conservative name matching intentionally retains imports under ambiguous shadowing.
+- unused_import: flag an ordinary private import only when there is no possible use in declaration bodies, meaning references, static parameters/arguments or capability requirements. Public reexports can be used externally and are never suggested for local unused-import removal. Conservative name matching intentionally retains imports under ambiguous shadowing.
 - redundant_repeat_one: literal `power(op, 1)` in applied or static-argument form. Point to the complete operation constructor; the applied input is a separate AST child. Do not evaluate arithmetic or exponent counts.
 - double_inverse: static `adjoint(adjoint(op))`. Point to the complete outer operation constructor.
 
@@ -160,6 +160,8 @@ The idiom group covers local conventions, import hygiene, and stdlib idioms; com
 Possible future proofs of repetition or inverse identities do not make these style preferences theorem obligations. All three default severities remain warning. Groups do not currently provide CLI selection or severity configuration.
 
 ## Formatting and documentation
+
+The linked beta syntax includes the leading `#![no_implicit_prelude]` module header, transparent `pub use` reexports and root-qualified ordinary references. Formatting preserves their tokens, header and attached comments; the header stays on its own line. Documentation renders the explicit opt-out and original public reexport paths/comments as syntax metadata, without claiming visibility, ownership or mathematical verification. This is minimum linked-syntax compatibility; no new qlippy rule, rule identity or product/schema version is added.
 
 qlifmt uses four-space indentation and a target line width of 100; indivisible syntax tokens or comments may exceed the target. It preserves syntax-token values, comments' exact content and order, doc-comment attachment, and LF/CRLF convention. All files are parsed and all candidates validated before the first write. No import reordering or configuration file is provided in 0.1.9. Type and ownership errors do not prevent formatting when syntax is valid. --check prints a human-readable diff (or places it in the JSON diff field), returns 1 on differences, and writes no source files.
 

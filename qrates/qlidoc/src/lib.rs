@@ -285,6 +285,27 @@ pub fn render_files(files: &Files, include_private: bool) -> Result<Files, Diagn
         let mut page = format!("# Module {}\n\n{DISCLAIMER}", markdown_text(&module));
         render_comments(&mut page, &documented.module_docs);
         let mut visible = 0;
+        if documented.syntax.no_implicit_prelude {
+            page.push_str("Implicit prelude: disabled.\n\n");
+        }
+        for (usage, docs) in documented.syntax.uses.iter().zip(&documented.import_docs) {
+            if !usage.public {
+                continue;
+            }
+            let name = usage.path.last().expect("parsed public import");
+            let path = usage
+                .path
+                .iter()
+                .map(|part| part.text.as_str())
+                .collect::<Vec<_>>()
+                .join("::");
+            visible += 1;
+            page.push_str(&format!(
+                "## {} (public reexport)\n\n```qli\npub use {path};\n```\n\n",
+                markdown_text(&name.text)
+            ));
+            render_comments(&mut page, docs);
+        }
         for (decl, docs) in documented
             .syntax
             .decls

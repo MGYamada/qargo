@@ -196,6 +196,10 @@ fn lint_project(project: &Project, sources: &FrozenSources) -> Result<Vec<Diagno
             visitor.decl(decl);
         }
         for import in &module.ast.uses {
+            // A public reexport may be used externally even without a local call.
+            if import.public {
+                continue;
+            }
             let Some(name) = import.path.last() else {
                 continue;
             };

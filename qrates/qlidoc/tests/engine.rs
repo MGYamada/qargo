@@ -31,6 +31,22 @@ fn command_args(input: &Path, output: &Path) -> Vec<OsString> {
 }
 
 #[test]
+fn public_reexports_retain_paths_comments_and_explicit_prelude_mode() {
+    let input = sources(
+        "facade.qli",
+        "//! Facade\n#![no_implicit_prelude]\n//! Explicit lookup\n/// Public gate\npub use std::gate::{x,z};\nuse std::state::init0;",
+    );
+    let rendered = render_files(&input, false).unwrap();
+    let text = page(&rendered, "modules/facade.md");
+    assert!(text.contains("Implicit prelude: disabled."));
+    for name in ["x", "z"] {
+        assert!(text.contains(&format!("{name} (public reexport)")));
+        assert!(text.contains(&format!("pub use std::gate::{name};")));
+    }
+    assert!(text.contains("Public gate") && text.contains("Explicit lookup"));
+    assert!(!text.contains("init0") && !text.contains("No visible declarations."));
+}
+#[test]
 fn output_paths_accept_both_forms_and_reject_missing_or_repeated_values() {
     let (_temp, root) = canonical_temp();
     let input = root.join("sources with spaces");

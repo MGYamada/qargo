@@ -48,6 +48,12 @@ fn warnings(report: &Report) -> &[Diagnostic] {
 }
 
 #[test]
+fn public_reexports_are_not_suggested_for_unused_import_removal() {
+    let source = "#![no_implicit_prelude]\npub use std::gate::{x,z};";
+    let report = lint(&[("facade.qli", source)], false);
+    assert!(warnings(&report).is_empty());
+}
+#[test]
 fn rule_catalog_is_machine_readable_and_independent_of_checking() {
     let root = root(&[("invalid.qli", "this is not Qleisli")]);
     let output = Command::new(env!("CARGO_BIN_EXE_qlippy"))

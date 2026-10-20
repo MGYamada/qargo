@@ -25,6 +25,18 @@ fn root(sources: &[(&str, &str)]) -> TempDir {
 }
 
 #[test]
+fn prelude_headers_and_public_reexports_survive_formatting() {
+    let source = "//! Module\n#![no_implicit_prelude]\n//! Explicit lookup\n/// Public gate\npub use std::gate::{x,z};\npub unitary fn f(q:Q<Bit>)->Q<Bit>{std::gate::x(q)}";
+    let original = files(source);
+    let formatted = format_files(&original).unwrap();
+    validate_formatted(&original, &formatted).unwrap();
+    let text = String::from_utf8(formatted["library.qli"].clone()).unwrap();
+    assert!(text.contains("#![no_implicit_prelude]\n"));
+    assert!(text.contains("pub use std::gate::"));
+    assert!(text.contains("std::gate::x(q)"));
+    assert_eq!(format_files(&formatted).unwrap(), formatted);
+}
+#[test]
 fn initial_style_is_four_spaces_and_idempotent() {
     let formatted = format_files(&files(SOURCE)).unwrap();
     assert_eq!(formatted["library.qli"], FORMATTED.as_bytes());
