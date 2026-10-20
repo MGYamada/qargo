@@ -1,0 +1,151 @@
+{
+  "status": "local development verification passed; unpublished",
+  "verified_at": "2026-10-20T09:43:32.456640+00:00",
+  "branch": "codex/qlirgo-rename",
+  "base_commit": "15cf009a95f7712e3b8e9c1f163f77f97a501ba4",
+  "worktree": "/Users/masa/.codex/worktrees/qlirgo-rename/qargo",
+  "implementation_diff_sha256_excluding_this_record": "4224072589322acbe99cf3530f4c3908d8d8d9b0332e20423c50caf07fa1d08e",
+  "product": "qlirgo",
+  "product_version": "0.2.0",
+  "documentation": "https://docs.rs/qlirgo",
+  "host": "27.0.1 (26A434), arm64",
+  "development_build_profile": {
+    "opt_level": 1,
+    "debug_information": 0,
+    "incremental": false
+  },
+  "explicit_local_qleisli_override": "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+  "resolved_development_bindings": [
+    {
+      "caller": "root",
+      "qleisli_manifest": "/Users/masa/git/Qleisli/Cargo.toml",
+      "qleisli_version": "0.3.0-beta",
+      "source": null
+    },
+    {
+      "caller": "qlinty",
+      "qleisli_manifest": "/Users/masa/git/Qleisli/Cargo.toml",
+      "qleisli_version": "0.3.0-beta",
+      "source": null
+    },
+    {
+      "caller": "qlifmt",
+      "qleisli_manifest": "/Users/masa/git/Qleisli/Cargo.toml",
+      "qleisli_version": "0.3.0-beta",
+      "source": null
+    },
+    {
+      "caller": "qlidoc",
+      "qleisli_manifest": "/Users/masa/git/Qleisli/Cargo.toml",
+      "qleisli_version": "0.3.0-beta",
+      "source": null
+    }
+  ],
+  "native_checker": {
+    "path": "/Users/masa/git/Qleisli/lean-kernel/.lake/build/bin/qleisli-kernel",
+    "sha256": "23d2567e1591ec4779fc99e0b4739c799790c03c03936be47e47d458aab31755"
+  },
+  "qleisli_source_head_observed": "dbe40dd72b9fde2b2317e99ad3dc283b83990c9c",
+  "toolchain_checks": [
+    {
+      "toolchain": "stable",
+      "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+      "components": {
+        "root": {
+          "tests_passed": 189,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlinty": {
+          "tests_passed": 62,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlifmt": {
+          "tests_passed": 18,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlidoc": {
+          "tests_passed": 21,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        }
+      }
+    },
+    {
+      "toolchain": "1.85.0",
+      "rustc": "rustc 1.85.0 (4d91de4e4 2025-02-17)",
+      "components": {
+        "root": {
+          "tests_passed": 189,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlinty": {
+          "tests_passed": 62,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlifmt": {
+          "tests_passed": 18,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlidoc": {
+          "tests_passed": 21,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        }
+      }
+    }
+  ],
+  "formatting_all_four_manifests_passed": true,
+  "python_tests_passed": {
+    "install": 23,
+    "distribution": 15,
+    "dependency": 12,
+    "release": 19,
+    "project": 24
+  },
+  "component_dependency_and_wiring_audit_passed": true,
+  "cargo_package_file_list_and_metadata_verified": true,
+  "transitional_manifest_pairs_identical": true,
+  "developer_source_copy": {
+    "path": "/private/tmp/qlirgo-rename-mpqg8vtj/developer-source",
+    "private_rust_workspaces_present": false,
+    "fresh_install_passed": true,
+    "install_profile": "debug, optimized level 1; explicit local dependency override",
+    "binary_sha256": {
+      "qlirgo": "f4c7c5719adcb0bf830a3c4baeee644afda1b8162b35ea5be71898593141d256",
+      "qlinty": "4a1c9589158bc28fc9b947ffa4d64d865559669e2cef06095f1daa9c88f25736",
+      "qlifmt": "e4963f11c88b0163b3f27511e8f7b467d171cf7d2bbfe8c0c90c6f659f6bcec2",
+      "qlidoc": "3d4a2fe8f63e737f871e78e4b3eacad7afc09abc8d1ee16f904afcbb4bb4c450"
+    },
+    "actual_checker_runtime_verifier_passed": true
+  },
+  "original_branch": "codex/qleisli-beta-compat",
+  "original_head_and_uncommitted_diff_preserved": true,
+  "legacy_release_worktree_preserved": true,
+  "historical_fixed_fixtures_unchanged": true,
+  "changes_staged": false,
+  "remote_origin": "https://github.com/MGYamada/qlirgo.git",
+  "github_writes_performed": false,
+  "publication_performed": false,
+  "pending_release_gates": [
+    "Official exact beta or approved stable registry dependency and registry-resolved locks",
+    "Build-verified Cargo package, fresh registry installation and publish dry-run",
+    "Full three-component Linux/macOS x Rust 1.85/stable independent extraction matrix",
+    "All supported-platform native binary archive and installer validation"
+  ],
+  "evidence_scope": "Explicit local-source development observations; not an isolated-build, registry-resolution, publisher-authentication or binary/source attestation.",
+  "raw_evidence_directory": "/private/tmp/qlirgo-rename-mpqg8vtj"
+}

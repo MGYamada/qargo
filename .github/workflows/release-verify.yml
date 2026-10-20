@@ -6,7 +6,7 @@ on:
       version:
         description: Published version to verify
         required: true
-        default: "0.1.9"
+        default: "0.2.0-beta"
         type: string
 
 permissions:
@@ -16,7 +16,7 @@ jobs:
   published:
     name: Published ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -40,18 +40,49 @@ jobs:
         with:
           ref: ${{ github.sha }}
           path: .release-verifier
+      - name: Validate the requested version and prerelease status
+        shell: bash
+        run: |
+          python3 scripts/release_version.py "$RELEASE_VERSION"
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$RELEASE_VERSION" > "$RUNNER_TEMP/release-metadata.json"
+          python3 -c 'import json, os, sys; sys.path.insert(0, "scripts"); from release_version import is_beta; version=os.environ["RELEASE_VERSION"]; release=json.load(open(os.environ["RUNNER_TEMP"] + "/release-metadata.json")); assert release["tag_name"] == "v" + version and not release["draft"] and release["prerelease"] == is_beta(version)'
+      - name: Bind the actual registry dependency for runtime checking
+        shell: bash
+        run: |
+          rustup toolchain install 1.85.0 --profile minimal
+          cargo +1.85.0 fetch --locked
+          cargo +1.85.0 metadata --frozen --format-version=1 > "$RUNNER_TEMP/published-dependencies.json"
+          qleisli_source_root="$(python3 scripts/qleisli_dependency.py --metadata="$RUNNER_TEMP/published-dependencies.json" --manifest-path=Cargo.toml)"
+          printf 'QLEISLI_SOURCE_ROOT=%s\n' "$qleisli_source_root" >> "$GITHUB_ENV"
+          mkdir "$RUNNER_TEMP/qlirgo-lean-setup"
+          cp "$qleisli_source_root/lean-kernel/lean-toolchain" "$qleisli_source_root/lean-kernel/lakefile.toml" "$qleisli_source_root/lean-kernel/lake-manifest.json" "$RUNNER_TEMP/qlirgo-lean-setup/"
+      - name: Prepare the actual dependency's pinned Lean toolchain
+        uses: leanprover/lean-action@50fcf42d2e460296f1a34b402e990d1b24f8b596
+        with:
+          lake-package-directory: ${{ runner.temp }}/qlirgo-lean-setup
+          auto-config: 'false'
+          build: 'false'
+          test: 'false'
+          lint: 'false'
+          use-github-cache: 'false'
+          use-mathlib-cache: 'false'
+      - name: Build and audit the explicitly associated native checker
+        shell: bash
+        run: |
+          python3 "$QLEISLI_SOURCE_ROOT/scripts/package_lean_kernel.py" --validation full --output "$RUNNER_TEMP/qlirgo-native-kernel"
+          printf 'QLEISLI_KERNEL=%s\n' "$RUNNER_TEMP/qlirgo-native-kernel/bin/qleisli-kernel" >> "$GITHUB_ENV"
       - name: Download and validate the complete published asset set
         shell: bash
         run: |
-          [[ "$RELEASE_VERSION" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          python3 scripts/release_version.py "$RELEASE_VERSION"
           assets="$RUNNER_TEMP/published-assets"
           gh release download "v$RELEASE_VERSION" --repo "$GITHUB_REPOSITORY" --dir "$assets"
           python3 .release-verifier/scripts/distribution.py verify-published-assets --artifact-dir="$assets" --version="$RELEASE_VERSION"
           python3 scripts/distribution.py collect --artifact-dir="$assets" --output-dir="$RUNNER_TEMP/validated-assets"
           cmp "$assets/SHA256SUMS" "$RUNNER_TEMP/validated-assets/SHA256SUMS"
           cmp "$assets/install.sh" install.sh
-          python3 scripts/distribution.py verify --archive="$assets/qargo-$RELEASE_VERSION-$RELEASE_TARGET.tar.gz" --target="$RELEASE_TARGET"
-      - name: Verify real versioned and latest installations without developer tools
+          python3 scripts/distribution.py verify --archive="$assets/qlirgo-$RELEASE_VERSION-$RELEASE_TARGET.tar.gz" --target="$RELEASE_TARGET" --qleisli-source-root="$QLEISLI_SOURCE_ROOT"
+      - name: Verify pinned installation and formal-only latest behavior
         shell: bash
         run: |
           traps="$RUNNER_TEMP/developer-traps"
@@ -61,15 +92,33 @@ jobs:
             chmod +x "$traps/$command"
           done
           PATH="$traps:$PATH" sh "$RUNNER_TEMP/published-assets/install.sh" --version "$RELEASE_VERSION" --prefix "$RUNNER_TEMP/versioned prefix"
-          curl --proto '=https' --tlsv1.2 -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.sh" -o "$RUNNER_TEMP/latest-install.sh"
-          cmp "$RUNNER_TEMP/latest-install.sh" install.sh
-          PATH="$traps:$PATH" sh "$RUNNER_TEMP/latest-install.sh" --prefix "$RUNNER_TEMP/latest prefix"
           test ! -e "$RUNNER_TEMP/unexpected-developer-tool"
-          python3 scripts/verify_release.py --source-root=. --bin-dir="$RUNNER_TEMP/versioned prefix/bin"
-          python3 scripts/verify_release.py --source-root=. --bin-dir="$RUNNER_TEMP/latest prefix/bin"
+          python3 scripts/verify_release.py --source-root=. --bin-dir="$RUNNER_TEMP/versioned prefix/bin" --qleisli-source-root="$QLEISLI_SOURCE_ROOT"
+          if [[ "$RELEASE_VERSION" == *-beta* ]]; then
+            latest_tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+            test "$latest_tag" != "v$RELEASE_VERSION"
+          else
+            latest_tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+            test "$latest_tag" = "v$RELEASE_VERSION"
+            curl --proto '=https' --tlsv1.2 -fsSL "https://github.com/$GITHUB_REPOSITORY/releases/latest/download/install.sh" -o "$RUNNER_TEMP/latest-install.sh"
+            cmp "$RUNNER_TEMP/latest-install.sh" install.sh
+            PATH="$traps:$PATH" sh "$RUNNER_TEMP/latest-install.sh" --prefix "$RUNNER_TEMP/latest prefix"
+            test ! -e "$RUNNER_TEMP/unexpected-developer-tool"
+            python3 scripts/verify_release.py --source-root=. --bin-dir="$RUNNER_TEMP/latest prefix/bin" --qleisli-source-root="$QLEISLI_SOURCE_ROOT"
+          fi
           {
             printf '### Published release verification\n\n'
             printf 'Tag: `v%s`; commit: `%s`; target: `%s`\n\n' "$RELEASE_VERSION" "$(git rev-parse HEAD)" "$RELEASE_TARGET"
             uname -a
             if [[ '${{ runner.os }}' == 'macOS' ]]; then sw_vers; fi
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Retain published dependency and native preparation records
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: published-inputs-${{ matrix.target }}
+          path: |
+            ${{ runner.temp }}/published-dependencies.json
+            ${{ runner.temp }}/release-metadata.json
+            ${{ runner.temp }}/qlirgo-native-kernel/manifest.json
+          if-no-files-found: warn

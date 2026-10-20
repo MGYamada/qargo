@@ -140,7 +140,7 @@ impl FormatPlan<'_> {
                 envelope.outcome = "error".into();
                 envelope.diagnostics.push(Diagnostic::error(
                     "formatting_required",
-                    "qargo",
+                    "qlirgo",
                     "Source files require formatting.",
                 ));
             }
@@ -148,7 +148,7 @@ impl FormatPlan<'_> {
             envelope.outcome = "error".into();
             envelope.diagnostics.push(Diagnostic::error(
                 "input_changed",
-                "qargo",
+                "qlirgo",
                 "Source inputs changed before formatting could be applied.",
             ));
         } else {

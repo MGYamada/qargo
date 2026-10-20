@@ -6,9 +6,9 @@ mod formatter;
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use qlippy_engine::support::report::{Diagnostic, Report, tool_info};
-use qlippy_engine::support::snapshot::digest_files;
-use qlippy_engine::support::source::{capture_source, syntax_step};
+use qlinty_engine::support::report::{Diagnostic, Report, tool_info};
+use qlinty_engine::support::snapshot::digest_files;
+use qlinty_engine::support::source::{capture_source, syntax_step};
 use serde_json::json;
 
 pub use apply::{ApplyFailure, apply_captured, apply_files};
@@ -127,7 +127,7 @@ pub fn run(args: &[OsString]) -> Report {
             report,
             Diagnostic::error(
                 "formatting_required",
-                "qargo",
+                "qlirgo",
                 "Source formatting is required; rerun without --check to apply changes.",
             ),
         );
@@ -141,7 +141,7 @@ pub fn run(args: &[OsString]) -> Report {
                         report,
                         Diagnostic::error(
                             "source_changed",
-                            "qargo",
+                            "qlirgo",
                             "Source file set or bytes changed after capture.",
                         ),
                     );
@@ -168,7 +168,7 @@ fn bound_failure(mut report: Report, diagnostic: Diagnostic) -> Report {
 }
 
 fn error(message: impl Into<String>) -> Diagnostic {
-    Diagnostic::error("format_validation", "qargo", message)
+    Diagnostic::error("format_validation", "qlirgo", message)
 }
 
 fn source_text<'a>(label: &str, bytes: &'a [u8]) -> Result<&'a str, Diagnostic> {

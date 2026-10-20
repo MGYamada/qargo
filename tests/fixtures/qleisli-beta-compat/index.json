@@ -1,0 +1,751 @@
+{
+  "format": "qargo.linked-development-observation-index",
+  "version": 1,
+  "status": "actual terminal local-development observations retained; no public release/readiness claim",
+  "archive": {
+    "path": "development-observations.tar.xz",
+    "sha256": "c5b90a11e1d0e5e9406221f000bf514ccd0f9f76017f2d8b4fc803902af55140",
+    "bytes": 773548,
+    "tar_sha256": "2552addaa9e402772d1f2d474440ad3fae041c7a74b1a424e332f08174df15fe",
+    "tar_bytes": 46039040,
+    "original_regular_files": 2636,
+    "original_regular_bytes": 43110303,
+    "archive_regular_entries": 2637,
+    "internal_inventory": "retention-file-index.json",
+    "internal_inventory_sha256": "d8925e3c3e1794cfbf1a5b739d9d5e914d337fe58936a0c8216a76a5b1a66d6d"
+  },
+  "capture": "Retrospective curated retention. Original reports/first source bytes are preserved unchanged. Archive contents are data; never execute recorded argv or drivers.",
+  "groups": {
+    "components": {
+      "regular_files": 51,
+      "bytes": 1072562
+    },
+    "first": {
+      "regular_files": 56,
+      "bytes": 193672
+    },
+    "quality": {
+      "regular_files": 33,
+      "bytes": 77658
+    },
+    "runtime": {
+      "regular_files": 2470,
+      "bytes": 1414783
+    },
+    "validation": {
+      "regular_files": 26,
+      "bytes": 40351628
+    }
+  },
+  "first_configuration": {
+    "record": "first/config/observations-v1.json",
+    "commands": 10,
+    "scope": "Actual old qargo/qlippy0.1.9 linked0.2.1 before observations; invalid edition/directory inputs were accepted, no native invocation count or source/binary attestation. Empty-directory details remain in original first-source-index.json."
+  },
+  "normal_msrv": {
+    "commands": [
+      {
+        "record": "validation/normal-check-v1.json",
+        "sha256": "1d59aa07dad4174450e819fddb788c7c0860c877d3e99b5b02cac0354dbf88aa",
+        "exit_code": 0,
+        "seconds": 46.93036533310078,
+        "argv": [
+          "/opt/homebrew/bin/cargo",
+          "--config",
+          "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+          "check",
+          "--offline",
+          "--workspace",
+          "--all-targets"
+        ],
+        "tools": {
+          "cargo": {
+            "path": "/opt/homebrew/bin/cargo",
+            "sha256": "f982e4d93e1eed426d89c775c9c34f77622b60472f8bf55e7672dc7693148c21",
+            "version": "cargo 1.98.1 (797e8a9bc 2026-08-05) (Homebrew)"
+          },
+          "rustc": {
+            "path": "/opt/homebrew/bin/rustc",
+            "sha256": "457663fd883b89f08096a30788debdfc0c42bf9ddf7cc079fe0ae44f1c3d17f1",
+            "version": "rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          },
+          "rustdoc": {
+            "path": "/opt/homebrew/bin/rustdoc",
+            "sha256": "50f31a6001e44a618c0e614c4f0d268d95e0bd4eba55678fd6987a947d6b1030",
+            "version": "rustdoc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          }
+        },
+        "test_totals_from_raw_stdout": {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "summary_rows": 0
+        },
+        "source_window": {
+          "qargo_before": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "08aca44ff879c18c43ed5320fce5ecd4455e255d98c0f2a16774eafb5e8d67ef"
+          },
+          "qargo_after": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "43b362a0bad186278d753747200b6cfded089e3e206c35c166b9e8a4fa76ca8f"
+          },
+          "qleisli_before": {
+            "head": "b761e69d53ad19f41e84064056894797877a92b8",
+            "retained_file_map_sha256": "97744bcba1df1644c31b36a2f35bf1eb70ca803398333ed1acaac64c5754ab70"
+          },
+          "qleisli_after": {
+            "head": "b761e69d53ad19f41e84064056894797877a92b8",
+            "retained_file_map_sha256": "97744bcba1df1644c31b36a2f35bf1eb70ca803398333ed1acaac64c5754ab70"
+          },
+          "kernel_before": "bd2bb0c31ac71b646471f1b4f5271bbb9d962e7a2ded5e452c09e9886a8a33cf",
+          "qleisli_stable": true,
+          "kernel_stable": true,
+          "qargo_source_stable_except_owned_development_lock": true
+        }
+      },
+      {
+        "record": "validation/normal-tests-v1.json",
+        "sha256": "8fc436b5c19cc14c2145116f0847b93c78b64e9f2745dc16ad6ae5ac35a93420",
+        "exit_code": 101,
+        "seconds": 51.081824833061546,
+        "argv": [
+          "/opt/homebrew/bin/cargo",
+          "--config",
+          "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+          "test",
+          "--offline",
+          "--locked",
+          "--workspace",
+          "--all-targets"
+        ],
+        "tools": {
+          "cargo": {
+            "path": "/opt/homebrew/bin/cargo",
+            "sha256": "f982e4d93e1eed426d89c775c9c34f77622b60472f8bf55e7672dc7693148c21",
+            "version": "cargo 1.98.1 (797e8a9bc 2026-08-05) (Homebrew)"
+          },
+          "rustc": {
+            "path": "/opt/homebrew/bin/rustc",
+            "sha256": "457663fd883b89f08096a30788debdfc0c42bf9ddf7cc079fe0ae44f1c3d17f1",
+            "version": "rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          },
+          "rustdoc": {
+            "path": "/opt/homebrew/bin/rustdoc",
+            "sha256": "50f31a6001e44a618c0e614c4f0d268d95e0bd4eba55678fd6987a947d6b1030",
+            "version": "rustdoc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          }
+        },
+        "test_totals_from_raw_stdout": {
+          "passed": 50,
+          "failed": 4,
+          "ignored": 0,
+          "summary_rows": 1
+        },
+        "source_window": {
+          "qargo_before": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "43b362a0bad186278d753747200b6cfded089e3e206c35c166b9e8a4fa76ca8f"
+          },
+          "qargo_after": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "43b362a0bad186278d753747200b6cfded089e3e206c35c166b9e8a4fa76ca8f"
+          },
+          "qleisli_before": {
+            "head": "b761e69d53ad19f41e84064056894797877a92b8",
+            "retained_file_map_sha256": "97744bcba1df1644c31b36a2f35bf1eb70ca803398333ed1acaac64c5754ab70"
+          },
+          "qleisli_after": {
+            "head": "b761e69d53ad19f41e84064056894797877a92b8",
+            "retained_file_map_sha256": "97744bcba1df1644c31b36a2f35bf1eb70ca803398333ed1acaac64c5754ab70"
+          },
+          "kernel_before": "bd2bb0c31ac71b646471f1b4f5271bbb9d962e7a2ded5e452c09e9886a8a33cf",
+          "qleisli_stable": true,
+          "kernel_stable": true,
+          "qargo_source_stable_except_owned_development_lock": true
+        }
+      },
+      {
+        "record": "validation/normal-tests-v2.json",
+        "sha256": "95397c78af61b9515c79ee1f23ef8e2a2f6083b7845f047d57fc0db635e65ac5",
+        "exit_code": 101,
+        "seconds": 137.3446368749719,
+        "argv": [
+          "/opt/homebrew/bin/cargo",
+          "--config",
+          "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+          "test",
+          "--offline",
+          "--locked",
+          "--workspace",
+          "--all-targets"
+        ],
+        "tools": {
+          "cargo": {
+            "path": "/opt/homebrew/bin/cargo",
+            "sha256": "f982e4d93e1eed426d89c775c9c34f77622b60472f8bf55e7672dc7693148c21",
+            "version": "cargo 1.98.1 (797e8a9bc 2026-08-05) (Homebrew)"
+          },
+          "rustc": {
+            "path": "/opt/homebrew/bin/rustc",
+            "sha256": "457663fd883b89f08096a30788debdfc0c42bf9ddf7cc079fe0ae44f1c3d17f1",
+            "version": "rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          },
+          "rustdoc": {
+            "path": "/opt/homebrew/bin/rustdoc",
+            "sha256": "50f31a6001e44a618c0e614c4f0d268d95e0bd4eba55678fd6987a947d6b1030",
+            "version": "rustdoc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          }
+        },
+        "test_totals_from_raw_stdout": {
+          "passed": 66,
+          "failed": 2,
+          "ignored": 0,
+          "summary_rows": 7
+        },
+        "source_window": {
+          "qargo_before": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "bca155996b5794739fe6a89496292be6292edbdbe579de1e8ed466c6be614c49"
+          },
+          "qargo_after": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "bca155996b5794739fe6a89496292be6292edbdbe579de1e8ed466c6be614c49"
+          },
+          "qleisli_before": {
+            "head": "b761e69d53ad19f41e84064056894797877a92b8",
+            "retained_file_map_sha256": "97744bcba1df1644c31b36a2f35bf1eb70ca803398333ed1acaac64c5754ab70"
+          },
+          "qleisli_after": {
+            "head": "b761e69d53ad19f41e84064056894797877a92b8",
+            "retained_file_map_sha256": "97744bcba1df1644c31b36a2f35bf1eb70ca803398333ed1acaac64c5754ab70"
+          },
+          "kernel_before": "bd2bb0c31ac71b646471f1b4f5271bbb9d962e7a2ded5e452c09e9886a8a33cf",
+          "qleisli_stable": true,
+          "kernel_stable": true,
+          "qargo_source_stable_except_owned_development_lock": true
+        }
+      },
+      {
+        "record": "validation/normal-tests-v3.json",
+        "sha256": "44308402e231e049744da992338f9da1316b203735f0ffb3e4488ec76f2ba414",
+        "exit_code": 101,
+        "seconds": 239.16034374991432,
+        "argv": [
+          "/opt/homebrew/bin/cargo",
+          "--config",
+          "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+          "test",
+          "--offline",
+          "--locked",
+          "--workspace",
+          "--all-targets",
+          "--no-fail-fast"
+        ],
+        "tools": {
+          "cargo": {
+            "path": "/opt/homebrew/bin/cargo",
+            "sha256": "f982e4d93e1eed426d89c775c9c34f77622b60472f8bf55e7672dc7693148c21",
+            "version": "cargo 1.98.1 (797e8a9bc 2026-08-05) (Homebrew)"
+          },
+          "rustc": {
+            "path": "/opt/homebrew/bin/rustc",
+            "sha256": "457663fd883b89f08096a30788debdfc0c42bf9ddf7cc079fe0ae44f1c3d17f1",
+            "version": "rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          },
+          "rustdoc": {
+            "path": "/opt/homebrew/bin/rustdoc",
+            "sha256": "50f31a6001e44a618c0e614c4f0d268d95e0bd4eba55678fd6987a947d6b1030",
+            "version": "rustdoc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          }
+        },
+        "test_totals_from_raw_stdout": {
+          "passed": 169,
+          "failed": 3,
+          "ignored": 0,
+          "summary_rows": 15
+        },
+        "source_window": {
+          "qargo_before": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "c2dd89a29b87fd873ed0f5dfe851e591dd771ad45ab293721e7132483d977e57"
+          },
+          "qargo_after": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "c2dd89a29b87fd873ed0f5dfe851e591dd771ad45ab293721e7132483d977e57"
+          },
+          "qleisli_before": {
+            "head": "b761e69d53ad19f41e84064056894797877a92b8",
+            "retained_file_map_sha256": "97744bcba1df1644c31b36a2f35bf1eb70ca803398333ed1acaac64c5754ab70"
+          },
+          "qleisli_after": {
+            "head": "b761e69d53ad19f41e84064056894797877a92b8",
+            "retained_file_map_sha256": "97744bcba1df1644c31b36a2f35bf1eb70ca803398333ed1acaac64c5754ab70"
+          },
+          "kernel_before": "bd2bb0c31ac71b646471f1b4f5271bbb9d962e7a2ded5e452c09e9886a8a33cf",
+          "qleisli_stable": true,
+          "kernel_stable": true,
+          "qargo_source_stable_except_owned_development_lock": true
+        }
+      },
+      {
+        "record": "validation/normal-engine-tests-v4.json",
+        "sha256": "fada62cf1d3f3f5132fc65d739ecc1f559c47baf99de1479bb1c331810b49a83",
+        "exit_code": 0,
+        "seconds": 41.387263167183846,
+        "argv": [
+          "/opt/homebrew/bin/cargo",
+          "--config",
+          "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+          "test",
+          "--offline",
+          "--locked",
+          "--test",
+          "qlifmt",
+          "--test",
+          "qlippy",
+          "--no-fail-fast"
+        ],
+        "tools": {
+          "cargo": {
+            "path": "/opt/homebrew/bin/cargo",
+            "sha256": "f982e4d93e1eed426d89c775c9c34f77622b60472f8bf55e7672dc7693148c21",
+            "version": "cargo 1.98.1 (797e8a9bc 2026-08-05) (Homebrew)"
+          },
+          "rustc": {
+            "path": "/opt/homebrew/bin/rustc",
+            "sha256": "457663fd883b89f08096a30788debdfc0c42bf9ddf7cc079fe0ae44f1c3d17f1",
+            "version": "rustc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          },
+          "rustdoc": {
+            "path": "/opt/homebrew/bin/rustdoc",
+            "sha256": "50f31a6001e44a618c0e614c4f0d268d95e0bd4eba55678fd6987a947d6b1030",
+            "version": "rustdoc 1.98.1 (48a229cea 2026-09-01) (Homebrew)"
+          }
+        },
+        "test_totals_from_raw_stdout": {
+          "passed": 32,
+          "failed": 0,
+          "ignored": 0,
+          "summary_rows": 2
+        },
+        "source_window": {
+          "qargo_before": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "df3a89efcf8971148ea7a4c48222896b51b231035a7d0f2888e6baaa1f8e023e"
+          },
+          "qargo_after": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "df3a89efcf8971148ea7a4c48222896b51b231035a7d0f2888e6baaa1f8e023e"
+          },
+          "qleisli_before": {
+            "head": "129e12c089545ac4031987c9b95ae52b2c122038",
+            "retained_file_map_sha256": "f76c62f06f9bfe3de97a39e4dc10bdac52583374c5a920d79c3df4b57a93f379"
+          },
+          "qleisli_after": {
+            "head": "129e12c089545ac4031987c9b95ae52b2c122038",
+            "retained_file_map_sha256": "f76c62f06f9bfe3de97a39e4dc10bdac52583374c5a920d79c3df4b57a93f379"
+          },
+          "kernel_before": "bd2bb0c31ac71b646471f1b4f5271bbb9d962e7a2ded5e452c09e9886a8a33cf",
+          "qleisli_stable": true,
+          "kernel_stable": true,
+          "qargo_source_stable_except_owned_development_lock": true
+        }
+      },
+      {
+        "record": "validation/msrv-tests-v1.json",
+        "sha256": "5b1219d6fdf2c9873592eaa8991546c2a47ffa05c13bfea10701e7dd885c6670",
+        "exit_code": 0,
+        "seconds": 234.7926047500223,
+        "argv": [
+          "/Users/masa/.rustup/toolchains/1.85.0-aarch64-apple-darwin/bin/cargo",
+          "--config",
+          "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+          "test",
+          "--offline",
+          "--locked",
+          "--workspace",
+          "--all-targets",
+          "--no-fail-fast"
+        ],
+        "tools": {
+          "cargo": {
+            "path": "/Users/masa/.rustup/toolchains/1.85.0-aarch64-apple-darwin/bin/cargo",
+            "sha256": "dcfda0c91c578ea2a199cb2af9c53796711607cbd8f8ea618dc87dc0febae2cf",
+            "version": "cargo 1.85.0 (d73d2caf9 2024-12-31)"
+          },
+          "rustc": {
+            "path": "/Users/masa/.rustup/toolchains/1.85.0-aarch64-apple-darwin/bin/rustc",
+            "sha256": "cf4750269faa6c5eba9489e0b92850e2de7e260489d69d89bcfaf23f9fe46015",
+            "version": "rustc 1.85.0 (4d91de4e4 2025-02-17)"
+          },
+          "rustdoc": {
+            "path": "/Users/masa/.rustup/toolchains/1.85.0-aarch64-apple-darwin/bin/rustdoc",
+            "sha256": "faceed3e0803a6cdff50d5aa76de747a4607534b18046e2b128728175b32d854",
+            "version": "rustdoc 1.85.0 (4d91de4e4 2025-02-17)"
+          }
+        },
+        "test_totals_from_raw_stdout": {
+          "passed": 172,
+          "failed": 0,
+          "ignored": 0,
+          "summary_rows": 15
+        },
+        "source_window": {
+          "qargo_before": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "df3a89efcf8971148ea7a4c48222896b51b231035a7d0f2888e6baaa1f8e023e"
+          },
+          "qargo_after": {
+            "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+            "retained_file_map_sha256": "df3a89efcf8971148ea7a4c48222896b51b231035a7d0f2888e6baaa1f8e023e"
+          },
+          "qleisli_before": {
+            "head": "129e12c089545ac4031987c9b95ae52b2c122038",
+            "retained_file_map_sha256": "f76c62f06f9bfe3de97a39e4dc10bdac52583374c5a920d79c3df4b57a93f379"
+          },
+          "qleisli_after": {
+            "head": "129e12c089545ac4031987c9b95ae52b2c122038",
+            "retained_file_map_sha256": "f76c62f06f9bfe3de97a39e4dc10bdac52583374c5a920d79c3df4b57a93f379"
+          },
+          "kernel_before": "bd2bb0c31ac71b646471f1b4f5271bbb9d962e7a2ded5e452c09e9886a8a33cf",
+          "qleisli_stable": true,
+          "kernel_stable": true,
+          "qargo_source_stable_except_owned_development_lock": true
+        }
+      }
+    ],
+    "coverage": "Normal current172 is composed from169pass/3fail all-target run then32pass changed-target rerun; MSRV is one172pass full all-target run. Not one final-commit normal suite."
+  },
+  "quality": [
+    {
+      "record": "quality/first/report-v1.json",
+      "sha256": "35affe9c4c64d218338d2a039999ad99f952b1c067e88af45bc9a79e975a25f2",
+      "status": "failed",
+      "stable": true,
+      "scope": "Explicit local-link development quality checks only; no registry/package/install readiness or source/native compiler attestation. Sequential, existing Qleisli target only.",
+      "commands": [
+        {
+          "label": "normal-fmt",
+          "argv": [
+            "/opt/homebrew/bin/cargo",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "fmt",
+            "--all",
+            "--check"
+          ],
+          "exit_code": 0,
+          "seconds": 0.4275511670857668
+        },
+        {
+          "label": "normal-clippy",
+          "argv": [
+            "/opt/homebrew/bin/cargo",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "clippy",
+            "--offline",
+            "--locked",
+            "--workspace",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 101,
+          "seconds": 0.11452566715888679
+        },
+        {
+          "label": "msrv-clippy",
+          "argv": [
+            "/Users/masa/.rustup/toolchains/1.85.0-aarch64-apple-darwin/bin/cargo",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "clippy",
+            "--offline",
+            "--locked",
+            "--workspace",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 101,
+          "seconds": 0.06762179103679955
+        },
+        {
+          "label": "normal-doctests",
+          "argv": [
+            "/opt/homebrew/bin/cargo",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "test",
+            "--offline",
+            "--locked",
+            "--workspace",
+            "--doc"
+          ],
+          "exit_code": 0,
+          "seconds": 1.171370292082429
+        },
+        {
+          "label": "msrv-doctests",
+          "argv": [
+            "/Users/masa/.rustup/toolchains/1.85.0-aarch64-apple-darwin/bin/cargo",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "test",
+            "--offline",
+            "--locked",
+            "--workspace",
+            "--doc"
+          ],
+          "exit_code": 0,
+          "seconds": 1.3920124580617994
+        },
+        {
+          "label": "normal-rustdoc",
+          "argv": [
+            "/opt/homebrew/bin/cargo",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "doc",
+            "--offline",
+            "--locked",
+            "--workspace",
+            "--no-deps"
+          ],
+          "exit_code": 0,
+          "seconds": 6.890759582864121
+        },
+        {
+          "label": "msrv-rustdoc",
+          "argv": [
+            "/Users/masa/.rustup/toolchains/1.85.0-aarch64-apple-darwin/bin/cargo",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "doc",
+            "--offline",
+            "--locked",
+            "--workspace",
+            "--no-deps"
+          ],
+          "exit_code": 0,
+          "seconds": 15.129808416822925
+        }
+      ]
+    },
+    {
+      "record": "quality/corrected/report-v1.json",
+      "sha256": "91f482f5642a8101d29bf71176ab88f744b71d3fe6b789f266ff893212237208",
+      "status": "passed",
+      "stable": true,
+      "scope": "Explicit local-link development quality checks only; no registry/package/install readiness or source/native compiler attestation. Sequential, existing Qleisli target only. Original failed pre-compilation Clippy calls preserved; move Cargo config after the external subcommand so it is forwarded.",
+      "commands": [
+        {
+          "label": "normal-clippy",
+          "argv": [
+            "/opt/homebrew/bin/cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--offline",
+            "--locked",
+            "--workspace",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 6.4720404169056565
+        },
+        {
+          "label": "msrv-clippy",
+          "argv": [
+            "/Users/masa/.rustup/toolchains/1.85.0-aarch64-apple-darwin/bin/cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--offline",
+            "--locked",
+            "--workspace",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 7.465410915901884
+        }
+      ]
+    }
+  ],
+  "independent_component_manifests": {
+    "record": "components/report-v2.json",
+    "report_sha256": "27a03b3f7c18950ffe5f5f8010683bfc76fde9612309dc282c352dc8d9e7f7ce",
+    "scope": "Independent developer Cargo manifests, local Qleisli path substitution, existing target only; not isolated extraction, registry/package/installer readiness, or native/source attestation",
+    "test_results": [
+      {
+        "label": "qlippy-normal-tests",
+        "exit_code": 0,
+        "targets": 4,
+        "passed": 60,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "label": "qlippy-msrv-tests",
+        "exit_code": 0,
+        "targets": 4,
+        "passed": 60,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "label": "qlifmt-normal-tests",
+        "exit_code": 0,
+        "targets": 3,
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "label": "qlifmt-msrv-tests",
+        "exit_code": 0,
+        "targets": 3,
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "label": "qlidoc-normal-tests",
+        "exit_code": 0,
+        "targets": 3,
+        "passed": 20,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "label": "qlidoc-msrv-tests",
+        "exit_code": 0,
+        "targets": 3,
+        "passed": 20,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "source_changes": [
+      "rust/qlidoc/Cargo.lock",
+      "rust/qlifmt/Cargo.lock",
+      "rust/qlippy/Cargo.lock"
+    ],
+    "status": "passed",
+    "limitation": "Explicit local Qleisli substitution and existing target; not registry resolution or isolated vendor/extraction validation."
+  },
+  "repository_bin_runtime_verifier": {
+    "record": "runtime/repository-bin/runtime-verifier-v1.json",
+    "sha256": "6852641f81baff106d3187dff90fad7fcf96ab17a297fc8c4e03559114dc2486",
+    "exit_code": 0,
+    "scope": "Actual development runtime/source comparison using requested Qleisli/bin four-binary placement, explicit locally linked Qleisli sources and selected native checker. Not registry resolution, official archive/installer readiness, binary-source attestation or release approval.",
+    "source_stable": true,
+    "binaries_stable": true
+  },
+  "actual_comparison_attempts": [
+    {
+      "record": "runtime/comparison-first/report-v1.json",
+      "sha256": "767b879cf3dc62ddc034742fa6fd2c258e7b92e5b146376b6076ba591154201b",
+      "status": "failed",
+      "direct_cli_invocations": 195,
+      "exception": "RuntimeError: Lint fixture reached the wrong compiler failure: type",
+      "window": {
+        "qargo": {
+          "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+          "working_inputs_sha256": "4071300b5d49b33cbc6bedcaf0109ba7b5f360a8083919deb3c2025cd32bdb09"
+        },
+        "qleisli": {
+          "head": "129e12c089545ac4031987c9b95ae52b2c122038",
+          "working_inputs_sha256": "df2303fa90834461d0dd73d7b2e10ee07fd47f4c09743f609c1048d2cdf7b512"
+        },
+        "kernel_sha256": "bd2bb0c31ac71b646471f1b4f5271bbb9d962e7a2ded5e452c09e9886a8a33cf",
+        "binaries": {
+          "/Users/masa/git/Qleisli/target/debug/qlippy": "ad262437799d016c3150012786af643a3b9700f4f4362cdfaba2e3c2c1304951",
+          "/Users/masa/git/Qleisli/target/debug/qlifmt": "5c76dc2cf30b821cb67173ff0507ddfcf19348750a2fdb28f7a32112b4fdc5ea",
+          "/Users/masa/git/Qleisli/target/debug/qlidoc": "1571db2d47f3ce160b182ab170e761bb234d09507a88de51fd83bdbba4f177a6",
+          "/Users/masa/git/Qleisli/bin/qargo": "03929e8f8fb4ff6176a3272d813bc34c061b84e23e281bc2d53587c307b74aac",
+          "/Users/masa/git/Qleisli/bin/qlippy": "f55db62d8d6128441cf7bf9965d38a9923724dbdc434bf3b26bbd779976d0fde",
+          "/Users/masa/git/Qleisli/bin/qlifmt": "98c22c7010fbdb3e347f43d4c0211625039891d7af19dfc7e3367012cb37fdcc",
+          "/Users/masa/git/Qleisli/bin/qlidoc": "5220198e79aa9533d9d1a6a40d167d51f328aefdee7a363a3a9362dd82a99aa1"
+        },
+        "verifier_sha256": "6a8a7f9adb076d8620aa3294821d7b2b6d112e6e079d988b19185d7fbf82de82"
+      },
+      "stable": true
+    },
+    {
+      "record": "runtime/comparison-retry/report-v1.json",
+      "sha256": "76e3da4ce2f2174657cd54f5862981f306849524561d9e45b037ec778c173871",
+      "status": "passed",
+      "direct_cli_invocations": 620,
+      "comparison_pairs": 310,
+      "host_tests": 91,
+      "completed_groups": [
+        {
+          "label": "qlippy-actual-cli-comparisons",
+          "exit_code": 0,
+          "invocations": 200,
+          "comparisons": 100,
+          "seconds": 57.58508999994956
+        },
+        {
+          "label": "qlifmt-actual-cli-comparisons",
+          "exit_code": 0,
+          "invocations": 200,
+          "comparisons": 100,
+          "seconds": 4.249751666095108
+        },
+        {
+          "label": "qlidoc-actual-cli-comparisons",
+          "exit_code": 0,
+          "invocations": 220,
+          "comparisons": 110,
+          "seconds": 5.7124557921197265
+        }
+      ],
+      "window": {
+        "qargo": {
+          "head": "aef855dd8371db12a5419bf707fe3a5fa1ef1267",
+          "working_inputs_sha256": "c6d9377d1cfa4fe2dbd2e655ca50f1bc8283dab025ee996e0e7dee10aa1a6dfe"
+        },
+        "qleisli": {
+          "head": "129e12c089545ac4031987c9b95ae52b2c122038",
+          "working_inputs_sha256": "df2303fa90834461d0dd73d7b2e10ee07fd47f4c09743f609c1048d2cdf7b512"
+        },
+        "kernel_sha256": "bd2bb0c31ac71b646471f1b4f5271bbb9d962e7a2ded5e452c09e9886a8a33cf",
+        "binaries": {
+          "/Users/masa/git/Qleisli/target/debug/qlippy": "ad262437799d016c3150012786af643a3b9700f4f4362cdfaba2e3c2c1304951",
+          "/Users/masa/git/Qleisli/target/debug/qlifmt": "5c76dc2cf30b821cb67173ff0507ddfcf19348750a2fdb28f7a32112b4fdc5ea",
+          "/Users/masa/git/Qleisli/target/debug/qlidoc": "1571db2d47f3ce160b182ab170e761bb234d09507a88de51fd83bdbba4f177a6",
+          "/Users/masa/git/Qleisli/bin/qargo": "03929e8f8fb4ff6176a3272d813bc34c061b84e23e281bc2d53587c307b74aac",
+          "/Users/masa/git/Qleisli/bin/qlippy": "f55db62d8d6128441cf7bf9965d38a9923724dbdc434bf3b26bbd779976d0fde",
+          "/Users/masa/git/Qleisli/bin/qlifmt": "98c22c7010fbdb3e347f43d4c0211625039891d7af19dfc7e3367012cb37fdcc",
+          "/Users/masa/git/Qleisli/bin/qlidoc": "5220198e79aa9533d9d1a6a40d167d51f328aefdee7a363a3a9362dd82a99aa1"
+        },
+        "verifier_sha256": "65554c7388e53eda1ae851903183192806741f0d97e3f4b9a48c25cc7944b1a3"
+      },
+      "stable": true
+    }
+  ],
+  "existing_first_descriptor_history": {
+    "repository": "MGYamada/Qleisli",
+    "path": "tests/fixtures/authoring_sessions/linked-std-descriptor-v030",
+    "note": "Already retained16-command/API-absence/old-build-record history is not duplicated here; its Git provenance is separate."
+  },
+  "limits": [
+    "Runtime traces retain exact response streams/argv/sources/manifests/results, not per-invocation filesystem effect inventories. The unchanged verifier checked effects in memory; no independent effect replay or whole-process/read attestation.",
+    "Direct CLI invocation/pair counts are not native checker invocation counts. Observed kernel paths/hashes are unpinned, not binary/source authenticity or mathematical evidence.",
+    "Source windows are actual historical working-tree epochs. Later inert archive/doc changes and exclusion of four unrelated user insertions from the proposed index prevent exact tested-commit/package identity claims.",
+    "Derived file-map hashes above identify retained metadata only; full original source/tool contexts are inside original reports.",
+    "No binaries, target/cache outputs or original four unrelated user-file bodies are retained. No product release/version, registry availability, official package/native installation, isolated extraction/full hosted CI or new guarantees are claimed."
+  ]
+}

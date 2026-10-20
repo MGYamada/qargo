@@ -37,13 +37,49 @@ def isolated_config(project, component, work, native_env):
     return environment
 
 
+def require_lint_case(name, fixture, args, json_mode, result, envelope):
+    """Do not count two matching early refusals as source-check equivalence."""
+    if name != "qlinty" or args not in (["src"], ["src", "--deny-warnings"]):
+        return
+    expected = 1 if fixture in ("syntax", "type") else 0
+    require(result.returncode == expected, "Unexpected lint fixture exit: " + fixture)
+    if not json_mode:
+        return
+    require(envelope.get("format") == "qlinty.result" and
+            type(envelope.get("version")) is int and envelope["version"] == 1 and
+            envelope.get("command") == "lint" and
+            envelope.get("outcome") == ("error" if expected else "ok"),
+            "Incorrect lint fixture envelope: " + fixture)
+    payload = envelope.get("result")
+    require(isinstance(payload, dict) and type(payload.get("source_count")) is int and
+            payload["source_count"] == (0 if fixture == "empty" else 1),
+            "Lint fixture did not retain its actual source input: " + fixture)
+    if fixture in ("syntax", "type"):
+        # The retained historical "type" fixture actually calls an absent name.
+        # Require that compiler fault, not an environment/kernel/config refusal.
+        require(payload.get("qleisli_check") == {"status": "failed", "reason": "compiler_error"},
+                "Lint fixture did not reach source checking: " + fixture)
+        diagnostics = envelope.get("diagnostics")
+        require(isinstance(diagnostics, list) and len(diagnostics) == 1 and
+                diagnostics[0].get("category") == "compiler" and
+                diagnostics[0].get("severity") == "error" and
+                diagnostics[0].get("id") == ("parse" if fixture == "syntax" else "unknown_name"),
+                "Lint fixture reached the wrong compiler failure: " + fixture)
+    else:
+        check = {"status": "not_run", "reason": "no_sources"} if fixture == "empty" else {
+            "status": "passed", "reason": None}
+        require(payload.get("qleisli_check") == check and envelope.get("diagnostics") == [],
+                "Lint positive/empty fixture did not reach its specified result: " + fixture)
+
+
 def compare_entrypoints(name, standalone, bundled, work, environment):
     """Compare canonical behavior; normalize only validated executable digests."""
     fixtures = {"empty": None, "valid": "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}",
+                "gate": "pub unitary fn had(q:Q<Bit>)->Q<Bit>{h(q)}",
                 "syntax": "not a module {{{", "type": "pub unitary fn invalid()->Q<Bit>{missing()}"}
     cases = [["--help"], ["--version"], ["--unknown"], [], ["--version", "--version"],
              ["--format=xml"], ["--help", "--version"]]
-    if name == "qlippy":
+    if name == "qlinty":
         cases += [["--list-rules"], ["src"], ["src", "--deny-warnings"]]
     elif name == "qlifmt":
         cases += [["src"], ["src", "--check"], ["src", "--check", "--check"]]
@@ -61,10 +97,14 @@ def compare_entrypoints(name, standalone, bundled, work, environment):
                     (directory / "src").mkdir(parents=True)
                     if content is not None:
                         (directory / "src/smoke.qli").write_text(content)
+                        (directory / "Qlirgo.toml").write_text(
+                            'schema-version = 2\n[qrate]\nname = "extraction-check"\n'
+                            'version = "7.4.0"\nedition = "2026"\n[source]\nroot = "src"\n')
                     command = [str(binary), *args, *(["--format=json"] if json_mode else [])]
                     result = subprocess.run(command, cwd=directory, env=environment, capture_output=True, timeout=60)
                     digest = file_digest(binary)
                     stdout = result.stdout
+                    envelope = None
                     if json_mode:
                         envelope = json.loads(stdout)
                         payload = envelope.get("result") or {}
@@ -72,6 +112,7 @@ def compare_entrypoints(name, standalone, bundled, work, environment):
                         if tool:
                             require(tool["executable_sha256"] == digest, "Invalid actual executable binding")
                         stdout = canonical(envelope)
+                    require_lint_case(name, fixture, args, json_mode, result, envelope)
                     # Default qlidoc output paths also contain the actual tool hash.
                     normalize = lambda data: data.replace(digest.encode(), b"<executable>").replace(digest[7:].encode(), b"<executable-hex>")
                     effects = [(entry["path"].replace(digest[7:], "<executable-hex>"),
@@ -89,7 +130,7 @@ def compare_entrypoints(name, standalone, bundled, work, environment):
 
 
 def verify_relocated(project, component, bundle, work, environment):
-    qargo = bundle / "qargo"
+    qlirgo = bundle / "qlirgo"
     qrate = project / "qrates" / component
     original = {}
     for label in ("original", "relocated"):
@@ -97,7 +138,7 @@ def verify_relocated(project, component, bundle, work, environment):
             qrate = work / "relocated"
             shutil.copytree(project / "qrates" / component, qrate, ignore=shutil.ignore_patterns("target"))
         for command in ("check", "build", "lint", "fmt", "doc"):
-            args = [str(qargo), command, "--manifest-path", str(qrate / "Qargo.toml"), "--format=json"]
+            args = [str(qlirgo), command, "--manifest-path", str(qrate / "Qlirgo.toml"), "--format=json"]
             if command == "fmt":
                 args.append("--check")
             result = subprocess.run(args, env=environment, capture_output=True, check=True)
@@ -110,8 +151,10 @@ def verify_relocated(project, component, bundle, work, environment):
                 require(original[command] == identities, "Relocation changed qrate/source identity")
 
 
-def verify(project, toolchain, bundle, output):
+def verify(project, toolchain, bundle, output, kernel):
     project, toolchain, bundle, output = (path.resolve() for path in (project, toolchain, bundle, output))
+    kernel = kernel.resolve(strict=True)
+    require(not kernel.is_relative_to(project), "Native kernel belongs outside the captured project")
     require(Path(__file__).resolve() == project / "scripts/verify_qrate.py",
             "Run the verifier copied into the captured project")
     require(not output.exists(), "Verification output must not exist")
@@ -121,7 +164,7 @@ def verify(project, toolchain, bundle, output):
     require(not (project / "Cargo.toml").exists(), "Extraction contains a root Cargo manifest")
     audit(project, closure(component), bundle=False)
     audit_vendor(project, component)
-    native, native_env = capture_native(toolchain)
+    native, native_env = capture_native(toolchain, kernel)
     output.mkdir(parents=True)
     (output / "native-inputs.json").write_bytes(canonical(native) + b"\n")
     # A fresh target and empty homes ensure prior caches/configuration cannot
@@ -167,10 +210,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--toolchain", type=Path, required=True, help="Resolved Rust sysroot, containing bin/cargo and bin/rustc")
-    parser.add_argument("--bundle-bin", type=Path, required=True, help="Explicit installed bundle for external comparisons/qargo validation")
+    parser.add_argument("--bundle-bin", type=Path, required=True, help="Explicit installed bundle for external comparisons/qlirgo validation")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--qleisli-kernel", type=Path, required=True, help="Explicit already-built matching native executable outside the captured project")
     args = parser.parse_args()
-    verify(args.project, args.toolchain, args.bundle_bin, args.output)
+    verify(args.project, args.toolchain, args.bundle_bin, args.output, args.qleisli_kernel)
 
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ use std::os::unix::fs::symlink;
 use std::path::Path;
 use std::process::Command;
 
-use qargo_tools::snapshot::{Files, digest_files, digest_path};
+use qlirgo_tools::snapshot::{Files, digest_files, digest_path};
 use serde_json::{Value, json};
 
 fn quote(path: &Path) -> String {
@@ -17,7 +17,7 @@ fn empty_qrate(root: &Path) {
     for name in ["src", "tests", "docs"] {
         fs::create_dir(root.join(name)).unwrap();
     }
-    fs::write(root.join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.0\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+    fs::write(root.join("Qlirgo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.0\"\nedition=\"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
 }
 
 #[test]
@@ -35,10 +35,10 @@ fn explicit_sibling_and_path_selection_share_the_same_captured_object_contract()
         if tools != host {
             fs::create_dir(&tools).unwrap();
         }
-        let qargo = host.join("qargo");
-        fs::copy(env!("CARGO_BIN_EXE_qargo"), &qargo).unwrap();
+        let qlirgo = host.join("qlirgo");
+        fs::copy(env!("CARGO_BIN_EXE_qlirgo"), &qlirgo).unwrap();
         for (name, binary) in [
-            ("qlippy", env!("CARGO_BIN_EXE_qlippy")),
+            ("qlinty", env!("CARGO_BIN_EXE_qlinty")),
             ("qlifmt", env!("CARGO_BIN_EXE_qlifmt")),
             ("qlidoc", env!("CARGO_BIN_EXE_qlidoc")),
         ] {
@@ -47,8 +47,8 @@ fn explicit_sibling_and_path_selection_share_the_same_captured_object_contract()
             fs::rename(tools.join(name), tools.join(&target)).unwrap();
             symlink(target, tools.join(name)).unwrap();
         }
-        for (operation, name) in [("lint", "qlippy"), ("fmt", "qlifmt"), ("doc", "qlidoc")] {
-            let mut command = Command::new(&qargo);
+        for (operation, name) in [("lint", "qlinty"), ("fmt", "qlifmt"), ("doc", "qlidoc")] {
+            let mut command = Command::new(&qlirgo);
             command
                 .current_dir(root.path())
                 .arg(operation)
@@ -73,7 +73,7 @@ fn explicit_sibling_and_path_selection_share_the_same_captured_object_contract()
             );
             assert_eq!(
                 report["result"]["orchestrator"]["executable_sha256"],
-                digest_path(&qargo).unwrap()
+                digest_path(&qlirgo).unwrap()
             );
         }
     }
@@ -84,33 +84,33 @@ fn replacing_the_host_path_never_reports_the_replacement_digest() {
     let root = tempfile::tempdir().unwrap();
     let sources = root.path().join("src");
     fs::create_dir(&sources).unwrap();
-    let qargo = root.path().join("qargo");
-    let original = root.path().join("running-qargo");
-    fs::copy(env!("CARGO_BIN_EXE_qargo"), &qargo).unwrap();
-    let expected = digest_path(&qargo).unwrap();
+    let qlirgo = root.path().join("qlirgo");
+    let original = root.path().join("running-qlirgo");
+    fs::copy(env!("CARGO_BIN_EXE_qlirgo"), &qlirgo).unwrap();
+    let expected = digest_path(&qlirgo).unwrap();
     let tool = root.path().join("tool");
     let response = root.path().join("response.json");
     fs::write(
         &tool,
         format!(
             "#!/bin/sh\n/bin/mv {} {}\n/bin/cp /usr/bin/true {}\n/bin/cat {}\n",
-            quote(&qargo),
+            quote(&qlirgo),
             quote(&original),
-            quote(&qargo),
+            quote(&qlirgo),
             quote(&response)
         ),
     )
     .unwrap();
     fs::set_permissions(&tool, fs::Permissions::from_mode(0o700)).unwrap();
-    let report = json!({"format":"qlippy.result","version":1,"command":"lint","outcome":"ok","diagnostics":[],"result":{
+    let report = json!({"format":"qlinty.result","version":1,"command":"lint","outcome":"ok","diagnostics":[],"result":{
         "source_count":0,"source_id":digest_files("qleisli.source.v1", &Files::new()),
         "qleisli_check":{"status":"not_run","reason":"no_sources"},
-        "tool":{"name":"qlippy","version":qargo_tools::VERSION,"executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"}}});
+        "tool":{"name":"qlinty","version":qlirgo_tools::VERSION,"executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"}}});
     fs::write(&response, serde_json::to_vec(&report).unwrap()).unwrap();
-    let output = Command::new(&qargo)
+    let output = Command::new(&qlirgo)
         .arg("lint")
         .arg(&sources)
-        .arg(format!("--qlippy={}", tool.display()))
+        .arg(format!("--qlinty={}", tool.display()))
         .arg("--format=json")
         .output()
         .unwrap();
@@ -130,7 +130,7 @@ fn replacing_the_host_path_never_reports_the_replacement_digest() {
         assert!(result["result"].is_null());
     }
     assert_eq!(digest_path(&original).unwrap(), expected);
-    assert_ne!(digest_path(&qargo).unwrap(), expected);
+    assert_ne!(digest_path(&qlirgo).unwrap(), expected);
 }
 
 #[cfg(target_os = "macos")]
@@ -142,19 +142,19 @@ fn a_rejected_host_identity_prevents_an_otherwise_valid_format_write() {
     let original_bytes = b"pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
     fs::write(sources.join("module.qli"), original_bytes).unwrap();
     let inputs = Files::from([("module.qli".into(), original_bytes.to_vec())]);
-    let formatted = qargo_tools::qlifmt_engine::format_files(&inputs).unwrap();
+    let formatted = qlirgo_tools::qlifmt_engine::format_files(&inputs).unwrap();
     assert_ne!(inputs, formatted);
     let candidate = root.path().join("formatted.qli");
     fs::write(&candidate, &formatted["module.qli"]).unwrap();
 
-    let qargo = root.path().join("qargo");
-    fs::copy(env!("CARGO_BIN_EXE_qargo"), &qargo).unwrap();
+    let qlirgo = root.path().join("qlirgo");
+    fs::copy(env!("CARGO_BIN_EXE_qlirgo"), &qlirgo).unwrap();
     let tool = root.path().join("formatter");
     let response = root.path().join("response.json");
     fs::write(&tool, format!(
         "#!/bin/sh\n/bin/cp {} \"$1/module.qli\"\n/bin/mv {} {}\n/bin/cp /usr/bin/true {}\n/bin/cat {}\n",
-        quote(&candidate), quote(&qargo), quote(&root.path().join("running-qargo")),
-        quote(&qargo), quote(&response),
+        quote(&candidate), quote(&qlirgo), quote(&root.path().join("running-qlirgo")),
+        quote(&qlirgo), quote(&response),
     )).unwrap();
     fs::set_permissions(&tool, fs::Permissions::from_mode(0o700)).unwrap();
     fs::write(&response, serde_json::to_vec(&json!({
@@ -162,13 +162,13 @@ fn a_rejected_host_identity_prevents_an_otherwise_valid_format_write() {
         "result":{
             "source_count":1,"source_id":digest_files("qleisli.source.v1", &inputs),
             "qleisli_check":{"status":"not_run","reason":"syntax_only"},
-            "tool":{"name":"qlifmt","version":qargo_tools::VERSION,
-                "executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.2.1","profile":"finite-v0"},
+            "tool":{"name":"qlifmt","version":qlirgo_tools::VERSION,
+                "executable_sha256":digest_path(&tool).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"},
             "formatted_source_id":digest_files("qleisli.source.v1", &formatted),
             "changed_files":["module.qli"],"updated_files":["module.qli"],"check":false,"diff":""
         }
     })).unwrap()).unwrap();
-    let output = Command::new(qargo)
+    let output = Command::new(qlirgo)
         .arg("fmt")
         .arg(&sources)
         .arg(format!("--qlifmt={}", tool.display()))

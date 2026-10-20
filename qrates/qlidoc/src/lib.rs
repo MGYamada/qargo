@@ -10,9 +10,9 @@ use qleisli::frontend::ast::{Decl, FnBody};
 use qleisli::frontend::documentation::DocComment;
 use qleisli::frontend::lexer::{Token, TokenKind, lex};
 use qleisli::frontend::parser::parse_documented_module;
-use qlippy_engine::support::report::{Diagnostic, Report, path_argument, tool_info};
-use qlippy_engine::support::snapshot::{Files, portable_relative};
-use qlippy_engine::support::source::{capture_source, parse_diagnostic, syntax_step};
+use qlinty_engine::support::report::{Diagnostic, Report, path_argument, tool_info};
+use qlinty_engine::support::snapshot::{Files, portable_relative};
+use qlinty_engine::support::source::{capture_source, parse_diagnostic, syntax_step};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 
@@ -223,9 +223,12 @@ fn render_comments(output: &mut String, comments: &[DocComment]) {
 
 fn render_signature(output: &mut String, source: &str, decl: &Decl, tokens: &[Token]) {
     let end = match &decl.body {
-        FnBody::Meaning { .. } => decl.span.end,
+        FnBody::Meaning { .. }
+        | FnBody::MeaningReference { .. }
+        | FnBody::MeaningCompose { .. }
+        | FnBody::MeaningTensor { .. } => decl.span.end,
         FnBody::Quantum(block) => block.span.start,
-        FnBody::Basis(_) => tokens
+        FnBody::Natural(_) | FnBody::Basis(_) => tokens
             .iter()
             .find(|token| {
                 token.span.start >= decl.return_type.span.end
@@ -282,6 +285,27 @@ pub fn render_files(files: &Files, include_private: bool) -> Result<Files, Diagn
         let mut page = format!("# Module {}\n\n{DISCLAIMER}", markdown_text(&module));
         render_comments(&mut page, &documented.module_docs);
         let mut visible = 0;
+        if documented.syntax.no_implicit_prelude {
+            page.push_str("Implicit prelude: disabled.\n\n");
+        }
+        for (usage, docs) in documented.syntax.uses.iter().zip(&documented.import_docs) {
+            if !usage.public {
+                continue;
+            }
+            let name = usage.path.last().expect("parsed public import");
+            let path = usage
+                .path
+                .iter()
+                .map(|part| part.text.as_str())
+                .collect::<Vec<_>>()
+                .join("::");
+            visible += 1;
+            page.push_str(&format!(
+                "## {} (public reexport)\n\n```qli\npub use {path};\n```\n\n",
+                markdown_text(&name.text)
+            ));
+            render_comments(&mut page, docs);
+        }
         for (decl, docs) in documented
             .syntax
             .decls
@@ -310,7 +334,7 @@ pub fn render_files(files: &Files, include_private: bool) -> Result<Files, Diagn
 }
 
 fn absolute_normalized(path: &Path) -> Result<PathBuf, Diagnostic> {
-    qlippy_engine::support::publication::absolute_normalized(path)
+    qlinty_engine::support::publication::absolute_normalized(path)
         .map_err(|error| output_error(error.to_string()))
 }
 
@@ -379,17 +403,17 @@ fn reject_input_overlap(input: &Path, output: &Path) -> Result<(), Diagnostic> {
 
 /// Atomically publish a complete output directory, reusing only byte-identical artifacts.
 pub fn publish(output: &Path, files: &Files) -> Result<(), Diagnostic> {
-    qlippy_engine::support::publication::publish(output, files, &std::collections::BTreeSet::new())
+    qlinty_engine::support::publication::publish(output, files, &std::collections::BTreeSet::new())
         .map_err(publication_error)
 }
 
 /// Publish below the retained qrate directory, never a replacement at its old path.
 pub fn publish_at(
-    root: &qlippy_engine::support::snapshot::InputDirectory,
+    root: &qlinty_engine::support::snapshot::InputDirectory,
     output: &Path,
     files: &Files,
 ) -> Result<(), Diagnostic> {
-    qlippy_engine::support::publication::publish_at(
+    qlinty_engine::support::publication::publish_at(
         root,
         output,
         files,
@@ -398,13 +422,57 @@ pub fn publish_at(
     .map_err(publication_error)
 }
 
-fn publication_error(error: qlippy_engine::support::publication::PublicationError) -> Diagnostic {
+fn publication_error(error: qlinty_engine::support::publication::PublicationError) -> Diagnostic {
     match error {
-        qlippy_engine::support::publication::PublicationError::Mismatch => Diagnostic::error(
+        qlinty_engine::support::publication::PublicationError::Mismatch => Diagnostic::error(
             "artifact_mismatch",
             "tool",
             "Existing documentation artifacts are inconsistent; nothing was overwritten.",
         ),
         error => output_error(error.to_string()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn current_body_forms_render_original_signatures_without_evaluation() {
+        let source = r#"pub static fn width[const n: Nat]() -> Nat { n + 1 }
+pub classical fn flip(x: Bit) -> Bit { not x }
+pub meaning original: Bit = permutation_by(flip);
+pub meaning reference_target: Bit = reference(provider);
+pub meaning composition_target: Bit = compose(original, reference_target);
+pub meaning tensor_target: (Bit, Bit) = tensor(original, reference_target);
+fn hidden(q: Q<Bit>) -> Q<Bit> { q }
+"#
+        .replace('\n', "\r\n");
+        let files = Files::from([("module.qli".into(), source.into_bytes())]);
+        let pages = render_files(&files, false).unwrap();
+        let page = std::str::from_utf8(&pages["modules/module.md"]).unwrap();
+        for signature in [
+            "pub static fn width[const n: Nat]() -> Nat",
+            "pub classical fn flip(x: Bit) -> Bit",
+            "pub meaning original: Bit = permutation_by(flip);",
+            "pub meaning reference_target: Bit = reference(provider);",
+            "pub meaning composition_target: Bit = compose(original, reference_target);",
+            "pub meaning tensor_target: (Bit, Bit) = tensor(original, reference_target);",
+        ] {
+            assert!(
+                page.contains(&format!("```qli\n{signature}\n```")),
+                "{signature}"
+            );
+        }
+        assert!(page.contains(DISCLAIMER));
+        assert!(!page.contains("{ n + 1 }"));
+        assert!(!page.contains("{ not x }"));
+        assert!(!page.contains("hidden"));
+        assert!(!page.contains('\r'));
+        let all = render_files(&files, true).unwrap();
+        let all_page = std::str::from_utf8(&all["modules/module.md"]).unwrap();
+        assert!(all_page.contains("## hidden (private)"));
+        assert!(all_page.contains("```qli\nfn hidden(q: Q<Bit>) -> Q<Bit>\n```"));
+        // provider is intentionally unresolved: rendering is syntax-only.
     }
 }

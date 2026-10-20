@@ -1,4 +1,4 @@
-name: Standard Qleisli bundle and qargo boundaries
+name: Standard Qleisli bundle and qlirgo boundaries
 
 on:
   push:
@@ -23,6 +23,32 @@ jobs:
         run: rustup toolchain install ${{ matrix.toolchain }} --profile minimal --component clippy --component rustfmt
       - name: Prepare development dependencies
         run: cargo +${{ matrix.toolchain }} fetch --locked
+      - name: Bind the actual registry dependency source
+        shell: bash
+        run: |
+          cargo +${{ matrix.toolchain }} metadata --frozen --format-version=1 --manifest-path=Cargo.toml > "$RUNNER_TEMP/qlirgo-dependencies.json"
+          qleisli_source_root="$(python3 scripts/qleisli_dependency.py --metadata="$RUNNER_TEMP/qlirgo-dependencies.json" --manifest-path=Cargo.toml)"
+          printf 'QLEISLI_SOURCE_ROOT=%s\n' "$qleisli_source_root" >> "$GITHUB_ENV"
+      - name: Copy the bound Lean setup metadata outside captured sources
+        shell: bash
+        run: |
+          mkdir "$RUNNER_TEMP/qlirgo-lean-setup"
+          cp "$QLEISLI_SOURCE_ROOT/lean-kernel/lean-toolchain" "$QLEISLI_SOURCE_ROOT/lean-kernel/lakefile.toml" "$QLEISLI_SOURCE_ROOT/lean-kernel/lake-manifest.json" "$RUNNER_TEMP/qlirgo-lean-setup/"
+      - name: Prepare the actual dependency's pinned Lean toolchain
+        uses: leanprover/lean-action@50fcf42d2e460296f1a34b402e990d1b24f8b596
+        with:
+          lake-package-directory: ${{ runner.temp }}/qlirgo-lean-setup
+          auto-config: 'false'
+          build: 'false'
+          test: 'false'
+          lint: 'false'
+          use-github-cache: 'false'
+          use-mathlib-cache: 'false'
+      - name: Build and audit the explicitly associated native checker
+        shell: bash
+        run: |
+          python3 "$QLEISLI_SOURCE_ROOT/scripts/package_lean_kernel.py" --validation full --output "$RUNNER_TEMP/qlirgo-native-kernel"
+          printf 'QLEISLI_KERNEL=%s\n' "$RUNNER_TEMP/qlirgo-native-kernel/bin/qleisli-kernel" >> "$GITHUB_ENV"
       - name: Check formatting
         if: matrix.toolchain == 'stable'
         run: cargo +${{ matrix.toolchain }} fmt --all --check
@@ -30,6 +56,8 @@ jobs:
         run: |
           python3 scripts/test_install.py
           python3 scripts/test_distribution.py
+          python3 scripts/test_qleisli_dependency.py
+          python3 scripts/test_verify_release.py
           python3 scripts/test_qrate_project.py
           python3 scripts/qrate_project.py
       - name: Test all three engines and integration boundaries
@@ -45,20 +73,34 @@ jobs:
       - name: Build four executables and verify the source archive
         shell: bash
         run: |
-          release_source_dir="$RUNNER_TEMP/qargo-source"
+          release_source_dir="$RUNNER_TEMP/qlirgo-source"
           mkdir -p "$release_source_dir"
           git archive --format=tar HEAD | tar -x -C "$release_source_dir"
           cargo +${{ matrix.toolchain }} fetch --locked --manifest-path="$release_source_dir/Cargo.toml"
           cargo +${{ matrix.toolchain }} build --release --frozen --bins --manifest-path="$release_source_dir/Cargo.toml"
-          python3 "$release_source_dir/scripts/verify_release.py" --source-root="$release_source_dir" --bin-dir="$release_source_dir/target/release"
+          cargo +${{ matrix.toolchain }} metadata --frozen --format-version=1 --manifest-path="$release_source_dir/Cargo.toml" > "$RUNNER_TEMP/archive-dependencies.json"
+          python3 scripts/qleisli_dependency.py --metadata="$RUNNER_TEMP/archive-dependencies.json" --manifest-path="$release_source_dir/Cargo.toml" --require-source-root="$QLEISLI_SOURCE_ROOT"
+          python3 "$release_source_dir/scripts/verify_release.py" --source-root="$release_source_dir" --bin-dir="$release_source_dir/target/release" --qleisli-source-root="$QLEISLI_SOURCE_ROOT"
       - name: Verify crates.io packaging and installation
         shell: bash
         run: |
-          release_source_dir="$RUNNER_TEMP/qargo-source"
-          package_install_dir="$RUNNER_TEMP/qargo-install"
-          package_extract_dir="$RUNNER_TEMP/qargo-package"
-          cargo +${{ matrix.toolchain }} package --locked -p qargo --manifest-path="$release_source_dir/Cargo.toml"
+          release_source_dir="$RUNNER_TEMP/qlirgo-source"
+          package_install_dir="$RUNNER_TEMP/qlirgo-install"
+          package_extract_dir="$RUNNER_TEMP/qlirgo-package"
+          release_version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
+          cargo +${{ matrix.toolchain }} package --locked -p qlirgo --manifest-path="$release_source_dir/Cargo.toml"
           mkdir -p "$package_extract_dir"
-          tar -xzf "$release_source_dir/target/package/qargo-0.1.9.crate" -C "$package_extract_dir"
-          cargo +${{ matrix.toolchain }} install --locked --path "$package_extract_dir/qargo-0.1.9" --bins --root "$package_install_dir"
-          python3 "$release_source_dir/scripts/verify_package.py" --source-root="$release_source_dir" --crate="$release_source_dir/target/package/qargo-0.1.9.crate" --bin-dir="$package_install_dir/bin"
+          tar -xzf "$release_source_dir/target/package/qlirgo-$release_version.crate" -C "$package_extract_dir"
+          cargo +${{ matrix.toolchain }} install --locked --path "$package_extract_dir/qlirgo-$release_version" --bins --root "$package_install_dir"
+          cargo +${{ matrix.toolchain }} metadata --frozen --format-version=1 --manifest-path="$package_extract_dir/qlirgo-$release_version/Cargo.toml" > "$RUNNER_TEMP/package-dependencies.json"
+          python3 scripts/qleisli_dependency.py --metadata="$RUNNER_TEMP/package-dependencies.json" --manifest-path="$package_extract_dir/qlirgo-$release_version/Cargo.toml" --require-source-root="$QLEISLI_SOURCE_ROOT"
+          python3 "$release_source_dir/scripts/verify_package.py" --source-root="$release_source_dir" --crate="$release_source_dir/target/package/qlirgo-$release_version.crate" --bin-dir="$package_install_dir/bin" --qleisli-source-root="$QLEISLI_SOURCE_ROOT"
+      - name: Retain actual dependency associations and native preparation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        if: always()
+        with:
+          name: linked-inputs-${{ matrix.os }}-${{ matrix.toolchain }}
+          path: |
+            ${{ runner.temp }}/*-dependencies.json
+            ${{ runner.temp }}/qlirgo-native-kernel/manifest.json
+          if-no-files-found: error

@@ -1,0 +1,831 @@
+{
+  "status": "local beta preparation verified; publication blocked by absent exact registry dependency",
+  "verified_at": "2026-10-20T11:31:30.008809+00:00",
+  "branch": "codex/qlirgo-rename",
+  "implementation_commit": "15d311249e8d63218e46266eab4ecb024d3955fd",
+  "base_commit": "15cf009a95f7712e3b8e9c1f163f77f97a501ba4",
+  "product_version": "0.2.0-beta",
+  "bundled_qrate_version": "0.2.0",
+  "documentation": "https://docs.rs/qlirgo/0.2.0-beta",
+  "full_version_tool_compatibility_required": true,
+  "host": "macOS 27.0.1 (26A434), ARM64",
+  "development_build_profile": {
+    "opt_level": 1,
+    "debug_information": 0,
+    "incremental": false
+  },
+  "explicit_local_qleisli_override": "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+  "development_dependency_bindings": [
+    {
+      "caller": "root",
+      "manifest": "/Users/masa/git/Qleisli/Cargo.toml",
+      "version": "0.3.0-beta",
+      "source": null
+    },
+    {
+      "caller": "qlinty",
+      "manifest": "/Users/masa/git/Qleisli/Cargo.toml",
+      "version": "0.3.0-beta",
+      "source": null
+    },
+    {
+      "caller": "qlifmt",
+      "manifest": "/Users/masa/git/Qleisli/Cargo.toml",
+      "version": "0.3.0-beta",
+      "source": null
+    },
+    {
+      "caller": "qlidoc",
+      "manifest": "/Users/masa/git/Qleisli/Cargo.toml",
+      "version": "0.3.0-beta",
+      "source": null
+    }
+  ],
+  "qleisli_source_head_observed": "dbe40dd72b9fde2b2317e99ad3dc283b83990c9c",
+  "native_checker": {
+    "path": "/Users/masa/git/Qleisli/lean-kernel/.lake/build/bin/qleisli-kernel",
+    "sha256": "23d2567e1591ec4779fc99e0b4739c799790c03c03936be47e47d458aab31755"
+  },
+  "toolchain_checks": [
+    {
+      "toolchain": "stable",
+      "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+      "components": {
+        "root": {
+          "tests_passed": 189,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlinty": {
+          "tests_passed": 62,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlifmt": {
+          "tests_passed": 18,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlidoc": {
+          "tests_passed": 21,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        }
+      },
+      "commands": [
+        {
+          "name": "root-tests",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--workspace",
+            "--all-targets",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 77.62,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-root-tests.log"
+        },
+        {
+          "name": "root-doctests",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--doc",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 1.16,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-root-doctests.log"
+        },
+        {
+          "name": "root-clippy",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 1.59,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-root-clippy.log"
+        },
+        {
+          "name": "root-rustdoc",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "doc",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--no-deps",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 1.33,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-root-rustdoc.log"
+        },
+        {
+          "name": "qlinty-tests",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlinty/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 14.48,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlinty-tests.log"
+        },
+        {
+          "name": "qlinty-doctests",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--doc",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlinty/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 0.36,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlinty-doctests.log"
+        },
+        {
+          "name": "qlinty-clippy",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlinty/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 0.69,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlinty-clippy.log"
+        },
+        {
+          "name": "qlinty-rustdoc",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "doc",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--no-deps",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlinty/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 0.92,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlinty-rustdoc.log"
+        },
+        {
+          "name": "qlifmt-tests",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlifmt/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 3.03,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlifmt-tests.log"
+        },
+        {
+          "name": "qlifmt-doctests",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--doc",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlifmt/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 0.3,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlifmt-doctests.log"
+        },
+        {
+          "name": "qlifmt-clippy",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlifmt/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 0.75,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlifmt-clippy.log"
+        },
+        {
+          "name": "qlifmt-rustdoc",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "doc",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--no-deps",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlifmt/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 1.01,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlifmt-rustdoc.log"
+        },
+        {
+          "name": "qlidoc-tests",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlidoc/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 2.29,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlidoc-tests.log"
+        },
+        {
+          "name": "qlidoc-doctests",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--doc",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlidoc/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 0.28,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlidoc-doctests.log"
+        },
+        {
+          "name": "qlidoc-clippy",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlidoc/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 0.48,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlidoc-clippy.log"
+        },
+        {
+          "name": "qlidoc-rustdoc",
+          "argv": [
+            "rustup",
+            "run",
+            "stable",
+            "cargo",
+            "doc",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--no-deps",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlidoc/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-stable"
+          ],
+          "exit_code": 0,
+          "seconds": 0.85,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/stable-qlidoc-rustdoc.log"
+        }
+      ]
+    },
+    {
+      "toolchain": "1.85.0",
+      "rustc": "rustc 1.85.0 (4d91de4e4 2025-02-17)",
+      "components": {
+        "root": {
+          "tests_passed": 189,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlinty": {
+          "tests_passed": 62,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlifmt": {
+          "tests_passed": 18,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        },
+        "qlidoc": {
+          "tests_passed": 21,
+          "doctests_passed": true,
+          "clippy_warnings_denied_passed": true,
+          "rustdoc_warnings_denied_passed": true
+        }
+      },
+      "commands": [
+        {
+          "name": "root-tests",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--workspace",
+            "--all-targets",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 78.07,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-root-tests.log"
+        },
+        {
+          "name": "root-doctests",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--doc",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 0.54,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-root-doctests.log"
+        },
+        {
+          "name": "root-clippy",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 1.18,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-root-clippy.log"
+        },
+        {
+          "name": "root-rustdoc",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "doc",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--no-deps",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 1.48,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-root-rustdoc.log"
+        },
+        {
+          "name": "qlinty-tests",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlinty/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 14.64,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlinty-tests.log"
+        },
+        {
+          "name": "qlinty-doctests",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--doc",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlinty/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 0.39,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlinty-doctests.log"
+        },
+        {
+          "name": "qlinty-clippy",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlinty/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 0.76,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlinty-clippy.log"
+        },
+        {
+          "name": "qlinty-rustdoc",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "doc",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--no-deps",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlinty/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 0.92,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlinty-rustdoc.log"
+        },
+        {
+          "name": "qlifmt-tests",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlifmt/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 3.0,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlifmt-tests.log"
+        },
+        {
+          "name": "qlifmt-doctests",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--doc",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlifmt/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 0.35,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlifmt-doctests.log"
+        },
+        {
+          "name": "qlifmt-clippy",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlifmt/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 0.78,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlifmt-clippy.log"
+        },
+        {
+          "name": "qlifmt-rustdoc",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "doc",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--no-deps",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlifmt/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 0.86,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlifmt-rustdoc.log"
+        },
+        {
+          "name": "qlidoc-tests",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlidoc/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 2.39,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlidoc-tests.log"
+        },
+        {
+          "name": "qlidoc-doctests",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "test",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--doc",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlidoc/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 0.34,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlidoc-doctests.log"
+        },
+        {
+          "name": "qlidoc-clippy",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "clippy",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--all-targets",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlidoc/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit_code": 0,
+          "seconds": 0.55,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlidoc-clippy.log"
+        },
+        {
+          "name": "qlidoc-rustdoc",
+          "argv": [
+            "rustup",
+            "run",
+            "1.85.0",
+            "cargo",
+            "doc",
+            "--config",
+            "patch.crates-io.qleisli.path=\"/Users/masa/git/Qleisli\"",
+            "--no-deps",
+            "--manifest-path=/Users/masa/.codex/worktrees/qlirgo-rename/qargo/rust/qlidoc/Cargo.toml",
+            "--offline",
+            "--locked",
+            "--target-dir=/private/tmp/qlirgo-rename-mpqg8vtj/verified-msrv"
+          ],
+          "exit_code": 0,
+          "seconds": 0.87,
+          "log": "/private/tmp/qlirgo-beta-ej26tmf9/msrv-qlidoc-rustdoc.log"
+        }
+      ]
+    }
+  ],
+  "formatting_all_four_cargo_manifests_passed": true,
+  "python_tests_passed": {
+    "install": 25,
+    "distribution": 15,
+    "dependency": 12,
+    "release": 20,
+    "project": 25
+  },
+  "component_dependency_and_wiring_audit_passed": true,
+  "all_workflow_yaml_and_embedded_bash_syntax_passed": true,
+  "package_file_list_and_metadata_only_passed": true,
+  "registry_package_build_verification_passed": false,
+  "transitional_manifest_pairs_identical": true,
+  "developer_source_copy_install": {
+    "path": "/private/tmp/qlirgo-beta-ej26tmf9/developer-source",
+    "private_rust_workspaces_present": false,
+    "fresh_install_passed": true,
+    "install_profile": "debug optimized level 1; explicit local dependency override",
+    "compiled_rust_sources_and_root_manifests_equal_implementation_commit": true,
+    "actual_checker_runtime_verifier_passed": true,
+    "binary_sha256": {
+      "qlirgo": "6f8bb34a69e78b43367a38cae59a244b93e786f96a87baa4917147f2ceba15bc",
+      "qlinty": "e9b51606f827cbdef535bebb9519dadd4903ebbabfd9e0ff179240ddfbfb3507",
+      "qlifmt": "f9a0d907443556dac47040500353fdafb2b2c61dee3d871a4705346e296656c1",
+      "qlidoc": "2c1fabf4ae6627630e3bc38549ada89531e43c97986bbec21dd4e1a193d7200f"
+    }
+  },
+  "registry_prerequisite": {
+    "url": "https://crates.io/api/v1/crates/qleisli/0.3.0-beta",
+    "http_status": 404,
+    "response": {
+      "errors": [
+        {
+          "detail": "crate `qleisli` does not have a version `0.3.0-beta`"
+        }
+      ]
+    },
+    "observation_time_from_response_headers": "2026-10-20T11:27:12Z"
+  },
+  "worktree_references_repaired": true,
+  "primary_head_and_uncommitted_diff_preserved": true,
+  "primary_uncommitted_diff_sha256": "f31669906bbf4d3bc6ef7ef9c3e9a87e9417099982a6919f958021c50aa52cfb",
+  "legacy_release_head_preserved": "45ef673758d4fb84c628f7ccec443435407c8f29",
+  "historical_fixed_fixtures_and_changelog_preserved": true,
+  "previous_rename_validation_record_preserved": true,
+  "github_writes_performed": false,
+  "publication_performed": false,
+  "pending_release_gates": [
+    "Official exact qleisli 0.3.0-beta registry package and registry-resolved root/component locks without source overrides",
+    "Build-verified cargo package, extracted-package install and publish dry-run",
+    "Normal Linux/macOS x Rust 1.85/stable CI on the final publication commit",
+    "Three-component Linux/macOS x Rust 1.85/stable independent extraction matrix",
+    "Linux x86_64 and macOS x86_64/ARM64 native archive, installation and five-asset validation",
+    "Ownership/version recheck, crate publication/download SHA-256/fresh registry install/docs validation, then same-candidate GitHub prerelease with latest=false",
+    "Published-host validation and immutable publication evidence"
+  ],
+  "scope": "Local development observations with explicit source substitution; not registry resolution, full host/extraction release validation, or binary/source attestation. This preparation commit is not a publication-ready candidate.",
+  "raw_evidence_directory": "/private/tmp/qlirgo-beta-ej26tmf9"
+}

@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use qlidoc_engine::{publish, render_files, run};
-use qlippy_engine::support::snapshot::{Files, digest_path};
+use qlinty_engine::support::snapshot::{Files, digest_path};
 use serde_json::Value;
 
 fn sources(label: &str, source: &str) -> Files {
@@ -30,6 +30,22 @@ fn command_args(input: &Path, output: &Path) -> Vec<OsString> {
     ]
 }
 
+#[test]
+fn public_reexports_retain_paths_comments_and_explicit_prelude_mode() {
+    let input = sources(
+        "facade.qli",
+        "//! Facade\n#![no_implicit_prelude]\n//! Explicit lookup\n/// Public gate\npub use std::gate::{x,z};\nuse std::state::init0;",
+    );
+    let rendered = render_files(&input, false).unwrap();
+    let text = page(&rendered, "modules/facade.md");
+    assert!(text.contains("Implicit prelude: disabled."));
+    for name in ["x", "z"] {
+        assert!(text.contains(&format!("{name} (public reexport)")));
+        assert!(text.contains(&format!("pub use std::gate::{name};")));
+    }
+    assert!(text.contains("Public gate") && text.contains("Explicit lookup"));
+    assert!(!text.contains("init0") && !text.contains("No visible declarations."));
+}
 #[test]
 fn output_paths_accept_both_forms_and_reject_missing_or_repeated_values() {
     let (_temp, root) = canonical_temp();
@@ -91,30 +107,30 @@ fn public_default_and_private_option_preserve_all_module_pages() {
 fn signatures_retain_static_parameters_constraints_and_meaning_bindings() {
     let input = sources(
         "api.qli",
-        "pub meaning M:Bit=permutation_by(flip);\npub unitary fn apply[static U:Op<Bit,M>](q:Q<Bit>)->Q<Bit> requires Apply(U), Adjoint(U), Controlled(U) {U(q)}\npub basis fn flip(b:Bit)->Bit{not b}",
+        "pub meaning M:Bit=permutation_by(flip);\npub unitary fn apply[const U:Op<Bit,M>](q:Q<Bit>)->Q<Bit> requires Applicable(U), Adjointable(U), Controllable(U) {U(q)}\npub classical fn flip(b:Bit)->Bit{not b}",
     );
     let output = render_files(&input, false).unwrap();
     let text = page(&output, "modules/api.md");
     assert!(text.contains("pub meaning M:Bit=permutation_by(flip);"));
-    assert!(text.contains("[static U:Op<Bit,M>]"));
-    assert!(text.contains("requires Apply(U), Adjoint(U), Controlled(U)"));
+    assert!(text.contains("[const U:Op<Bit,M>]"));
+    assert!(text.contains("requires Applicable(U), Adjointable(U), Controllable(U)"));
     assert!(!text.contains("{U(q)}"));
-    assert!(text.contains("pub basis fn flip(b:Bit)->Bit\n```"));
+    assert!(text.contains("pub classical fn flip(b:Bit)->Bit\n```"));
 }
 
 #[test]
 fn every_declaration_kind_and_signature_comment_is_documented() {
     let input = sources(
         "kinds.qli",
-        "pub meaning P:Bit=phase_by(phase);\npub basis fn phase(b:Bit)->Bit /* { comment } */ {b}\npub iso fn isometry(q:Q<Bit>)->Q<Bit>{q}\npub unitary fn unit(q:Q<Bit>)->Q<Bit>{q}\npub observe fn measurement(q:Q<Bit>)->CBit{true}",
+        "pub meaning P:Bit=phase_by(phase);\npub classical fn phase(b:Bit)->Bit /* { comment } */ {b}\npub isometry fn preparation(q:Q<Bit>)->Q<Bit>{q}\npub unitary fn unit(q:Q<Bit>)->Q<Bit>{q}\npub observe fn measurement(q:Q<Bit>)->Bit{1}",
     );
     let output = render_files(&input, false).unwrap();
     let text = page(&output, "modules/kinds.md");
-    for name in ["P", "phase", "isometry", "unit", "measurement"] {
+    for name in ["P", "phase", "preparation", "unit", "measurement"] {
         assert!(text.contains(&format!("## {name} (public)")));
     }
-    assert!(text.contains("pub basis fn phase(b:Bit)->Bit /* { comment } */\n```"));
-    assert!(!text.contains("{true}"));
+    assert!(text.contains("pub classical fn phase(b:Bit)->Bit /* { comment } */\n```"));
+    assert!(!text.contains("{1}"));
 }
 
 #[test]
@@ -169,7 +185,7 @@ fn parse_failures_preserve_original_utf8_coordinates_and_do_not_publish() {
     assert_eq!(result["qleisli_check"]["reason"], "syntax_only");
     assert!(result["artifact_path"].is_null());
     assert_eq!(result["files"], serde_json::json!([]));
-    assert_eq!(result["tool"]["version"], "0.1.9");
+    assert_eq!(result["tool"]["version"], env!("CARGO_PKG_VERSION"));
     let location = report.envelope.diagnostics[0].primary.as_ref().unwrap();
     assert_eq!(location.path, "invalid.qli");
     assert_eq!((location.line, location.column), (2, 1));
@@ -429,8 +445,8 @@ fn cli_is_one_json_envelope_with_portable_relative_paths_and_usage_exit_codes() 
         .unwrap();
     assert!(version.status.success());
     let version: Value = serde_json::from_slice(&version.stdout).unwrap();
-    assert_eq!(version["result"]["version"], "0.1.9");
-    assert_eq!(version["result"]["qleisli_version"], "0.2.1");
+    assert_eq!(version["result"]["version"], env!("CARGO_PKG_VERSION"));
+    assert_eq!(version["result"]["qleisli_version"], "0.3.0-beta");
     for args in [
         vec!["--format=json"],
         vec!["", "--format=json"],

@@ -11,7 +11,7 @@ and on-demand verification implement this contract. See [development instruction
 Make each bundled qrate independently extractable together with its complete Rust
 development environment. The extracted project must build and verify its Rust
 implementation and manage its Qleisli sources without access to the original
-qargo repository. Cargo configuration, locked dependencies, CLI targets, tests,
+qlirgo repository. Cargo configuration, locked dependencies, CLI targets, tests,
 licenses, toolchain configuration, and verification instructions must move with
 the component.
 
@@ -19,18 +19,21 @@ Actual repository creation and publication are separate future operations.
 
 ## Ownership and version boundaries
 
-- Each `Qargo.toml` owns its qrate name, version, Qleisli edition, and inputs.
+- Each `Qlirgo.toml` owns its qrate name, version, Qleisli edition, and inputs.
 - Each component's `Cargo.toml` owns its Rust package identity, version,
   dependencies, targets, and Rust edition. Neither manifest inherits from the
   other, and shared sources do not implicitly require matching versions.
-- Qlippy, qlifmt, and qlidoc are three independent, ordinary qrates. Their qrate
-  and Rust release versions remain aligned with qargo for bundle convenience;
+- Qlinty, qlifmt, and qlidoc are three independent, ordinary qrates. Their qrate
+  and Rust release versions remain aligned with qlirgo for bundle convenience;
   alignment grants no privileged qrate status.
 - Only `std` is privileged; it is bundled with and versioned alongside Qleisli.
-- The root `qargo` package version identifies both qargo and the bundled release.
+- The root `qlirgo` package version identifies both qlirgo and the bundled release.
   Its `Cargo.toml` `[package].version` is the release-orchestration source of
   truth. Component manifests retain literal versions; release validation rejects
-  disagreements rather than inferring values or repairing declarations.
+  disagreements rather than inferring values or repairing declarations. For the
+  0.2.0-beta release, Rust packages and executable identities use the full beta
+  version; bundled qrate manifests declare its three-part base 0.2.0. Runtime
+  tool transport still requires full-version equality.
 - Manifest and result schema versions remain independent of product versions.
 
 Changing captured Rust bytes changes the qrate input identity, without implicitly
@@ -43,15 +46,15 @@ changing its version or establishing a change to its Qleisli interface.
    Preserve Rust edition 2024, Rust 1.85 support, exact Qleisli 0.2.1, and the
    unsafe-code prohibition.
 2. Register component-owned CLI and integration-test targets. Canonical engines,
-   CLI sources, and tests must not depend on the root `qargo_tools` facade. Thin
+   CLI sources, and tests must not depend on the root `qlirgo_tools` facade. Thin
    root adapters reuse those sources for the public bundle.
-3. Keep shared support in qlippy. Qlifmt and qlidoc explicitly depend on it in
+3. Keep shared support in qlinty. Qlifmt and qlidoc explicitly depend on it in
    Cargo through the internal support surface defined below. Extraction includes
    its exact source/build configuration snapshot and records version and content
-   identity, without reaching into the original checkout or introducing qargo
+   identity, without reaching into the original checkout or introducing qlirgo
    dependencies or a new published crate.
 4. Extract the complete declared inventory, preserving relative directory
-   relationships and omitting the root qargo Cargo manifest. Cargo configuration
+   relationships and omitting the root qlirgo Cargo manifest. Cargo configuration
    stays outside qrate input roots. Run Cargo from the extracted component's own
    development directory. Include the boundary policy and licenses with the
    extracted project documentation.
@@ -60,13 +63,13 @@ changing its version or establishing a change to its Qleisli interface.
 
 ## Shared support, adapters, and dependency direction
 
-Keep shared-library ownership in qlippy while separating it logically from the
-qlippy linter product. Audit the support API independently of the linter's CLI
+Keep shared-library ownership in qlinty while separating it logically from the
+qlinty linter product. Audit the support API independently of the linter's CLI
 and rule implementation. Qlifmt and qlidoc may consume capture/snapshot,
 diagnostic/transport, identity, syntax, executable, and publication support.
 They may not consume lint rules, catalogs, severity/promotion policies, lint
 entry points, CLI defaults, or product-version globals. Shared checker support
-remains available to qargo and qlippy; formatting/documentation remain
+remains available to qlirgo and qlinty; formatting/documentation remain
 syntax-only and must not acquire a checker or lint acceptance gate.
 
 Support APIs accept each caller's identity and policy explicitly. A linter
@@ -75,13 +78,13 @@ the shared contract. Every shared API change must compile and pass behavior
 checks for all consumers; matching release numbers alone do not establish API
 compatibility. No new public support crate or Qleisli dependency is introduced.
 
-The permitted dependency direction is qargo to tools/support, and tool products
+The permitted dependency direction is qlirgo to tools/support, and tool products
 to support. Support must not depend on product layers. Extractable components
 must have no normal, build, or development dependency path back to the root
-qargo package or facade. Include conditional target/feature edges and source
+qlirgo package or facade. Include conditional target/feature edges and source
 inclusions in this audit, not only direct Cargo dependencies. Build scripts and
 tests must not read root-only services, configuration, or fixtures. An external
-verifier may use an explicitly supplied installed qargo to manage the qrate;
+verifier may use an explicitly supplied installed qlirgo to manage the qrate;
 that does not authorize a component dependency on the original repository.
 
 Root component adapters are wiring only: module assembly, explicit identity,
@@ -89,18 +92,18 @@ argument forwarding/representation conversion, streams, and exit status.
 Canonical component entry points own CLI interpretation/defaults and engine
 behavior. Adapters cannot inject semantic options or duplicate checking, lint,
 formatting, or documentation algorithms. This restriction does not remove
-qargo's separately owned orchestration and response validation.
+qlirgo's separately owned orchestration and response validation.
 
 ## Exact extraction and build identity
 
 The following identities have different scopes. These govern the
-developer-side extraction records; they do not add fields to qargo manifests or
+developer-side extraction records; they do not add fields to qlirgo manifests or
 public result schemas.
 
 | Identity | Scope |
 | --- | --- |
 | Existing `source_id` | Captured local `.qli` bytes under the existing Qleisli source contract. |
-| Existing `input_id` | Raw `Qargo.toml` and the three declared qrate input roots, unchanged from the current specification. |
+| Existing `input_id` | Raw `Qlirgo.toml` and the three declared qrate input roots, unchanged from the current specification. |
 | Rust project snapshot identity | The complete portable extraction inventory, its dependency closure, and explicit project build configuration described below. |
 | Rust build environment binding | The project snapshot plus the actual tools, platform, build choices, admitted external inputs, and generated compilation inputs used for one build. |
 
@@ -129,7 +132,7 @@ The inventory must include:
   consume ancestor or user configuration outside the captured project.
 - Rust build scripts, included helper files, generator programs/templates, and
   all declared data/configuration inputs they consume. This covers host-side
-  Cargo builds only; it does not authorize qargo to execute qrate build hooks.
+  Cargo builds only; it does not authorize qlirgo to execute qrate build hooks.
 - Generated sources already supplied as project inputs. Preserve the exact
   bytes actually supplied, even when a generator is also included.
 - Exact dependency identities and sources needed for the admitted build graph.
@@ -178,7 +181,7 @@ mathematical correctness.
 ## Bundle integration and public contracts
 
 - Keep standard qrate, private Rust package, and executable versions aligned
-  with qargo through explicit release preparation and validation. Do not turn
+  with qlirgo through explicit release preparation and validation. Do not turn
   this distribution policy into manifest inheritance or a rule for other qrates.
 - Standalone engines obtain product identity from their own Rust packages;
   bundle adapters reuse canonical sources and preserve that identity. Extracted
@@ -186,8 +189,8 @@ mathematical correctness.
 - Retain current same-release tool transport validation, checker/profile and
   executable identities, input binding, and exit consistency. Extraction does
   not itself change the auxiliary-tool compatibility contract.
-- Retain manifest schema 2 and result/build-record schema 1. Introduce no qargo
-  dependency resolution or new qargo manifest fields.
+- Retain manifest schema 2 and result/build-record schema 1. Introduce no qlirgo
+  dependency resolution or new qlirgo manifest fields.
 - Preserve the native archive format, atomic bundle installation, and Cargo-free
   installer. Mixed-version bundle metadata is not required for extraction.
 - Keep the public `.crate` self-contained and independent of private manifests.
@@ -196,7 +199,7 @@ mathematical correctness.
 
 - Audit the logical shared API and all dependency directions. Reject lint-policy
   imports from formatter/documenter, product-layer imports from support, and any
-  direct/transitive component dependency on root qargo, including test/build and
+  direct/transitive component dependency on root qlirgo, including test/build and
   conditional edges. Review root adapters for wiring-only ownership.
 - Compare standalone and embedded component entry points on identical inputs,
   options/defaults, diagnostics, candidate outputs, effects, and exit codes.
@@ -217,7 +220,7 @@ mathematical correctness.
   bytes have different build bindings. Reject ambient configuration and escapes;
   relocation and changes to excluded caches must not change project identity.
 - Exercise unrelated qrate/Cargo fixtures with independent names, versions, and
-  editions, including absent or invalid unrelated Cargo metadata during qargo
+  editions, including absent or invalid unrelated Cargo metadata during qlirgo
   operations. These fixtures do not change the standard bundle release policy.
 - Verify aligned standard-tool versions in standalone builds, bundled builds,
   packaged installation, and native installation. Bundling must not bypass

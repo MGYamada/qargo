@@ -1,0 +1,15 @@
+schema-version = 2
+
+[qrate]
+name = "qlinty"
+version = "0.2.0"
+edition = "2026"
+
+[source]
+root = "src"
+
+[tests]
+root = "tests"
+
+[docs]
+root = "docs"

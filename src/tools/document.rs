@@ -45,12 +45,12 @@ pub(crate) fn prepare(
     orchestrator: &ToolIdentity,
 ) -> Result<DocumentPlan, Diagnostic> {
     let stage_parent = tempfile::Builder::new()
-        .prefix("qargo-doc-")
+        .prefix("qlirgo-doc-")
         .tempdir()
         .map_err(|error| {
             Diagnostic::error(
                 "doc_output",
-                "qargo",
+                "qlirgo",
                 format!("Cannot stage documentation: {error}"),
             )
         })?;
@@ -58,7 +58,7 @@ pub(crate) fn prepare(
         .map_err(|error| {
             Diagnostic::error(
                 "doc_output",
-                "qargo",
+                "qlirgo",
                 format!("Cannot resolve document stage: {error}"),
             )
         })?

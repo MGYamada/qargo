@@ -11,8 +11,8 @@ import unittest
 from unittest.mock import patch
 
 from distribution import (TARGETS, archive_files, binary_platform, build, bundle_name,
-                          collect, verify_published_assets)
-from verify_release import TOOLS
+                          collect, main, verify_archive, verify_published_assets)
+from verify_release import PRODUCT_VERSION, TOOLS
 
 
 def executable(target, *, interpreter=False, dynamic=False, dependency=None, minimum=11):
@@ -46,11 +46,12 @@ class DistributionTests(unittest.TestCase):
         printer = patch("builtins.print")
         printer.start()
         self.addCleanup(printer.stop)
-        self.temporary = tempfile.TemporaryDirectory(prefix="qargo-distribution-test-")
+        self.temporary = tempfile.TemporaryDirectory(prefix="qlirgo-distribution-test-")
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
         self.source = self.root / "source"
         self.source.mkdir()
+        self.qleisli_source = self.root / "explicit-intended-qleisli"
         for name in ("LICENSE", "NOTICE", "install.sh"):
             (self.source / name).write_text(name + "\n")
 
@@ -61,9 +62,57 @@ class DistributionTests(unittest.TestCase):
             (binaries / tool).write_bytes(executable(target))
         directory = directory or self.root / target
         with patch("distribution.verify") as verifier:
-            build(self.source, binaries, target, directory)
-            verifier.assert_called_once_with(self.source, binaries)
+            build(self.source, binaries, target, directory, self.qleisli_source)
+            verifier.assert_called_once_with(self.source, binaries, self.qleisli_source)
         return directory / (bundle_name(target) + ".tar.gz")
+
+    def test_missing_explicit_dependency_source_refuses_before_archive_or_runtime(self):
+        with patch("distribution.verify") as verifier, patch("distribution.archive_files") as archive:
+            with self.assertRaisesRegex(RuntimeError, "explicit --qleisli-source-root"):
+                build(self.source, self.root / "bins", TARGETS[0], self.root / "output")
+            with self.assertRaisesRegex(RuntimeError, "explicit --qleisli-source-root"):
+                verify_archive(self.source, self.root / "archive", TARGETS[0])
+            verifier.assert_not_called()
+            archive.assert_not_called()
+        self.assertFalse((self.root / "output").exists())
+
+    def test_build_and_verify_cli_forward_explicit_source_without_changing_collection(self):
+        for command in ("build", "verify"):
+            args = ["distribution.py", command, "--source-root=" + str(self.source),
+                    "--target=" + TARGETS[0], "--qleisli-source-root=" + str(self.qleisli_source)]
+            if command == "build":
+                args += ["--bin-dir=" + str(self.root / "bins"), "--output-dir=" + str(self.root / "output")]
+                with patch("sys.argv", args), patch("distribution.build") as operation:
+                    main()
+                    operation.assert_called_once_with(self.source.resolve(), (self.root / "bins").resolve(),
+                                                      TARGETS[0], self.root / "output", self.qleisli_source.resolve())
+            else:
+                args += ["--archive=" + str(self.root / "archive")]
+                with patch("sys.argv", args), patch("distribution.verify_archive") as operation:
+                    main()
+                    operation.assert_called_once_with(self.source.resolve(), self.root / "archive",
+                                                      TARGETS[0], self.qleisli_source.resolve())
+
+    def test_archive_and_installed_runtime_checks_keep_the_same_explicit_source(self):
+        # Transport mock only: no installer, native process or beta readiness.
+        from unittest.mock import MagicMock
+        archive = self.bundle(TARGETS[0])
+        fixture = MagicMock()
+        fixture.__enter__.return_value = fixture
+        fixture.prefix = self.root / "fake-installed"
+        link = fixture.prefix / "lib/qlirgo/current"
+        link.parent.mkdir(parents=True)
+        link.symlink_to("releases/" + bundle_name(TARGETS[0]))
+        fixture.marker = self.root / "never-started"
+        fixture.run.return_value.returncode = 0
+        fixture.run.return_value.stderr = ""
+        with patch("distribution.verify") as verifier, patch("test_install.InstallerFixture", return_value=fixture):
+            verify_archive(self.source, archive, TARGETS[0], self.qleisli_source)
+            self.assertEqual(verifier.call_count, 2)
+            for call in verifier.call_args_list:
+                self.assertEqual(call.args[0], self.source)
+                self.assertEqual(call.args[2], self.qleisli_source)
+            self.assertEqual(verifier.call_args_list[1].args[1], fixture.prefix / "bin")
 
     def test_all_target_headers_and_cpu_rejection(self):
         for target in TARGETS:
@@ -206,13 +255,17 @@ class DistributionTests(unittest.TestCase):
 
     def test_published_inventory_uses_the_requested_tag_version(self):
         published = self.published()
-        for target in TARGETS:
-            (published / (bundle_name(target) + ".tar.gz")).rename(
-                published / (bundle_name(target, "0.1.5") + ".tar.gz"))
-        verify_published_assets(published, "0.1.5")
-        with self.assertRaises(RuntimeError):
-            verify_published_assets(published)
-        for invalid in ("v0.1.5", "../0.1.5", "0.01.5", "0.1.5\n"):
+        previous = PRODUCT_VERSION
+        for version in ("0.1.5", "0.1.5-beta", "0.1.5-beta.1"):
+            for target in TARGETS:
+                (published / (bundle_name(target, previous) + ".tar.gz")).rename(
+                    published / (bundle_name(target, version) + ".tar.gz"))
+            verify_published_assets(published, version)
+            with self.assertRaises(RuntimeError):
+                verify_published_assets(published)
+            previous = version
+        for invalid in ("v0.1.5", "../0.1.5", "0.01.5", "0.1.5\n",
+                        "0.1.5-beta.0", "0.1.5-beta.01", "0.1.5-beta.1/escape"):
             with self.subTest(version=invalid), self.assertRaisesRegex(RuntimeError, "canonical"):
                 verify_published_assets(published, invalid)
 

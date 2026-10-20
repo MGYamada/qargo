@@ -79,7 +79,7 @@ pub(super) fn find_tool(tool_name: &str, explicit: Option<&Path>) -> Result<Path
         "tool_missing",
         "tool",
         format!(
-            "{tool_name} was not found beside qargo or on PATH. Build the Rust engine during development or supply --{tool_name}=PATH."
+            "{tool_name} was not found beside qlirgo or on PATH. Build the Rust engine during development or supply --{tool_name}=PATH."
         ),
     ))
 }
