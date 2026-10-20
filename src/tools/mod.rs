@@ -66,7 +66,7 @@ pub(crate) fn lint(
 ) -> Result<Report, Diagnostic> {
     // Configuration failures on empty inputs precede source checking. Reject
     // them here without asking a child for an impossible count-zero failed
-    // checking result under the unchanged qlippy schema.
+    // checking result under the unchanged qlinty schema.
     if sources.count() == 0 {
         crate::adapter::check(sources, configuration)?;
     }
@@ -76,7 +76,7 @@ pub(crate) fn lint(
         Vec::new()
     };
     execute_with_configuration(
-        "qlippy",
+        "qlinty",
         explicit,
         sources,
         &args,
@@ -121,14 +121,14 @@ mod configuration_tests {
     fn invalid_empty_configuration_fails_before_child_selection() {
         let sources = FrozenSources::from_files(Files::new()).unwrap();
         let configuration = Files::from([(
-            "Qargo.toml".to_owned(),
+            "Qlirgo.toml".to_owned(),
             b"schema-version=2\n[qrate]\nedition='2027'\n".to_vec(),
         )]);
-        let orchestrator = ToolIdentity::capture("qargo", crate::VERSION).unwrap();
+        let orchestrator = ToolIdentity::capture("qlirgo", crate::VERSION).unwrap();
         let diagnostic = lint(
             &sources,
             &configuration,
-            Some(Path::new("/nonexistent/qlippy-not-selected")),
+            Some(Path::new("/nonexistent/qlinty-not-selected")),
             false,
             &orchestrator,
         )

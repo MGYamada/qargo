@@ -266,18 +266,18 @@ dependencies = [
 
 [[package]]
 name = "qlidoc-engine"
-version = "0.1.9"
+version = "0.2.0-beta"
 dependencies = [
  "qleisli",
- "qlippy-engine",
+ "qlinty-engine",
  "serde_json",
  "sha2",
  "tempfile",
 ]
 
 [[package]]
-name = "qlippy-engine"
-version = "0.1.9"
+name = "qlinty-engine"
+version = "0.2.0-beta"
 dependencies = [
  "libc",
  "libproc",

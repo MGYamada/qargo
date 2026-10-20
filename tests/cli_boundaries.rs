@@ -11,7 +11,7 @@ fn qrate() -> tempfile::TempDir {
     for directory in ["src", "tests", "docs"] {
         fs::create_dir(root.path().join(directory)).unwrap();
     }
-    fs::write(root.path().join("Qargo.toml"), MANIFEST).unwrap();
+    fs::write(root.path().join("Qlirgo.toml"), MANIFEST).unwrap();
     root
 }
 
@@ -29,8 +29,8 @@ fn json(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap()
 }
 
-fn qargo(args: &[&str]) -> Output {
-    Command::new(env!("CARGO_BIN_EXE_qargo"))
+fn qlirgo(args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_qlirgo"))
         .args(args)
         .arg("--format=json")
         .output()
@@ -40,7 +40,7 @@ fn qargo(args: &[&str]) -> Output {
 #[test]
 fn qrate_management_ignores_unrelated_cargo_identity_and_invalid_metadata() {
     let root = qrate();
-    let manifest_path = root.path().join("Qargo.toml");
+    let manifest_path = root.path().join("Qlirgo.toml");
     let path = manifest_path.to_str().unwrap();
     let cargo_path = root.path().join("Cargo.toml");
     let cargo_variants = [
@@ -59,7 +59,7 @@ fn qrate_management_ignores_unrelated_cargo_identity_and_invalid_metadata() {
             } else if cargo_path.exists() {
                 fs::remove_file(&cargo_path).unwrap();
             }
-            let output = qargo(&[command, "--manifest-path", path]);
+            let output = qlirgo(&[command, "--manifest-path", path]);
             assert_eq!(
                 output.status.code(),
                 Some(if command == "test" { 1 } else { 0 })
@@ -74,14 +74,14 @@ fn qrate_management_ignores_unrelated_cargo_identity_and_invalid_metadata() {
     }
     // Coexisting Cargo metadata cannot fill in a missing Qleisli edition.
     fs::write(&manifest_path, MANIFEST.replace("edition = \"2026\"\n", "")).unwrap();
-    let report = json(&qargo(&["check", "--manifest-path", path]));
+    let report = json(&qlirgo(&["check", "--manifest-path", path]));
     assert_eq!(report["outcome"], "error");
 }
 
 #[test]
-fn space_separated_paths_match_equality_paths_for_all_qargo_commands() {
+fn space_separated_paths_match_equality_paths_for_all_qlirgo_commands() {
     let root = qrate();
-    let manifest = root.path().join("Qargo with spaces.toml");
+    let manifest = root.path().join("Qlirgo with spaces.toml");
     fs::write(&manifest, MANIFEST).unwrap();
     let manifest = manifest.to_str().unwrap();
     let equal_manifest = format!("--manifest-path={manifest}");
@@ -89,7 +89,7 @@ fn space_separated_paths_match_equality_paths_for_all_qargo_commands() {
         ("check", None),
         ("build", None),
         ("test", None),
-        ("lint", Some(("--qlippy", env!("CARGO_BIN_EXE_qlippy")))),
+        ("lint", Some(("--qlinty", env!("CARGO_BIN_EXE_qlinty")))),
         ("fmt", Some(("--qlifmt", env!("CARGO_BIN_EXE_qlifmt")))),
         ("doc", Some(("--qlidoc", env!("CARGO_BIN_EXE_qlidoc")))),
     ] {
@@ -101,8 +101,8 @@ fn space_separated_paths_match_equality_paths_for_all_qargo_commands() {
             equal_args.push(&equal_tool);
             spaced_args.extend([option, tool]);
         }
-        let equal = qargo(&equal_args);
-        let spaced = qargo(&spaced_args);
+        let equal = qlirgo(&equal_args);
+        let spaced = qlirgo(&spaced_args);
         let expected_exit = if command == "test" { 1 } else { 0 };
         assert_eq!(equal.status.code(), Some(expected_exit), "{command}");
         assert_eq!(spaced.status.code(), Some(expected_exit), "{command}");
@@ -118,21 +118,21 @@ fn path_options_reject_missing_empty_repeated_and_incompatible_values() {
         vec!["check", "--manifest-path", "--format=json"],
         vec!["check", "--manifest-path=a", "--manifest-path", "b"],
         vec!["check", "--manifest-path", "a", "--manifest-path=b"],
-        vec!["lint", "--qlippy"],
-        vec!["lint", "--qlippy", "--deny-warnings"],
-        vec!["lint", "--qlippy=a", "--qlippy", "b"],
+        vec!["lint", "--qlinty"],
+        vec!["lint", "--qlinty", "--deny-warnings"],
+        vec!["lint", "--qlinty=a", "--qlinty", "b"],
         vec!["fmt", "--qlifmt", ""],
         vec!["fmt", "--qlifmt", "--check"],
         vec!["fmt", "--qlifmt", "a", "--qlifmt=b"],
         vec!["doc", "--qlidoc"],
         vec!["doc", "--qlidoc", "--document-private-items"],
         vec!["doc", "--qlidoc=a", "--qlidoc", "b"],
-        vec!["check", "--qlippy", "a"],
+        vec!["check", "--qlinty", "a"],
         vec!["lint", "--qlifmt", "a"],
         vec!["fmt", "--qlidoc", "a"],
         vec!["--help", "--manifest-path", "a"],
     ] {
-        let output = qargo(&args);
+        let output = qlirgo(&args);
         assert_eq!(output.status.code(), Some(2), "{args:?}");
         assert_eq!(json(&output)["diagnostics"][0]["category"], "usage");
     }
@@ -143,7 +143,7 @@ fn standalone_sources_and_manifest_paths_are_mutually_exclusive() {
     let root = qrate();
     let sources = tempfile::tempdir().unwrap();
     fs::write(sources.path().join("module.qli"), "invalid source").unwrap();
-    let manifest = root.path().join("Qargo.toml");
+    let manifest = root.path().join("Qlirgo.toml");
     let equal = format!("--manifest-path={}", manifest.display());
     for command in ["lint", "fmt"] {
         for options in [
@@ -162,7 +162,7 @@ fn standalone_sources_and_manifest_paths_are_mutually_exclusive() {
                 sources.path().to_str().unwrap(),
             ],
         ] {
-            let output = qargo(&options);
+            let output = qlirgo(&options);
             assert_eq!(output.status.code(), Some(2), "{options:?}");
             let report = json(&output);
             assert_eq!(report["diagnostics"][0]["category"], "usage");
@@ -179,7 +179,7 @@ fn standalone_sources_and_manifest_paths_are_mutually_exclusive() {
 
 #[test]
 fn cargo_style_dependency_requests_include_actionable_diagnostics() {
-    let output = qargo(&["add", "example"]);
+    let output = qlirgo(&["add", "example"]);
     assert_eq!(output.status.code(), Some(2));
     let report = json(&output);
     assert_eq!(report["diagnostics"][0]["category"], "usage");
@@ -187,21 +187,21 @@ fn cargo_style_dependency_requests_include_actionable_diagnostics() {
         report["diagnostics"][0]["suggestion"]
             .as_str()
             .unwrap()
-            .contains("local Qargo.toml")
+            .contains("local Qlirgo.toml")
     );
-    let install = json(&qargo(&["install"]));
+    let install = json(&qlirgo(&["install"]));
     let suggestion = install["diagnostics"][0]["suggestion"].as_str().unwrap();
     assert!(suggestion.contains("prebuilt GitHub release"));
     assert!(suggestion.contains("#installation"));
     for table in ["dependencies", "dev-dependencies"] {
         let root = qrate();
-        let manifest = root.path().join("Qargo.toml");
+        let manifest = root.path().join("Qlirgo.toml");
         fs::write(
             &manifest,
-            format!("{MANIFEST}\n[{table}]\nexample=\"0.1.9\"\n"),
+            format!("{MANIFEST}\n[{table}]\nexample=\"0.2.0\"\n"),
         )
         .unwrap();
-        let output = qargo(&["check", "--manifest-path", manifest.to_str().unwrap()]);
+        let output = qlirgo(&["check", "--manifest-path", manifest.to_str().unwrap()]);
         assert_eq!(output.status.code(), Some(1));
         let report = json(&output);
         assert_eq!(report["diagnostics"][0]["id"], "invalid_manifest");
@@ -218,23 +218,23 @@ fn cargo_style_dependency_requests_include_actionable_diagnostics() {
 fn external_lint_cli_preserves_warnings_denial_and_source_locations() {
     let root = tempfile::tempdir().unwrap();
     fs::write(
-        root.path().join("Qargo.toml"),
+        root.path().join("Qlirgo.toml"),
         "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
     )
     .unwrap();
     let source = "// 日本語 🦀\r\nunitary fn had(q:Q<Bit>)->Q<Bit>{h(q)}\r\nuse std::gate::x;\r\nunitary fn once(q:Q<Bit>)->Q<Bit>{power(had,1)(q)}\r\n";
     fs::write(root.path().join("library.qli"), source).unwrap();
     let path = root.path().to_str().unwrap();
-    let tool = format!("--qlippy={}", env!("CARGO_BIN_EXE_qlippy"));
+    let tool = format!("--qlinty={}", env!("CARGO_BIN_EXE_qlinty"));
     for denied in [false, true] {
         let mut args = vec!["lint", path, &tool];
         if denied {
             args.push("--deny-warnings");
         }
-        let output = qargo(&args);
+        let output = qlirgo(&args);
         assert_eq!(output.status.code(), Some(if denied { 1 } else { 0 }));
         let report = json(&output);
-        assert_eq!(report["format"], "qargo.result");
+        assert_eq!(report["format"], "qlirgo.result");
         assert_eq!(report["outcome"], if denied { "error" } else { "ok" });
         assert_eq!(report["result"]["source_count"], 1);
         assert_eq!(report["result"]["qleisli_check"]["status"], "passed");
@@ -259,7 +259,7 @@ fn external_lint_cli_preserves_warnings_denial_and_source_locations() {
 fn actual_compiler_rejection_survives_the_child_transport() {
     let root = tempfile::tempdir().unwrap();
     fs::write(
-        root.path().join("Qargo.toml"),
+        root.path().join("Qlirgo.toml"),
         "schema-version=2\n[qrate]\nname=\"standalone\"\nversion=\"7.4.0\"\nedition=\"2026\"\n",
     )
     .unwrap();
@@ -268,10 +268,10 @@ fn actual_compiler_rejection_survives_the_child_transport() {
         "unitary fn bad(q:Q<Bit>)->Q<Bit>{let moved=q; q}",
     )
     .unwrap();
-    let output = qargo(&[
+    let output = qlirgo(&[
         "lint",
         root.path().to_str().unwrap(),
-        &format!("--qlippy={}", env!("CARGO_BIN_EXE_qlippy")),
+        &format!("--qlinty={}", env!("CARGO_BIN_EXE_qlinty")),
     ]);
     assert_eq!(output.status.code(), Some(1));
     let report = json(&output);
@@ -281,8 +281,8 @@ fn actual_compiler_rejection_survives_the_child_transport() {
     assert_eq!(report["result"]["qleisli_check"]["status"], "failed");
     assert_eq!(report["result"]["steps"][2]["status"], "not_run");
     assert_eq!(report["result"]["steps"][2]["reason"], "compiler_error");
-    assert_eq!(report["result"]["tool"]["name"], "qlippy");
-    assert_eq!(report["result"]["orchestrator"]["name"], "qargo");
+    assert_eq!(report["result"]["tool"]["name"], "qlinty");
+    assert_eq!(report["result"]["orchestrator"]["name"], "qlirgo");
 }
 
 #[test]
@@ -290,9 +290,9 @@ fn empty_qrate_builds_a_reusable_package_snapshot() {
     let root = qrate();
     let manifest = format!(
         "--manifest-path={}",
-        root.path().join("Qargo.toml").display()
+        root.path().join("Qlirgo.toml").display()
     );
-    let first = qargo(&["build", &manifest]);
+    let first = qlirgo(&["build", &manifest]);
     assert_eq!(first.status.code(), Some(0));
     let report = json(&first);
     assert_eq!(report["result"]["source_count"], 0);
@@ -307,42 +307,42 @@ fn empty_qrate_builds_a_reusable_package_snapshot() {
         );
     }
     assert_eq!(
-        fs::read_to_string(directory.join("snapshot/Qargo.toml")).unwrap(),
+        fs::read_to_string(directory.join("snapshot/Qlirgo.toml")).unwrap(),
         MANIFEST
     );
-    let second = qargo(&["build", &manifest]);
+    let second = qlirgo(&["build", &manifest]);
     assert_eq!(second.status.code(), Some(0));
     assert_eq!(first.stdout, second.stdout);
     let snapshot_manifest = format!(
         "--manifest-path={}",
-        directory.join("snapshot/Qargo.toml").display()
+        directory.join("snapshot/Qlirgo.toml").display()
     );
-    let reused = json(&qargo(&["check", &snapshot_manifest]));
+    let reused = json(&qlirgo(&["check", &snapshot_manifest]));
     assert_eq!(reused["result"]["input_id"], report["result"]["input_id"]);
 }
 
 #[test]
-fn qlippy_qrate_checks_and_lints_its_trivial_language_source() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("qrates/qlippy");
-    let sources = qargo_tools::snapshot::collect_tree(&root.join("src"), Some("qli")).unwrap();
+fn qlinty_qrate_checks_and_lints_its_trivial_language_source() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("qrates/qlinty");
+    let sources = qlirgo_tools::snapshot::collect_tree(&root.join("src"), Some("qli")).unwrap();
     assert_eq!(sources.len(), 1);
     assert_eq!(
         sources["smoke.qli"],
-        include_bytes!("../qrates/qlippy/src/smoke.qli")
+        include_bytes!("../qrates/qlinty/src/smoke.qli")
     );
     assert!(
-        qargo_tools::snapshot::collect_tree(&root.join("tests"), Some("qlt"))
+        qlirgo_tools::snapshot::collect_tree(&root.join("tests"), Some("qlt"))
             .unwrap()
             .is_empty()
     );
-    let manifest = format!("--manifest-path={}", root.join("Qargo.toml").display());
-    let output = qargo(&["check", &manifest]);
+    let manifest = format!("--manifest-path={}", root.join("Qlirgo.toml").display());
+    let output = qlirgo(&["check", &manifest]);
     assert_eq!(output.status.code(), Some(0));
     let report = json(&output);
     assert_eq!(report["result"]["source_count"], 1);
     assert_eq!(report["result"]["qleisli_check"]["status"], "passed");
     assert!(report["result"].get("verified").is_none());
-    let linted = qargo(&["lint", &manifest, "--deny-warnings"]);
+    let linted = qlirgo(&["lint", &manifest, "--deny-warnings"]);
     assert_eq!(linted.status.code(), Some(0));
     let linted = json(&linted);
     assert_eq!(linted["result"]["source_count"], 1);
@@ -354,7 +354,7 @@ fn qlippy_qrate_checks_and_lints_its_trivial_language_source() {
 
 #[cfg(unix)]
 #[test]
-fn every_qargo_operation_leaves_a_cargo_path_trap_untouched() {
+fn every_qlirgo_operation_leaves_a_cargo_path_trap_untouched() {
     use std::os::unix::fs::PermissionsExt;
     let root = qrate();
     let bin = tempfile::tempdir().unwrap();
@@ -362,20 +362,20 @@ fn every_qargo_operation_leaves_a_cargo_path_trap_untouched() {
     let marker = bin.path().join("cargo-was-started");
     fs::write(
         &trap,
-        "#!/bin/sh\nprintf started > \"$QARGO_CARGO_TRAP\"\nexit 99\n",
+        "#!/bin/sh\nprintf started > \"$QLIRGO_CARGO_TRAP\"\nexit 99\n",
     )
     .unwrap();
     fs::set_permissions(&trap, fs::Permissions::from_mode(0o755)).unwrap();
     let manifest = format!(
         "--manifest-path={}",
-        root.path().join("Qargo.toml").display()
+        root.path().join("Qlirgo.toml").display()
     );
     for command in ["check", "build", "lint", "fmt", "test", "doc"] {
-        let output = Command::new(env!("CARGO_BIN_EXE_qargo"))
+        let output = Command::new(env!("CARGO_BIN_EXE_qlirgo"))
             .args([command, &manifest, "--format=json"])
             .env("PATH", bin.path())
             .env("CARGO", &trap)
-            .env("QARGO_CARGO_TRAP", &marker)
+            .env("QLIRGO_CARGO_TRAP", &marker)
             .output()
             .unwrap();
         let report = json(&output);
@@ -391,13 +391,13 @@ fn every_qargo_operation_leaves_a_cargo_path_trap_untouched() {
 }
 
 #[test]
-fn qlippy_rust_and_language_sources_belong_to_the_qrate_identity_and_snapshot() {
-    use qargo_tools::snapshot::{Files, collect_tree, materialize};
-    let original = Path::new(env!("CARGO_MANIFEST_DIR")).join("qrates/qlippy");
+fn qlinty_rust_and_language_sources_belong_to_the_qrate_identity_and_snapshot() {
+    use qlirgo_tools::snapshot::{Files, collect_tree, materialize};
+    let original = Path::new(env!("CARGO_MANIFEST_DIR")).join("qrates/qlinty");
     let mut files = Files::new();
     files.insert(
-        "Qargo.toml".into(),
-        fs::read(original.join("Qargo.toml")).unwrap(),
+        "Qlirgo.toml".into(),
+        fs::read(original.join("Qlirgo.toml")).unwrap(),
     );
     for root in ["src", "tests", "docs"] {
         for (path, bytes) in collect_tree(&original.join(root), None).unwrap() {
@@ -407,24 +407,24 @@ fn qlippy_rust_and_language_sources_belong_to_the_qrate_identity_and_snapshot() 
     for rust_file in [
         "src/lib.rs",
         "src/adapter.rs",
-        "src/qlippy.rs",
+        "src/qlinty.rs",
         "src/report.rs",
         "src/snapshot.rs",
-        "src/bin/qlippy.rs",
+        "src/bin/qlinty.rs",
         "tests/engine.rs",
         "tests/snapshot.rs",
     ] {
         assert!(
             files.contains_key(rust_file),
-            "qlippy Rust source missing from qrate: {rust_file}"
+            "qlinty Rust source missing from qrate: {rust_file}"
         );
     }
     let root = materialize(&files).unwrap();
     let manifest = format!(
         "--manifest-path={}",
-        root.path().join("Qargo.toml").display()
+        root.path().join("Qlirgo.toml").display()
     );
-    let built = qargo(&["build", &manifest]);
+    let built = qlirgo(&["build", &manifest]);
     assert_eq!(built.status.code(), Some(0));
     let report = json(&built);
     assert_eq!(report["result"]["source_count"], 1);
@@ -440,11 +440,11 @@ fn qlippy_rust_and_language_sources_belong_to_the_qrate_identity_and_snapshot() 
     );
     let snapshot = artifact.join("snapshot");
     assert_eq!(collect_tree(&snapshot, None).unwrap(), files);
-    let engine = root.path().join("src/qlippy.rs");
-    let mut changed = files["src/qlippy.rs"].clone();
+    let engine = root.path().join("src/qlinty.rs");
+    let mut changed = files["src/qlinty.rs"].clone();
     changed.extend_from_slice(b"\n// Changed qrate Rust source.\n");
     fs::write(&engine, changed).unwrap();
-    let checked = qargo(&["check", &manifest]);
+    let checked = qlirgo(&["check", &manifest]);
     assert_eq!(checked.status.code(), Some(0));
     let checked = json(&checked);
     assert_ne!(checked["result"]["input_id"], report["result"]["input_id"]);
@@ -453,13 +453,13 @@ fn qlippy_rust_and_language_sources_belong_to_the_qrate_identity_and_snapshot() 
         report["result"]["source_id"]
     );
     assert_eq!(
-        fs::read(snapshot.join("src/qlippy.rs")).unwrap(),
-        files["src/qlippy.rs"]
+        fs::read(snapshot.join("src/qlinty.rs")).unwrap(),
+        files["src/qlinty.rs"]
     );
     let mut changed = files["src/smoke.qli"].clone();
     changed.extend_from_slice(b"\n// Changed Qleisli source.\n");
     fs::write(root.path().join("src/smoke.qli"), changed).unwrap();
-    let source_changed = qargo(&["check", &manifest]);
+    let source_changed = qlirgo(&["check", &manifest]);
     assert_eq!(source_changed.status.code(), Some(0));
     let source_changed = json(&source_changed);
     assert_ne!(

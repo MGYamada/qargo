@@ -52,9 +52,9 @@ impl SelectedExecutable {
             let mut file = {
                 use rustix::fs::{MemfdFlags, memfd_create};
                 let flags = MemfdFlags::CLOEXEC | MemfdFlags::ALLOW_SEALING;
-                let fd = match memfd_create("qargo-tool", flags | MemfdFlags::EXEC) {
+                let fd = match memfd_create("qlirgo-tool", flags | MemfdFlags::EXEC) {
                     Ok(fd) => fd,
-                    Err(rustix::io::Errno::INVAL) => memfd_create("qargo-tool", flags)
+                    Err(rustix::io::Errno::INVAL) => memfd_create("qlirgo-tool", flags)
                         .map_err(|error| identity_error(error.to_string()))?,
                     Err(error) => {
                         return Err(identity_error(format!(
@@ -67,7 +67,7 @@ impl SelectedExecutable {
             #[cfg(target_os = "macos")]
             let (stage, mut file) = {
                 let stage = tempfile::Builder::new()
-                    .prefix("qargo-tool-")
+                    .prefix("qlirgo-tool-")
                     .tempdir()
                     .map_err(|error| identity_error(error.to_string()))?;
                 let file = OpenOptions::new()
@@ -157,7 +157,7 @@ impl SelectedExecutable {
                     .open(&stage_path)
                     .map_err(|error| identity_error(error.to_string()))?;
                 // The selected installation path is never reopened for launch.
-                // Qargo creates and validates this private stage independently of it.
+                // Qlirgo creates and validates this private stage independently of it.
                 let stage = MacStage {
                     _root: stage,
                     directory,
@@ -314,7 +314,7 @@ mod tests {
         let tool = SelectedExecutable::capture(&original).unwrap();
         let stage = tool.path.parent().unwrap().to_path_buf();
         let mut command = tool.command().unwrap();
-        // Deliberate same-user tampering of qargo's private state is detected.
+        // Deliberate same-user tampering of qlirgo's private state is detected.
         tool.stage
             .directory
             .set_permissions(fs::Permissions::from_mode(0o700))

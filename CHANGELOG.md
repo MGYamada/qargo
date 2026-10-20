@@ -1,11 +1,20 @@
 # Changelog
 
-## Linked Qleisli migration — development draft
+## qlirgo 0.2.0-beta — Unreleased
 
-- Specify the authorized exact Qleisli `=0.3.0-beta` compatibility migration and current AST spellings, preserving the existing three advisory lint rules and syntax-only formatter/documentation boundary.
-- Bind the actual linked std descriptor and normalized captured source configuration separately from source/qrate identities. Version only parent qargo result/build records to 2; child schemas stay 1.
-- Require explicit nonempty native selection without fallback; valid empty inputs make no native call, invalid configuration fails without fallback, and observed native metadata grants no source/target proof.
-- Preserve published qargo 0.1.9 from `0722fa78fe16dcf504b260103fe00f0d24d0cf88` and its original 0.2.1 artifacts. This unreleased migration selects no new qargo release version. Recorded local development checks and their source-window limits are in `docs/linked-qleisli-030.md`; official registry resolution, full isolated extraction, package/native installation and hosted release gates remain pending.
+- Rename the functional qargo/qlippy tools, Rust projects and public identities to qlirgo/qlinty. Keep qrate, qlifmt and qlidoc unchanged.
+- Prefer Qlirgo.toml, accept legacy Qargo.toml, and reject dual manifests unless their bytes match exactly. Bundle identical dual manifests during the Qleisli beta transition.
+- Preserve actual manifest names in input snapshots and normalize effective configuration independently. Adapt only private compiler stages to the beta loader's legacy name.
+- Declare the exact https://docs.rs/qlirgo/0.2.0-beta page in package metadata and verify it in packaged-source checks.
+- Use full 0.2.0-beta Rust product/engine identities while bundled qrates remain at base version 0.2.0. Accept beta and numbered beta versions only by explicit installer selection; never select them through latest.
+- Keep exact Qleisli =0.3.0-beta; its whole naming migration and stable dependency update remain separate. This local preparation makes no public-release readiness claim.
+
+## qargo 0.2.0 / 0.2.0-final — 2026-10-20
+
+- Published terminal migration-only wrappers on crates.io. Every invocation prints `qargo / qlippy have been renamed to qlirgo / qlinty.` to stderr and exits 1 without performing an operation.
+- These immutable legacy packages are separate from the functional qlirgo 0.2.0-beta candidate; their original opening bold README notices remain intact.
+
+## Historical qargo releases
 
 ## 0.1.9 — 2026-10-11
 

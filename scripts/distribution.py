@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
-"""Build, verify, and collect binary release assets outside qargo operations."""
+"""Build, verify, and collect binary release assets outside qlirgo operations."""
 
 import argparse
 import gzip
 import hashlib
 import io
 from pathlib import Path
-import re
 import struct
 import tarfile
 import tempfile
 
 from verify_release import PRODUCT_VERSION, TOOLS, require, verify
+from release_version import qrate_version
 
 
 TARGETS = (
@@ -23,13 +23,15 @@ TARGETS = (
 
 def bundle_name(target, version=PRODUCT_VERSION):
     require(target in TARGETS, "Unsupported distribution target")
-    return f"qargo-{version}-{target}"
+    return f"qlirgo-{version}-{target}"
 
 
 def verify_published_assets(artifact_dir, version=PRODUCT_VERSION):
     """Require the exact flat release inventory before archive/checksum verification."""
-    require(re.fullmatch(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)", version),
-            "Expected a canonical release version")
+    try:
+        qrate_version(version)
+    except ValueError as error:
+        raise RuntimeError(str(error)) from error
     expected = {bundle_name(target, version) + ".tar.gz" for target in TARGETS}
     expected.update({"install.sh", "SHA256SUMS"})
     entries = list(artifact_dir.iterdir())
@@ -139,7 +141,7 @@ def build(source_root, bin_dir, target, output_dir, qleisli_source_root=None):
 def verify_archive(source_root, archive_path, target, qleisli_source_root=None):
     require(qleisli_source_root is not None, "Developer archive verification requires explicit --qleisli-source-root")
     files = archive_files(source_root, archive_path, target)
-    with tempfile.TemporaryDirectory(prefix="qargo-binary-verify-") as directory:
+    with tempfile.TemporaryDirectory(prefix="qlirgo-binary-verify-") as directory:
         root = Path(directory)
         for label, content in files.items():
             path = root / label
@@ -157,7 +159,7 @@ def verify_archive(source_root, archive_path, target, qleisli_source_root=None):
             repeated = fixture.run()
             require(repeated.returncode == 0, "Repeated/latest installation failed: " + repeated.stderr)
             require(not fixture.marker.exists(), "Installer invoked a developer tool or Python/jq")
-            require((fixture.prefix / "lib/qargo/current").readlink().as_posix()
+            require((fixture.prefix / "lib/qlirgo/current").readlink().as_posix()
                     == "releases/" + bundle_name(target), "Incorrect installed bundle link")
     print("Binary archive and Cargo-free installation verification passed: " + target)
 

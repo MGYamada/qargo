@@ -39,13 +39,13 @@ def isolated_config(project, component, work, native_env):
 
 def require_lint_case(name, fixture, args, json_mode, result, envelope):
     """Do not count two matching early refusals as source-check equivalence."""
-    if name != "qlippy" or args not in (["src"], ["src", "--deny-warnings"]):
+    if name != "qlinty" or args not in (["src"], ["src", "--deny-warnings"]):
         return
     expected = 1 if fixture in ("syntax", "type") else 0
     require(result.returncode == expected, "Unexpected lint fixture exit: " + fixture)
     if not json_mode:
         return
-    require(envelope.get("format") == "qlippy.result" and
+    require(envelope.get("format") == "qlinty.result" and
             type(envelope.get("version")) is int and envelope["version"] == 1 and
             envelope.get("command") == "lint" and
             envelope.get("outcome") == ("error" if expected else "ok"),
@@ -79,7 +79,7 @@ def compare_entrypoints(name, standalone, bundled, work, environment):
                 "syntax": "not a module {{{", "type": "pub unitary fn invalid()->Q<Bit>{missing()}"}
     cases = [["--help"], ["--version"], ["--unknown"], [], ["--version", "--version"],
              ["--format=xml"], ["--help", "--version"]]
-    if name == "qlippy":
+    if name == "qlinty":
         cases += [["--list-rules"], ["src"], ["src", "--deny-warnings"]]
     elif name == "qlifmt":
         cases += [["src"], ["src", "--check"], ["src", "--check", "--check"]]
@@ -97,7 +97,7 @@ def compare_entrypoints(name, standalone, bundled, work, environment):
                     (directory / "src").mkdir(parents=True)
                     if content is not None:
                         (directory / "src/smoke.qli").write_text(content)
-                        (directory / "Qargo.toml").write_text(
+                        (directory / "Qlirgo.toml").write_text(
                             'schema-version = 2\n[qrate]\nname = "extraction-check"\n'
                             'version = "7.4.0"\nedition = "2026"\n[source]\nroot = "src"\n')
                     command = [str(binary), *args, *(["--format=json"] if json_mode else [])]
@@ -130,7 +130,7 @@ def compare_entrypoints(name, standalone, bundled, work, environment):
 
 
 def verify_relocated(project, component, bundle, work, environment):
-    qargo = bundle / "qargo"
+    qlirgo = bundle / "qlirgo"
     qrate = project / "qrates" / component
     original = {}
     for label in ("original", "relocated"):
@@ -138,7 +138,7 @@ def verify_relocated(project, component, bundle, work, environment):
             qrate = work / "relocated"
             shutil.copytree(project / "qrates" / component, qrate, ignore=shutil.ignore_patterns("target"))
         for command in ("check", "build", "lint", "fmt", "doc"):
-            args = [str(qargo), command, "--manifest-path", str(qrate / "Qargo.toml"), "--format=json"]
+            args = [str(qlirgo), command, "--manifest-path", str(qrate / "Qlirgo.toml"), "--format=json"]
             if command == "fmt":
                 args.append("--check")
             result = subprocess.run(args, env=environment, capture_output=True, check=True)
@@ -210,7 +210,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", type=Path, required=True)
     parser.add_argument("--toolchain", type=Path, required=True, help="Resolved Rust sysroot, containing bin/cargo and bin/rustc")
-    parser.add_argument("--bundle-bin", type=Path, required=True, help="Explicit installed bundle for external comparisons/qargo validation")
+    parser.add_argument("--bundle-bin", type=Path, required=True, help="Explicit installed bundle for external comparisons/qlirgo validation")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--qleisli-kernel", type=Path, required=True, help="Explicit already-built matching native executable outside the captured project")
     args = parser.parse_args()

@@ -2,9 +2,9 @@ use std::ffi::OsString;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use qargo_tools::qargo;
-use qargo_tools::report::Report;
-use qargo_tools::snapshot::{FrozenSources, digest_files, digest_path};
+use qlirgo_tools::qlirgo;
+use qlirgo_tools::report::Report;
+use qlirgo_tools::snapshot::{FrozenSources, digest_files, digest_path};
 use serde_json::{Value, json};
 
 const SOURCE: &str = "pub unitary fn identity(q:Q<Bit>)->Q<Bit>{q}";
@@ -14,7 +14,7 @@ fn qrate() -> tempfile::TempDir {
     for directory in ["src", "tests", "docs"] {
         fs::create_dir(root.path().join(directory)).unwrap();
     }
-    fs::write(root.path().join("Qargo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.1.9\"\nedition = \"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
+    fs::write(root.path().join("Qlirgo.toml"), "schema-version=2\n[qrate]\nname=\"example\"\nversion=\"0.2.0\"\nedition = \"2026\"\n[source]\nroot=\"src\"\n[tests]\nroot=\"tests\"\n[docs]\nroot=\"docs\"\n").unwrap();
     fs::write(root.path().join("src/module.qli"), SOURCE).unwrap();
     root
 }
@@ -29,7 +29,7 @@ fn run(root: &Path, command: &str, extra: &[String]) -> Report {
         OsString::from(command),
         OsString::from(format!(
             "--manifest-path={}",
-            root.join("Qargo.toml").display()
+            root.join("Qlirgo.toml").display()
         )),
     ];
     if !extra
@@ -40,7 +40,7 @@ fn run(root: &Path, command: &str, extra: &[String]) -> Report {
         args.push(tool.into());
     }
     args.extend(extra.iter().map(OsString::from));
-    qargo::run(&args)
+    qlirgo::run(&args)
 }
 
 fn result(report: &Report) -> &Value {
@@ -172,7 +172,7 @@ fn source_tool_options_are_closed_and_command_specific() {
         vec!["fmt", "--qlifmt="],
         vec!["doc", "--qlidoc="],
     ] {
-        let report = qargo::run(&args.iter().map(OsString::from).collect::<Vec<_>>());
+        let report = qlirgo::run(&args.iter().map(OsString::from).collect::<Vec<_>>());
         assert_eq!(report.exit_code, 2, "{args:?}: {:?}", report.envelope);
     }
     let root = qrate();
@@ -206,7 +206,7 @@ fn response(tool: &Path, sources: &FrozenSources, command: &str) -> Value {
     let name = if command == "fmt" { "qlifmt" } else { "qlidoc" };
     let mut result = json!({"source_count":sources.count(), "source_id":sources.source_id(),
         "qleisli_check":{"status":"not_run","reason":"syntax_only"},
-        "tool":{"name":name,"version":qargo_tools::VERSION,"executable_sha256":digest_path(tool).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"}});
+        "tool":{"name":name,"version":qlirgo_tools::VERSION,"executable_sha256":digest_path(tool).unwrap(),"qleisli_version":"0.3.0-beta","profile":"finite-v0"}});
     if command == "fmt" {
         result["formatted_source_id"] = json!(sources.source_id());
         result["changed_files"] = json!([]);
@@ -318,7 +318,7 @@ fn formatter_cannot_change_tokens_or_add_files_to_the_user_root() {
 fn concurrent_source_changes_are_preserved_instead_of_overwritten() {
     let root = qrate();
     let sources = FrozenSources::capture(&root.path().join("src")).unwrap();
-    let formatted = qargo_tools::qlifmt_engine::format_files(sources.files()).unwrap();
+    let formatted = qlirgo_tools::qlifmt_engine::format_files(sources.files()).unwrap();
     let tools = tempfile::tempdir().unwrap();
     let candidate = tools.path().join("candidate.qli");
     let response_path = tools.path().join("response.json");
@@ -402,13 +402,13 @@ fn captured_source_root_and_ancestors_cannot_be_replaced_before_format_effects()
         copy_tree(fixture.path(), &root);
         fs::create_dir(root.join("inputs")).unwrap();
         fs::rename(root.join("src"), root.join("inputs/src")).unwrap();
-        let manifest = fs::read_to_string(root.join("Qargo.toml"))
+        let manifest = fs::read_to_string(root.join("Qlirgo.toml"))
             .unwrap()
             .replace("root=\"src\"", "root=\"inputs/src\"");
-        fs::write(root.join("Qargo.toml"), manifest).unwrap();
+        fs::write(root.join("Qlirgo.toml"), manifest).unwrap();
         let sources_path = root.join("inputs/src");
         let sources = FrozenSources::capture(&sources_path).unwrap();
-        let formatted = qargo_tools::qlifmt_engine::format_files(sources.files()).unwrap();
+        let formatted = qlirgo_tools::qlifmt_engine::format_files(sources.files()).unwrap();
         let replace = match replaced {
             "qrate" => root.clone(),
             "source-parent" | "standalone-parent" => root.join("inputs"),
@@ -440,7 +440,7 @@ fn captured_source_root_and_ancestors_cannot_be_replaced_before_format_effects()
         report["result"]["updated_files"] = json!(["module.qli"]);
         fs::write(response_path, serde_json::to_vec(&report).unwrap()).unwrap();
         let failed = if replaced.starts_with("standalone") {
-            qargo::run(&[
+            qlirgo::run(&[
                 "fmt".into(),
                 sources_path.as_os_str().to_owned(),
                 format!("--qlifmt={}", tool.display()).into(),
@@ -476,10 +476,10 @@ fn replaced_qrate_cannot_receive_validated_document_artifacts() {
     copy_tree(&root, &replacement);
     let old = home.path().join("old");
     let sources = FrozenSources::capture(&root.join("src")).unwrap();
-    let rendered = qargo_tools::qlidoc_engine::render_files(sources.files(), false).unwrap();
+    let rendered = qlirgo_tools::qlidoc_engine::render_files(sources.files(), false).unwrap();
     let tools = tempfile::tempdir().unwrap();
     let candidate = tools.path().join("candidate");
-    qargo_tools::qlidoc_engine::publish(
+    qlirgo_tools::qlidoc_engine::publish(
         &fs::canonicalize(tools.path()).unwrap().join("candidate"),
         &rendered,
     )

@@ -47,7 +47,7 @@ class ReleaseMetadataTests(unittest.TestCase):
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(content)
         self.std, self.pins = verifier.expected_std(self.root)
-        self.configuration = {"Qargo.toml": b'schema-version=2\n[qrate]\nedition="2026"\n'}
+        self.configuration = {"Qlirgo.toml": b'schema-version=2\n[qrate]\nedition="2026"\n'}
         self.checker = Path("/explicit/native-checker")
         # Synthetic diagnostic metadata only; these are not native decisions.
         self.native = {"checker_identity": "unpinned", "checker_paths": [str(self.checker)],
@@ -55,7 +55,7 @@ class ReleaseMetadataTests(unittest.TestCase):
                        "entry_request_checked": None, "concrete_ir_roots": {"local": 1, "bundled": 24},
                        "source_preservation_verified": False}
         self.result = {"source_count": 1, "effective_std": self.std,
-                       "source_configuration_id": verifier.input_id("qargo.source-configuration.v1", self.configuration),
+                       "source_configuration_id": verifier.input_id("qlirgo.source-configuration.v1", self.configuration),
                        "native_decisions": self.native}
 
     def validate(self, result):
@@ -140,8 +140,8 @@ class ReleaseMetadataTests(unittest.TestCase):
     def test_exact_file_map_does_not_replace_empty_snapshot_directory_inventory(self):
         snapshot = self.root / "snapshot"
         snapshot.mkdir()
-        expected = {"Qargo.toml": b"captured manifest"}
-        (snapshot / "Qargo.toml").write_bytes(expected["Qargo.toml"])
+        expected = {"Qlirgo.toml": b"captured manifest"}
+        (snapshot / "Qlirgo.toml").write_bytes(expected["Qlirgo.toml"])
         for name in ("src", "tests", "docs"):
             (snapshot / name).mkdir()
         verifier.verify_snapshot(snapshot, expected)
@@ -152,12 +152,12 @@ class ReleaseMetadataTests(unittest.TestCase):
 
     def test_managed_configuration_preserves_root_override_nested_bytes_and_owning_fallback(self):
         owning = b'[source]\nroot="src"\n'
-        expected = {"Qargo.toml": owning, "src/a.qli": b"a", "src/sub/Qargo.toml": b"nested"}
+        expected = {"Qlirgo.toml": owning, "src/a.qli": b"a", "src/sub/Qlirgo.toml": b"nested"}
         self.assertEqual(verifier.source_configuration(expected),
-                         {"Qargo.toml": owning, "sub/Qargo.toml": b"nested"})
-        expected["src/Qargo.toml"] = b"root override"
+                         {"Qlirgo.toml": owning, "sub/Qlirgo.toml": b"nested"})
+        expected["src/Qlirgo.toml"] = b"root override"
         self.assertEqual(verifier.source_configuration(expected),
-                         {"Qargo.toml": b"root override", "sub/Qargo.toml": b"nested"})
+                         {"Qlirgo.toml": b"root override", "sub/Qlirgo.toml": b"nested"})
         self.assertNotIn("src/a.qli", verifier.source_configuration(expected))
 
     def test_environment_rejects_stale_missing_extra_reordered_and_changed_constituents(self):
@@ -234,9 +234,9 @@ class ReleaseMetadataTests(unittest.TestCase):
 
     def record(self, count=1):
         check = {"status": "passed", "reason": None} if count else {"status": "not_run", "reason": "no_sources"}
-        return {"format": "qargo.build-record", "version": 2, "input_id": "input",
-                "qrate": {"name": "sample", "version": verifier.PRODUCT_VERSION}, "source_count": count,
-                "qleisli_check": check, "profile": "finite-v0", "tool": {"name": "qargo"},
+        return {"format": "qlirgo.build-record", "version": 2, "input_id": "input",
+                "qrate": {"name": "sample", "version": verifier.QRATE_VERSION}, "source_count": count,
+                "qleisli_check": check, "profile": "finite-v0", "tool": {"name": "qlirgo"},
                 "effective_std": self.std, "source_configuration_id": self.result["source_configuration_id"],
                 "native_decisions": self.native if count else None,
                 "steps": [{"name": "manifest", "status": "passed", "reason": None},
@@ -250,7 +250,7 @@ class ReleaseMetadataTests(unittest.TestCase):
         for count in (0, 1):
             record = self.record(count)
             result = {key: record[key] for key in ("effective_std", "source_configuration_id", "native_decisions")}
-            validate = lambda value: verifier.verify_build_record(value, "sample", "input", count, {"name": "qargo"}, result)
+            validate = lambda value: verifier.verify_build_record(value, "sample", "input", count, {"name": "qlirgo"}, result)
             validate(record)
             mutations = []
             for field, value in [("version", 1), ("source_count", bool(count)),
@@ -276,7 +276,7 @@ class ReleaseMetadataTests(unittest.TestCase):
 
     def test_result_versions_are_explicit_parent_two_child_one_not_self_reported(self):
         for name in verifier.TOOLS:
-            version = 2 if name == "qargo" else 1
+            version = 2 if name == "qlirgo" else 1
             report = {"format": name + ".result", "version": version, "outcome": "ok", "diagnostics": []}
             def output(value):
                 return type("Output", (), {"returncode": 0, "stderr": b"", "stdout": json.dumps(value).encode() + b"\n"})()
@@ -296,13 +296,13 @@ class ReleaseMetadataTests(unittest.TestCase):
         marker = self.root / "empty-native-was-started"
         report = {"diagnostics": [{"id": "backend_unavailable"}]}
         with patch.object(verifier, "invoke", return_value=report) as invoke:
-            verifier.verify_empty_test(Path("/qargo"), Path("/Qargo.toml"), {}, marker)
-            invoke.assert_called_once_with(Path("/qargo"), ["test", "--manifest-path", "/Qargo.toml"], {}, "qargo", expected_exit=1)
+            verifier.verify_empty_test(Path("/qlirgo"), Path("/Qlirgo.toml"), {}, marker)
+            invoke.assert_called_once_with(Path("/qlirgo"), ["test", "--manifest-path", "/Qlirgo.toml"], {}, "qlirgo", expected_exit=1)
         def late_marker(*args, **kwargs):
             marker.write_bytes(b"started")
             return report
         with patch.object(verifier, "invoke", side_effect=late_marker), self.assertRaisesRegex(RuntimeError, "invoked the native checker"):
-            verifier.verify_empty_test(Path("/qargo"), Path("/Qargo.toml"), {}, marker)
+            verifier.verify_empty_test(Path("/qlirgo"), Path("/Qlirgo.toml"), {}, marker)
 
     def test_missing_dependency_source_binding_never_starts_runtime_or_cargo(self):
         with patch.object(verifier.subprocess, "run") as run:
@@ -319,11 +319,22 @@ class ReleaseMetadataTests(unittest.TestCase):
             run.assert_not_called()
 
     def test_developer_package_cli_forwards_explicit_source_association(self):
-        with patch("sys.argv", ["verify_package.py", "--source-root=/qargo", "--crate=/qargo.crate",
+        with patch("sys.argv", ["verify_package.py", "--source-root=/qlirgo", "--crate=/qlirgo.crate",
                                 "--bin-dir=/bins", "--qleisli-source-root=/intended-qleisli"]), \
              patch.object(verify_package, "verify_package") as verify:
             verify_package.main()
-            verify.assert_called_once_with(Path("/qargo"), Path("/qargo.crate"), Path("/bins"), Path("/intended-qleisli"))
+            verify.assert_called_once_with(Path("/qlirgo"), Path("/qlirgo.crate"), Path("/bins"), Path("/intended-qleisli"))
+
+
+class ProductReleaseVersionTests(unittest.TestCase):
+    def test_product_prerelease_and_qrate_version_are_separate(self):
+        from release_version import qrate_version, is_beta
+        for value, expected in [("0.2.0", "0.2.0"), ("0.2.0-beta", "0.2.0"), ("0.2.0-beta.1", "0.2.0"), ("12.30.4-beta.27", "12.30.4")]:
+            self.assertEqual(qrate_version(value), expected)
+            self.assertEqual(is_beta(value), "-beta" in value)
+        for invalid in ["v0.2.0", "00.2.0", "0.02.0", "0.2.0-beta.0", "0.2.0-beta.01", "0.2.0-beta.", "0.2.0-beta.1/evil", "0.2.0-rc.1", "0.2.0+metadata", "0.2.0\n"]:
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                qrate_version(invalid)
 
 
 if __name__ == "__main__":

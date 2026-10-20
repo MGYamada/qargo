@@ -166,10 +166,10 @@ def capture_native(toolchain, kernel):
         print("Capturing native input: " + str(root), flush=True)
         inventories[str(root)] = external_tree(root)
     inventories[str(kernel)] = kernel_inventory
-    record = {"format": "qargo.native-build-inputs", "version": 1, "host": host,
+    record = {"format": "qlirgo.native-build-inputs", "version": 1, "host": host,
               "platform": platform.platform(), "tools": tools, "environment": env,
               "inventories": inventories}
-    record["native_id"] = identity("qargo.native-build-inputs.v1", record)
+    record["native_id"] = identity("qlirgo.native-build-inputs.v1", record)
     return record, env
 
 
@@ -297,10 +297,10 @@ def generated_inputs(target):
 
 
 def build_binding(project_id, native, choices, generated, artifacts):
-    record = {"format": "qargo.rust-build-environment", "version": 1,
+    record = {"format": "qlirgo.rust-build-environment", "version": 1,
               "project_id": project_id, "native_id": native["native_id"],
               "choices": choices, "generated_inputs": generated, "artifacts": artifacts}
     # Final artifact digests are outputs, separate from environment identity.
     binding = {key: value for key, value in record.items() if key != "artifacts"}
-    record["build_environment_id"] = identity("qargo.rust-build-environment.v1", binding)
+    record["build_environment_id"] = identity("qlirgo.rust-build-environment.v1", binding)
     return record

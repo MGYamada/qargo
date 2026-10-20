@@ -8,13 +8,13 @@ import subprocess
 import tarfile
 import tempfile
 
-from verify_release import PRODUCT_VERSION, QRATES, TOOLS, files_under, qrate_inputs, require, verify
+from verify_release import DOCUMENTATION_URL, PRODUCT_VERSION, QRATES, TOOLS, files_under, qrate_inputs, require, verify
 
 
 def verify_package(source_root, archive_path, bin_dir, qleisli_source_root=None):
     require(qleisli_source_root is not None, "Package verification requires explicit --qleisli-source-root")
     source_root = source_root.resolve()
-    prefix = "qargo-" + PRODUCT_VERSION
+    prefix = "qlirgo-" + PRODUCT_VERSION
     with tarfile.open(archive_path, "r:gz") as archive:
         packaged = {}
         for entry in archive.getmembers():
@@ -48,7 +48,7 @@ def verify_package(source_root, archive_path, bin_dir, qleisli_source_root=None)
         require(not any(label.startswith("qrates/" + name + "/") and label.endswith(".qlt")
                         for label in packaged), "Unexpected QLT input")
 
-    with tempfile.TemporaryDirectory(prefix="qargo-package-check-") as directory:
+    with tempfile.TemporaryDirectory(prefix="qlirgo-package-check-") as directory:
         root = Path(directory)
         for label, content in packaged.items():
             destination = root / label
@@ -62,8 +62,10 @@ def verify_package(source_root, archive_path, bin_dir, qleisli_source_root=None)
         packages = json.loads(output.stdout)["packages"]
         require(len(packages) == 1, "Package requires private workspace members")
         package = packages[0]
-        require(package["name"] == "qargo" and package["version"] == PRODUCT_VERSION,
+        require(package["name"] == "qlirgo" and package["version"] == PRODUCT_VERSION,
                 "Incorrect package identity")
+        require(package["documentation"] == DOCUMENTATION_URL,
+                "Package must declare its documentation URL for crates.io search results")
         require(package["rust_version"] == "1.85", "Incorrect package MSRV")
         bins = {target["name"] for target in package["targets"] if "bin" in target["kind"]}
         require(bins == set(TOOLS), "Package must install all four executables")

@@ -19,7 +19,7 @@ class DependencyAssociationTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
         self.manifest = self.root / "Cargo.toml"
-        self.manifest.write_text('[package]\nname="qargo"\nversion="0.1.9"\n[dependencies]\nqleisli="=0.3.0-beta"\n')
+        self.manifest.write_text('[package]\nname="qlirgo"\nversion="0.1.9"\n[dependencies]\nqleisli="=0.3.0-beta"\n')
         self.source = self.root / "registry/qleisli-0.3.0-beta"
         files = {"Cargo.toml": '[package]\nname="qleisli"\nversion="0.3.0-beta"\n',
                  "lean-kernel/lean-toolchain": "leanprover/lean4:v4.30.0\n",
@@ -35,7 +35,7 @@ class DependencyAssociationTests(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(content)
         self.metadata = {"version": 1, "packages": [
-            {"id": "root", "name": "qargo", "manifest_path": str(self.manifest)},
+            {"id": "root", "name": "qlirgo", "manifest_path": str(self.manifest)},
             {"id": "dependency", "name": "qleisli", "version": "0.3.0-beta",
              "source": "registry+https://github.com/rust-lang/crates.io-index", "manifest_path": str(self.source / "Cargo.toml")}],
             "resolve": {"root": "root", "nodes": [{"id": "root", "deps": [{"name": "qleisli", "pkg": "dependency"}]}]}}
@@ -46,7 +46,7 @@ class DependencyAssociationTests(unittest.TestCase):
         self.manifest.write_text(self.manifest.read_text().replace('qleisli="=0.3.0-beta"', '[dependencies.qleisli]\nversion="=0.3.0-beta"'))
         self.assertEqual(dependency_root(self.metadata, self.manifest), self.source)
 
-    def test_actual_qargo_root_workspace_declaration_is_bound(self):
+    def test_actual_qlirgo_root_workspace_declaration_is_bound(self):
         # Exercise the real source manifest shape, not a normalized package copy.
         source_manifest = Path(__file__).resolve().parent.parent / "Cargo.toml"
         manifest = tomllib.loads(source_manifest.read_text(encoding="utf-8"))

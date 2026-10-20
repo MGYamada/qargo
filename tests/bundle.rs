@@ -2,16 +2,16 @@ use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
 
-use qargo_tools::snapshot::{Files, collect_tree, digest_files, digest_path, materialize};
+use qlirgo_tools::snapshot::{Files, collect_tree, digest_files, digest_path, materialize};
 use serde_json::{Value, json};
 
 const TOOLS: [(&str, &str); 4] = [
-    ("qargo", env!("CARGO_BIN_EXE_qargo")),
-    ("qlippy", env!("CARGO_BIN_EXE_qlippy")),
+    ("qlirgo", env!("CARGO_BIN_EXE_qlirgo")),
+    ("qlinty", env!("CARGO_BIN_EXE_qlinty")),
     ("qlifmt", env!("CARGO_BIN_EXE_qlifmt")),
     ("qlidoc", env!("CARGO_BIN_EXE_qlidoc")),
 ];
-const QRATES: [&str; 3] = ["qlippy", "qlifmt", "qlidoc"];
+const QRATES: [&str; 3] = ["qlinty", "qlifmt", "qlidoc"];
 
 fn response(output: &Output) -> Value {
     assert!(output.stderr.is_empty(), "{:?}", output.stderr);
@@ -39,6 +39,10 @@ fn qrate_files(name: &str) -> Files {
         .join(name);
     let mut files = Files::new();
     files.insert(
+        "Qlirgo.toml".into(),
+        fs::read(root.join("Qlirgo.toml")).unwrap(),
+    );
+    files.insert(
         "Qargo.toml".into(),
         fs::read(root.join("Qargo.toml")).unwrap(),
     );
@@ -56,13 +60,13 @@ fn all_four_executables_bind_version_to_the_actual_engine() {
         let (output, report) = run(binary, &["--version"]);
         assert!(output.status.success(), "{name}: {report}");
         assert_eq!(report["format"], format!("{name}.result"));
-        assert_eq!(report["version"], if name == "qargo" { 2 } else { 1 });
+        assert_eq!(report["version"], if name == "qlirgo" { 2 } else { 1 });
         assert_eq!(report["command"], "version");
         assert_eq!(report["outcome"], "ok");
         assert_eq!(report["diagnostics"], json!([]));
         let tool = report["result"].get("tool").unwrap_or(&report["result"]);
         assert_eq!(tool["name"], name);
-        assert_eq!(tool["version"], "0.1.9");
+        assert_eq!(tool["version"], env!("CARGO_PKG_VERSION"));
         assert_eq!(tool["qleisli_version"], "0.3.0-beta");
         assert_eq!(tool["profile"], "finite-v0");
         assert_eq!(
@@ -78,10 +82,10 @@ fn standard_qrates_capture_all_declared_sources_and_keep_developer_config_outsid
     for name in QRATES {
         let files = qrate_files(name);
         let manifest: toml::Value =
-            toml::from_str(std::str::from_utf8(&files["Qargo.toml"]).unwrap()).unwrap();
+            toml::from_str(std::str::from_utf8(&files["Qlirgo.toml"]).unwrap()).unwrap();
         assert_eq!(manifest["schema-version"].as_integer(), Some(2));
         assert_eq!(manifest["qrate"]["name"].as_str(), Some(name));
-        assert_eq!(manifest["qrate"]["version"].as_str(), Some("0.1.9"));
+        assert_eq!(manifest["qrate"]["version"].as_str(), Some("0.2.0"));
         assert_eq!(manifest["qrate"]["edition"].as_str(), Some("2026"));
         assert!(files.contains_key("src/lib.rs"), "{name}");
         assert!(files.contains_key(&format!("src/bin/{name}.rs")), "{name}");
@@ -118,13 +122,13 @@ fn standard_qrates_capture_all_declared_sources_and_keep_developer_config_outsid
         let root = materialize(&files).unwrap();
         let manifest = format!(
             "--manifest-path={}",
-            root.path().join("Qargo.toml").display()
+            root.path().join("Qlirgo.toml").display()
         );
-        let (output, report) = run(env!("CARGO_BIN_EXE_qargo"), &["build", &manifest]);
+        let (output, report) = run(env!("CARGO_BIN_EXE_qlirgo"), &["build", &manifest]);
         assert!(output.status.success(), "{name}: {report}");
         assert_eq!(
             report["result"]["input_id"],
-            digest_files("qargo.qrate.v1", &files)
+            digest_files("qlirgo.qrate.v1", &files)
         );
         assert_eq!(
             report["result"]["source_id"],
@@ -153,7 +157,7 @@ fn standard_qrates_capture_all_declared_sources_and_keep_developer_config_outsid
         let mut changed = files[changed_file].clone();
         changed.extend_from_slice(b"\n// Qrate identity includes Rust engine inputs.\n");
         fs::write(root.path().join(changed_file), changed).unwrap();
-        let (output, updated) = run(env!("CARGO_BIN_EXE_qargo"), &["check", &manifest]);
+        let (output, updated) = run(env!("CARGO_BIN_EXE_qlirgo"), &["check", &manifest]);
         assert!(output.status.success(), "{name}: {updated}");
         assert_ne!(updated["result"]["input_id"], report["result"]["input_id"]);
         assert_eq!(
@@ -176,8 +180,8 @@ fn bundled_operations_never_start_cargo_or_rustdoc() {
     let cargo_marker = traps.path().join("cargo-started");
     let rustdoc_marker = traps.path().join("rustdoc-started");
     for (name, variable) in [
-        ("cargo", "QARGO_CARGO_TRAP"),
-        ("rustdoc", "QARGO_RUSTDOC_TRAP"),
+        ("cargo", "QLIRGO_CARGO_TRAP"),
+        ("rustdoc", "QLIRGO_RUSTDOC_TRAP"),
     ] {
         let path = traps.path().join(name);
         fs::write(
@@ -194,8 +198,8 @@ fn bundled_operations_never_start_cargo_or_rustdoc() {
             .env("PATH", traps.path())
             .env("CARGO", traps.path().join("cargo"))
             .env("RUSTDOC", traps.path().join("rustdoc"))
-            .env("QARGO_CARGO_TRAP", &cargo_marker)
-            .env("QARGO_RUSTDOC_TRAP", &rustdoc_marker)
+            .env("QLIRGO_CARGO_TRAP", &cargo_marker)
+            .env("QLIRGO_RUSTDOC_TRAP", &rustdoc_marker)
             .output()
             .unwrap();
         let report = response(&output);
@@ -211,10 +215,10 @@ fn bundled_operations_never_start_cargo_or_rustdoc() {
         let root = materialize(&qrate_files(name)).unwrap();
         let manifest = format!(
             "--manifest-path={}",
-            root.path().join("Qargo.toml").display()
+            root.path().join("Qlirgo.toml").display()
         );
         for command in ["check", "build", "lint", "fmt", "doc", "test"] {
-            let (output, report) = invoke(env!("CARGO_BIN_EXE_qargo"), &[command, &manifest]);
+            let (output, report) = invoke(env!("CARGO_BIN_EXE_qlirgo"), &[command, &manifest]);
             if command == "test" {
                 assert_eq!(output.status.code(), Some(1));
                 assert_eq!(report["diagnostics"][0]["id"], "backend_unavailable");
@@ -234,7 +238,7 @@ fn bundled_operations_never_start_cargo_or_rustdoc() {
                 .display()
         );
         for (binary, args) in [
-            (env!("CARGO_BIN_EXE_qlippy"), vec![source]),
+            (env!("CARGO_BIN_EXE_qlinty"), vec![source]),
             (env!("CARGO_BIN_EXE_qlifmt"), vec![source, "--check"]),
             (env!("CARGO_BIN_EXE_qlidoc"), vec![source, &destination]),
         ] {

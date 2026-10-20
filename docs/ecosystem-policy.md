@@ -5,26 +5,26 @@ Status: adopted design policy as of 0.1.2, applied to 0.1.9. Future dependency, 
 ## Curated standard library first
 
 The [qrate boundary policy](../QRATEBOUNDARY.md) applies equally to internal and
-external qrates. qlippy, qlifmt, and qlidoc are three ordinary independent qrates
-whose versions align with qargo for distribution convenience. This alignment
+external qrates. qlinty, qlifmt, and qlidoc are three ordinary independent qrates
+whose versions align with qlirgo for distribution convenience. This alignment
 grants no privilege. Each qrate's Rust environment must be separable with it;
 the [extraction plan](qrate-extraction-plan.md) describes the pending work.
 
-Qargo borrows Cargo's familiar command structure. This does not commit Qleisli to Cargo's package governance, automatic version resolution, feature unification, or registry model.
+Qlirgo borrows Cargo's familiar command structure. This does not commit Qleisli to Cargo's package governance, automatic version resolution, feature unification, or registry model.
 
 The ecosystem's center is the curated Qleisli standard library, std: the sole privileged qrate, bundled with Qleisli itself and sharing its version. Its governance, reserved namespace, and semantic integration belong to Qleisli. Internal std modules may share one reviewed history and release snapshot without becoming separately published qrates. Other qrates retain their own environment boundaries even when they share a repository or release schedule.
 
-Qargo consumes and records the selected Qleisli distribution and its stdlib identity. In 0.1.9 these are fixed by the linked Qleisli 0.2.1 library and bound to the host executable digest. Future selection must bind the checker, stdlib snapshot, profile, and any required proof environment without coupling their releases to qargo's release cycle. The [toolchain design](toolchains.md) states the protocol prerequisites.
+Qlirgo consumes and records the selected Qleisli distribution and its stdlib identity. In 0.1.9 these are fixed by the linked Qleisli 0.2.1 library and bound to the host executable digest. Future selection must bind the checker, stdlib snapshot, profile, and any required proof environment without coupling their releases to qlirgo's release cycle. The [toolchain design](toolchains.md) states the protocol prerequisites.
 
 External qrates may become useful, but a public registry and automatic semver dependency resolution are deferred until semantic interfaces, compatibility, provenance, and evidence scope have explicit contracts. Cargo-style version strings in schema 2 remain package metadata; they are not a dependency compatibility judgment.
 
 ## No arbitrary qrate build code
 
-Qargo will not introduce qrate-controlled shell hooks, `build.rs` equivalents, native procedural macros, or executable dependency-install scripts. Managing a qrate must not execute arbitrary host code supplied by its sources or dependencies. Host-language compilation and Rust development tests remain explicit developer operations outside qargo and outside Qleisli semantic guarantees. This policy does not prohibit Cargo's own implementation-build machinery outside qargo operations.
+Qlirgo will not introduce qrate-controlled shell hooks, `build.rs` equivalents, native procedural macros, or executable dependency-install scripts. Managing a qrate must not execute arbitrary host code supplied by its sources or dependencies. Host-language compilation and Rust development tests remain explicit developer operations outside qlirgo and outside Qleisli semantic guarantees. This policy does not prohibit Cargo's own implementation-build machinery outside qlirgo operations.
 
-Invoking an explicitly selected checker or standard tool is part of qargo's tool protocol. It must retain declared tool selection, exact input binding, result validation, and explicit failure without fallback. This is a distinct trust boundary from executing package-supplied hooks. Future QLT execution must follow a specified Qleisli test protocol; it cannot become a shell command runner. Any future declarative source expansion must remain inside specified Qleisli syntax and ordinary checking.
+Invoking an explicitly selected checker or standard tool is part of qlirgo's tool protocol. It must retain declared tool selection, exact input binding, result validation, and explicit failure without fallback. This is a distinct trust boundary from executing package-supplied hooks. Future QLT execution must follow a specified Qleisli test protocol; it cannot become a shell command runner. Any future declarative source expansion must remain inside specified Qleisli syntax and ordinary checking.
 
-Qargo will not copy Cargo-style global feature unification. Different language, backend, capability, or stdlib choices must have explicit configuration identities and compatibility rules. A dependency cannot silently broaden another qrate's capabilities or change its acceptance profile by enabling a global boolean. Profile conflicts must be diagnosed until a defined composition rule exists.
+Qlirgo will not copy Cargo-style global feature unification. Different language, backend, capability, or stdlib choices must have explicit configuration identities and compatibility rules. A dependency cannot silently broaden another qrate's capabilities or change its acceptance profile by enabling a global boolean. Profile conflicts must be diagnosed until a defined composition rule exists.
 
 ## Provenance before dependency convenience
 
@@ -34,14 +34,14 @@ Namespace authentication establishes publisher identity, not that the publisher 
 
 When dependencies are supported, a separately specified lockfile should record exact resolved source/publisher identities, package content identities, dependency edges, and the selected checker/stdlib/profile binding. Normal checking and building should consume those pinned resolutions; changes to resolution should be an explicit operation. A lockfile provides reproducibility and provenance, never proof. Automatic semver solving is not a prerequisite for that first dependency model.
 
-Local workspace convenience may be added independently of a registry once multi-qrate semantics are defined. A workspace must preserve each qrate's declared inputs, configuration, and check result; success for one member cannot certify the others. Qargo 0.1.9 still manages one local qrate per operation and has no Qargo.lock or dependency tables.
+Local workspace convenience may be added independently of a registry once multi-qrate semantics are defined. A workspace must preserve each qrate's declared inputs, configuration, and check result; success for one member cannot certify the others. Qlirgo 0.1.9 still manages one local qrate per operation and has no Qlirgo.lock or dependency tables.
 
 ## Honest command contracts
 
 The familiar `check`, `build`, `test`, and `doc` names keep explicit Qleisli meanings. Build records and lint results remain metadata. QLT is explicitly unavailable until implemented; documentation and formatting remain syntax-only. No Cargo tests, Rustdoc, or host-language executable substitute for an unavailable Qleisli operation.
 
-Current unsupported dependency commands and tables must report their limits and point to supported local operations. Adding a registry or workspace later requires a separately reviewed specification and any necessary schema versions; the name qargo does not itself authorize those features.
+Current unsupported dependency commands and tables must report their limits and point to supported local operations. Adding a registry or workspace later requires a separately reviewed specification and any necessary schema versions; the name qlirgo does not itself authorize those features.
 
 ## Tooling implementation order
 
-The adopted [tooling plan](adoption-plan.md) starts with qargo-owned diagnostic explanations, then a pinned positive/negative compatibility corpus, explicit documentation-example checks, and scoped review records. These can use the current supported checker. Toolchain selection, structured repairs, and QLT execution follow their upstream protocol prerequisites; Qleisli's language-development work is tracked in [issue 97](https://github.com/MGYamada/Qleisli/issues/97) for 0.5.0. The plan changes no current command or schema contract.
+The adopted [tooling plan](adoption-plan.md) starts with qlirgo-owned diagnostic explanations, then a pinned positive/negative compatibility corpus, explicit documentation-example checks, and scoped review records. These can use the current supported checker. Toolchain selection, structured repairs, and QLT execution follow their upstream protocol prerequisites; Qleisli's language-development work is tracked in [issue 97](https://github.com/MGYamada/Qleisli/issues/97) for 0.5.0. The plan changes no current command or schema contract.

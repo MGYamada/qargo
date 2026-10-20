@@ -13,7 +13,7 @@ import tarfile
 import tempfile
 import unittest
 
-from verify_release import PRODUCT_VERSION, TOOLS
+from verify_release import PRODUCT_VERSION, QRATE_VERSION, TOOLS
 
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,7 +26,7 @@ def host_target():
 
 class InstallerFixture:
     def __init__(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix="qargo-installer-test-")
+        self.temporary = tempfile.TemporaryDirectory(prefix="qlirgo-installer-test-")
         self.root = Path(self.temporary.name)
         self.prefix = self.root / "prefix with spaces"
         self.downloads = self.root / "downloads"
@@ -37,10 +37,10 @@ class InstallerFixture:
         self.environment = dict(os.environ)
         self.environment.update({
             "PATH": str(self.commands) + os.pathsep + os.environ["PATH"],
-            "QARGO_INSTALL_FIXTURES": str(self.downloads),
-            "QARGO_INSTALL_REQUESTS": str(self.requests),
-            "QARGO_TEST_LATEST_TAG": "v" + PRODUCT_VERSION,
-            "QARGO_INSTALL_MARKER": str(self.marker),
+            "QLIRGO_INSTALL_FIXTURES": str(self.downloads),
+            "QLIRGO_INSTALL_REQUESTS": str(self.requests),
+            "QLIRGO_TEST_LATEST_TAG": "v" + QRATE_VERSION,
+            "QLIRGO_INSTALL_MARKER": str(self.marker),
         })
         self.command("curl", """#!/bin/sh
 url=
@@ -53,16 +53,16 @@ for argument do
         https://*) url=$argument ;;
     esac
 done
-printf '%s\\n' "$url" >> "$QARGO_INSTALL_REQUESTS"
-case "$url" in *"${QARGO_TEST_FAIL_DOWNLOAD:-impossible-failure-pattern}"*) exit 22 ;; esac
-if [ "$url" = https://github.com/MGYamada/qargo/releases/latest ]; then
-    printf 'https://github.com/MGYamada/qargo/releases/tag/%s' "$QARGO_TEST_LATEST_TAG"
+printf '%s\\n' "$url" >> "$QLIRGO_INSTALL_REQUESTS"
+case "$url" in *"${QLIRGO_TEST_FAIL_DOWNLOAD:-impossible-failure-pattern}"*) exit 22 ;; esac
+if [ "$url" = https://github.com/MGYamada/qlirgo/releases/latest ]; then
+    printf 'https://github.com/MGYamada/qlirgo/releases/tag/%s' "$QLIRGO_TEST_LATEST_TAG"
     exit 0
 fi
 case "$url" in
-    https://github.com/MGYamada/qargo/releases/download/*)
-        relative=${url#https://github.com/MGYamada/qargo/releases/download/}
-        cp "$QARGO_INSTALL_FIXTURES/$relative" "$output"
+    https://github.com/MGYamada/qlirgo/releases/download/*)
+        relative=${url#https://github.com/MGYamada/qlirgo/releases/download/}
+        cp "$QLIRGO_INSTALL_FIXTURES/$relative" "$output"
         ;;
     *) exit 22 ;;
 esac
@@ -70,18 +70,18 @@ esac
         real_uname = shlex.quote(shutil.which("uname"))
         self.command("uname", f"""#!/bin/sh
 case "$1" in
-    -s) if [ -n "${{QARGO_TEST_OS:-}}" ]; then printf '%s\\n' "$QARGO_TEST_OS"; exit; fi ;;
-    -m) if [ -n "${{QARGO_TEST_ARCH:-}}" ]; then printf '%s\\n' "$QARGO_TEST_ARCH"; exit; fi ;;
+    -s) if [ -n "${{QLIRGO_TEST_OS:-}}" ]; then printf '%s\\n' "$QLIRGO_TEST_OS"; exit; fi ;;
+    -m) if [ -n "${{QLIRGO_TEST_ARCH:-}}" ]; then printf '%s\\n' "$QLIRGO_TEST_ARCH"; exit; fi ;;
 esac
 exec {real_uname} "$@"
 """)
-        self.command("sysctl", "#!/bin/sh\nprintf '%s\\n' \"${QARGO_TEST_ROSETTA:-0}\"\n")
+        self.command("sysctl", "#!/bin/sh\nprintf '%s\\n' \"${QLIRGO_TEST_ROSETTA:-0}\"\n")
         real_mv = shlex.quote(shutil.which("mv"))
         switch_flag = "-fh" if platform.system() == "Darwin" else "-fT"
         self.command("mv", f"""#!/bin/sh
 case "$1" in
     -fT|-fh)
-        [ "${{QARGO_TEST_FAIL_SWITCH:-no}}" != yes ] || exit 1
+        [ "${{QLIRGO_TEST_FAIL_SWITCH:-no}}" != yes ] || exit 1
         shift
         exec {real_mv} {switch_flag} "$@"
         ;;
@@ -89,7 +89,7 @@ esac
 exec {real_mv} "$@"
 """)
         for name in ("cargo", "rustc", "rustdoc", "python3", "jq"):
-            self.command(name, "#!/bin/sh\nprintf started > \"$QARGO_INSTALL_MARKER\"\nexit 99\n")
+            self.command(name, "#!/bin/sh\nprintf started > \"$QLIRGO_INSTALL_MARKER\"\nexit 99\n")
 
     def __enter__(self):
         return self
@@ -105,16 +105,16 @@ exec {real_mv} "$@"
     def add_archive(self, version, target, archive_path):
         destination = self.downloads / ("v" + version)
         destination.mkdir(parents=True, exist_ok=True)
-        name = f"qargo-{version}-{target}.tar.gz"
+        name = f"qlirgo-{version}-{target}.tar.gz"
         shutil.copyfile(archive_path, destination / name)
         digest = hashlib.sha256((destination / name).read_bytes()).hexdigest()
         (destination / "SHA256SUMS").write_text(digest + "  " + name + "\n")
 
-    def release(self, version=PRODUCT_VERSION, target=None, *, extra=None, link=None,
+    def release(self, version=QRATE_VERSION, target=None, *, extra=None, link=None,
                 duplicate=False, wrong_version=False, nonexecutable=False, absolute=False,
-                unsafe_mode=False, qleisli_version="0.2.1"):
+                unsafe_mode=False, qleisli_version="0.3.0-beta"):
         target = target or host_target()
-        name = f"qargo-{version}-{target}"
+        name = f"qlirgo-{version}-{target}"
         directory = self.downloads / ("v" + version)
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / (name + ".tar.gz")
@@ -133,7 +133,7 @@ exec {real_mv} "$@"
                 if unsafe_mode and label == "bin/qlidoc":
                     entry.mode = 0o777
                 if link and label == "NOTICE":
-                    entry.type, entry.linkname = link, "/tmp/qargo-should-never-be-read"
+                    entry.type, entry.linkname = link, "/tmp/qlirgo-should-never-be-read"
                     archive.addfile(entry)
                 else:
                     entry.size = len(data)
@@ -164,7 +164,7 @@ exec {real_mv} "$@"
                               capture_output=True, timeout=30)
 
     def current(self):
-        return (self.prefix / "lib/qargo/current").readlink().as_posix()
+        return (self.prefix / "lib/qlirgo/current").readlink().as_posix()
 
 
 class InstallerTests(unittest.TestCase):
@@ -179,7 +179,7 @@ class InstallerTests(unittest.TestCase):
     def failure(self, result):
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertFalse(self.fixture.marker.exists())
-        self.assertFalse((self.fixture.prefix / "lib/qargo/.install-lock").exists())
+        self.assertFalse((self.fixture.prefix / "lib/qlirgo/.install-lock").exists())
 
     def test_first_install_latest_repeated_and_stdin(self):
         self.fixture.release()
@@ -189,12 +189,32 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(self.fixture.current(), before)
         for tool in TOOLS:
             path = self.fixture.prefix / "bin" / tool
-            self.assertEqual(path.readlink().as_posix(), "../lib/qargo/current/bin/" + tool)
+            self.assertEqual(path.readlink().as_posix(), "../lib/qlirgo/current/bin/" + tool)
             self.assertTrue(os.access(path, os.X_OK))
         requests = self.fixture.requests.read_text().splitlines()
-        self.assertEqual(requests.count("https://github.com/MGYamada/qargo/releases/latest"), 2)
-        self.assertTrue(all("/download/v" + PRODUCT_VERSION + "/" in url
+        self.assertEqual(requests.count("https://github.com/MGYamada/qlirgo/releases/latest"), 2)
+        self.assertTrue(all("/download/v" + QRATE_VERSION + "/" in url
                             for url in requests if not url.endswith("/latest")))
+
+    def test_explicit_beta_installs_without_changing_latest_selection(self):
+        self.fixture.release()
+        for version in (QRATE_VERSION + "-beta", QRATE_VERSION + "-beta.1"):
+            with self.subTest(version=version):
+                self.fixture.release(version)
+                self.success(self.fixture.run("--version", version))
+                self.assertIn("qlirgo-" + version + "-", self.fixture.current())
+                self.success(self.fixture.run())
+                self.assertIn("qlirgo-" + QRATE_VERSION + "-", self.fixture.current())
+                self.assertNotIn("-beta", self.fixture.current())
+
+    def test_latest_never_selects_a_beta_tag(self):
+        for version in (QRATE_VERSION + "-beta", QRATE_VERSION + "-beta.1"):
+            with self.subTest(version=version):
+                self.fixture.release(version)
+                result = self.fixture.run(environment={"QLIRGO_TEST_LATEST_TAG": "v" + version})
+                self.failure(result)
+                self.assertIn("Latest release must be formal", result.stderr)
+                self.assertFalse(self.fixture.prefix.exists())
 
     def test_explicit_version_update_and_downgrade(self):
         self.fixture.release("0.1.4")
@@ -206,16 +226,35 @@ class InstallerTests(unittest.TestCase):
         self.success(self.fixture.run("--version", "0.1.4"))
         self.assertEqual(self.fixture.current(), old)
 
-    def test_development_beta_cannot_masquerade_as_a_historical_release_pair(self):
+    def test_legacy_checker_cannot_masquerade_as_the_new_beta_pair(self):
         # Synthetic transport fixture only: no beta registry/install claim.
-        for version in ("0.1.4", "0.1.9"):
+        for version in (PRODUCT_VERSION, "0.3.0"):
             with self.subTest(version=version), InstallerFixture() as fixture:
-                fixture.release(version, qleisli_version="0.3.0-beta")
+                fixture.release(version, qleisli_version="0.2.1")
                 result = fixture.run("--version", version)
                 self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
-                self.assertIn("Incorrect executable version: qargo", result.stderr)
+                self.assertIn("Incorrect executable version: qlirgo", result.stderr)
                 self.assertFalse(fixture.prefix.exists())
                 self.assertFalse(fixture.marker.exists())
+
+    def test_old_qargo_managed_links_require_a_separate_prefix(self):
+        self.fixture.release()
+        prefix = self.fixture.prefix
+        old = prefix / "lib/qargo/releases/old/bin"
+        old.mkdir(parents=True)
+        (prefix / "lib/qargo/current").symlink_to("releases/old", target_is_directory=True)
+        (prefix / "bin").mkdir()
+        for tool in ("qargo", "qlippy", "qlifmt", "qlidoc"):
+            (old / tool).write_text("old tool " + tool)
+            (prefix / "bin" / tool).symlink_to("../lib/qargo/current/bin/" + tool)
+        result = self.fixture.run()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("another --prefix", result.stderr)
+        for tool in ("qargo", "qlippy", "qlifmt", "qlidoc"):
+            self.assertEqual((prefix / "bin" / tool).read_text(), "old tool " + tool)
+            self.assertEqual(os.readlink(prefix / "bin" / tool), "../lib/qargo/current/bin/" + tool)
+        self.assertFalse((prefix / "bin/qlirgo").exists())
+        self.assertFalse((prefix / "bin/qlinty").exists())
 
     def test_all_platform_cpu_mappings_and_rosetta(self):
         for system, arch, target in (
@@ -225,11 +264,11 @@ class InstallerTests(unittest.TestCase):
         ):
             with self.subTest(system=system, arch=arch), InstallerFixture() as fixture:
                 fixture.release(target=target)
-                result = fixture.run(environment={"QARGO_TEST_OS": system, "QARGO_TEST_ARCH": arch})
+                result = fixture.run(environment={"QLIRGO_TEST_OS": system, "QLIRGO_TEST_ARCH": arch})
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertIn(target, fixture.current())
         self.fixture.release(target="aarch64-apple-darwin")
-        self.success(self.fixture.run(environment={"QARGO_TEST_OS": "Darwin", "QARGO_TEST_ARCH": "x86_64", "QARGO_TEST_ROSETTA": "1"}))
+        self.success(self.fixture.run(environment={"QLIRGO_TEST_OS": "Darwin", "QLIRGO_TEST_ARCH": "x86_64", "QLIRGO_TEST_ROSETTA": "1"}))
 
     def test_linux_arm64_remains_unsupported_without_downloading_or_changing_installation(self):
         self.fixture.release()
@@ -237,7 +276,7 @@ class InstallerTests(unittest.TestCase):
         previous = self.fixture.current()
         requests = self.fixture.requests.read_bytes()
         for arch in ("aarch64", "arm64"):
-            result = self.fixture.run(environment={"QARGO_TEST_OS": "Linux", "QARGO_TEST_ARCH": arch})
+            result = self.fixture.run(environment={"QLIRGO_TEST_OS": "Linux", "QLIRGO_TEST_ARCH": arch})
             self.failure(result)
             self.assertIn("Linux ARM64 is unsupported by this installer", result.stderr)
             self.assertIn("native host validation is required", result.stderr)
@@ -245,22 +284,24 @@ class InstallerTests(unittest.TestCase):
             self.assertEqual(self.fixture.requests.read_bytes(), requests)
 
     def test_unsupported_platform_cpu_and_invalid_arguments_do_not_download(self):
-        for environment in ({"QARGO_TEST_OS": "Windows"}, {"QARGO_TEST_ARCH": "riscv64"}):
+        for environment in ({"QLIRGO_TEST_OS": "Windows"}, {"QLIRGO_TEST_ARCH": "riscv64"}):
             self.failure(self.fixture.run(environment=environment))
         for args in (("--version", "01.1.6"), ("--version", "v0.1.6"),
-                     ("--version", "0.1.6/evil"), ("--version",),
+                     ("--version", "0.1.6/evil"), ("--version", "0.2.0-beta.0"),
+                     ("--version", "0.2.0-beta.01"), ("--version", "0.2.0-beta.1/evil"),
+                     ("--version", "0.2.0-beta.1\n"), ("--version",),
                      ("--version", "0.1.6", "--version=0.1.6"),
                      ("--prefix", "/tmp/duplicate"), ("--unknown",)):
             self.failure(self.fixture.run(*args))
         self.assertFalse(self.fixture.requests.exists())
 
     def test_unknown_latest_tag(self):
-        self.failure(self.fixture.run(environment={"QARGO_TEST_LATEST_TAG": "v0.1.6-rc1"}))
+        self.failure(self.fixture.run(environment={"QLIRGO_TEST_LATEST_TAG": "v0.1.6-rc1"}))
         self.assertFalse(self.fixture.prefix.exists())
 
     def test_download_failure_and_checksum_mismatch(self):
         archive = self.fixture.release()
-        self.failure(self.fixture.run(environment={"QARGO_TEST_FAIL_DOWNLOAD": ".tar.gz"}))
+        self.failure(self.fixture.run(environment={"QLIRGO_TEST_FAIL_DOWNLOAD": ".tar.gz"}))
         sums = archive.parent / "SHA256SUMS"
         sums.write_text("0" * 64 + "  " + archive.name + "\n")
         self.failure(self.fixture.run())
@@ -297,21 +338,21 @@ class InstallerTests(unittest.TestCase):
         self.fixture.release()
         directory = self.fixture.prefix / "bin"
         directory.mkdir(parents=True)
-        path = directory / "qlippy"
+        path = directory / "qlinty"
         path.write_text("keep me")
         self.failure(self.fixture.run())
         self.assertEqual(path.read_text(), "keep me")
         path.unlink()
-        path.symlink_to("/tmp/foreign-qargo")
+        path.symlink_to("/tmp/foreign-qlirgo")
         self.failure(self.fixture.run())
-        self.assertEqual(path.readlink().as_posix(), "/tmp/foreign-qargo")
-        self.assertFalse((directory / "qargo").exists())
+        self.assertEqual(path.readlink().as_posix(), "/tmp/foreign-qlirgo")
+        self.assertFalse((directory / "qlirgo").exists())
 
     def test_existing_managed_binary_tampering_is_rejected(self):
         self.fixture.release()
         self.success(self.fixture.run())
         current = self.fixture.current()
-        (self.fixture.prefix / "bin/qlippy").write_text("changed")
+        (self.fixture.prefix / "bin/qlinty").write_text("changed")
         self.failure(self.fixture.run())
         self.assertEqual(self.fixture.current(), current)
 
@@ -329,8 +370,8 @@ class InstallerTests(unittest.TestCase):
         real_mkdir = shlex.quote(shutil.which("mkdir"))
         self.fixture.command("mkdir", f"""#!/bin/sh
 for argument do
-    if [ "$argument" = "$QARGO_TEST_DEFAULT_PREFIX" ]; then
-        printf '%s' "$argument" > "$QARGO_TEST_PREFIX_RECORD"
+    if [ "$argument" = "$QLIRGO_TEST_DEFAULT_PREFIX" ]; then
+        printf '%s' "$argument" > "$QLIRGO_TEST_PREFIX_RECORD"
         exit 1
     fi
 done
@@ -338,8 +379,8 @@ exec {real_mkdir} "$@"
 """)
         record = self.fixture.root / "default-prefix"
         result = self.fixture.run(use_default_prefix=True, environment={
-            "QARGO_TEST_DEFAULT_PREFIX": expected,
-            "QARGO_TEST_PREFIX_RECORD": str(record),
+            "QLIRGO_TEST_DEFAULT_PREFIX": expected,
+            "QLIRGO_TEST_PREFIX_RECORD": str(record),
         })
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(record.read_text(), expected)
@@ -374,13 +415,13 @@ exec {real_mkdir} "$@"
         self.success(self.fixture.run("--version", "0.1.4"))
         current = self.fixture.current()
         before = {tool: (self.fixture.prefix / "bin" / tool).read_bytes() for tool in TOOLS}
-        self.failure(self.fixture.run(environment={"QARGO_TEST_FAIL_SWITCH": "yes"}))
+        self.failure(self.fixture.run(environment={"QLIRGO_TEST_FAIL_SWITCH": "yes"}))
         self.assertEqual(self.fixture.current(), current)
         self.assertEqual(before, {tool: (self.fixture.prefix / "bin" / tool).read_bytes() for tool in TOOLS})
 
     def test_first_switch_failure_removes_new_entry_links(self):
         self.fixture.release()
-        self.failure(self.fixture.run(environment={"QARGO_TEST_FAIL_SWITCH": "yes"}))
+        self.failure(self.fixture.run(environment={"QLIRGO_TEST_FAIL_SWITCH": "yes"}))
         for tool in TOOLS:
             self.assertFalse((self.fixture.prefix / "bin" / tool).is_symlink())
 
@@ -395,12 +436,12 @@ exec {real_mkdir} "$@"
 
     def test_stale_lock_is_not_removed(self):
         self.fixture.release()
-        lock = self.fixture.prefix / "lib/qargo/.install-lock"
+        lock = self.fixture.prefix / "lib/qlirgo/.install-lock"
         lock.mkdir(parents=True)
         result = self.fixture.run()
         self.assertNotEqual(result.returncode, 0)
         self.assertTrue(lock.is_dir())
-        self.assertFalse((self.fixture.prefix / "lib/qargo/current").exists())
+        self.assertFalse((self.fixture.prefix / "lib/qlirgo/current").exists())
 
     def test_help_needs_no_network(self):
         self.success(self.fixture.run("--help"))

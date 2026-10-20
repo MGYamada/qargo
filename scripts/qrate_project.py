@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Portable Rust project capture. Developer tooling, never a qargo operation."""
+"""Portable Rust project capture. Developer tooling, never a qlirgo operation."""
 
 import argparse
 import hashlib
@@ -12,8 +12,8 @@ import stat
 import subprocess
 import tomllib
 
-QRATES = ("qlippy", "qlifmt", "qlidoc")
-SUPPORT = ("adapter", "executable", "publication", "report", "snapshot", "source")
+QRATES = ("qlinty", "qlifmt", "qlidoc")
+SUPPORT = ("manifest", "adapter", "executable", "publication", "report", "snapshot", "source")
 EXCLUDED = {"target", ".git", "__pycache__", ".DS_Store"}
 SCRIPTS = ("qrate_project.py", "verify_qrate.py", "capture_build.py")
 CONFIG_NAMES = (".cargo/config", ".cargo/config.toml", "rust-toolchain", "rust-toolchain.toml")
@@ -43,7 +43,7 @@ def identity(domain, value):
 
 def closure(component):
     require(component in QRATES, "Unknown component: " + component)
-    return (component,) if component == "qlippy" else ("qlippy", component)
+    return (component,) if component == "qlinty" else ("qlinty", component)
 
 
 def entries(root):
@@ -90,11 +90,11 @@ def snapshot(root, component):
         package = manifest(root / "rust" / name / "Cargo.toml")["package"]
         local.append({"name": package["name"], "version": package["version"],
                       "role": "component" if name == component else "support-dependency",
-                      "snapshot_id": identity("qargo.local-rust-inputs.v1", selected)})
+                      "snapshot_id": identity("qlirgo.local-rust-inputs.v1", selected)})
     payload = {"component": component, "entries": inventory, "configuration": optional,
                "local_packages": local}
-    return {"format": "qargo.rust-project", "version": 1,
-            "project_id": identity("qargo.rust-project.v1", payload), **payload}
+    return {"format": "qlirgo.rust-project", "version": 1,
+            "project_id": identity("qlirgo.rust-project.v1", payload), **payload}
 
 
 def check_snapshot(root):
@@ -120,6 +120,8 @@ def audit(root, components=QRATES, bundle=True):
                 "Local dependency/source escapes the component closure: " + str(path))
 
     for name in components:
+        pair = [root / "qrates" / name / filename for filename in ("Qlirgo.toml", "Qargo.toml")]
+        require(all(path.is_file() and not path.is_symlink() for path in pair) and pair[0].read_bytes() == pair[1].read_bytes(), "Transitional manifests differ: " + name)
         development = root / "rust" / name
         data = manifest(development / "Cargo.toml")
         require(data.get("workspace") == {"resolver": "3"}, "Each component must own its workspace")
@@ -134,15 +136,15 @@ def audit(root, components=QRATES, bundle=True):
                         for value in package.values()), "Inherited package metadata")
         for alias, dep in dependencies(data):
             require((dep.get("package", alias) if isinstance(dep, dict) else alias)
-                    not in ("qargo", "qargo_tools"), "Reverse qargo dependency")
+                    not in ("qlirgo", "qlirgo_tools"), "Reverse qlirgo dependency")
             if isinstance(dep, dict):
                 require(not dep.get("workspace"), "Inherited dependency: " + alias)
                 require("git" not in dep, "Git dependencies require an explicit fixed source capture implementation")
                 if "path" in dep:
                     path = (development / dep["path"]).resolve()
                     contained(path)
-                    require(name != "qlippy" and path == (root / "rust/qlippy").resolve()
-                            and dep.get("package", alias) == "qlippy-engine",
+                    require(name != "qlinty" and path == (root / "rust/qlinty").resolve()
+                            and dep.get("package", alias) == "qlinty-engine",
                             "Unsupported local dependency direction")
         for target in [data["lib"], *data.get("bin", []), *data.get("test", []), *data.get("example", []), *data.get("bench", [])]:
             contained(development / target["path"])
@@ -154,17 +156,17 @@ def audit(root, components=QRATES, bundle=True):
             if EXCLUDED.intersection(path.relative_to(root).parts):
                 continue
             source = path.read_text()
-            require(not re.search(r"\b(?:qargo_tools|qargo)\s*::", source), "Reverse source dependency: " + str(path))
+            require(not re.search(r"\b(?:qlirgo_tools|qlirgo)\s*::", source), "Reverse source dependency: " + str(path))
             require("CARGO_MANIFEST_DIR" not in source, "Root-relative runtime fixture: " + str(path))
-            if name != "qlippy":
-                require(not re.search(r"\bqlippy_engine\b(?!::support::)", source),
+            if name != "qlinty":
+                require(not re.search(r"\bqlinty_engine\b(?!::support::)", source),
                         "Shared imports must use explicit support paths, without product aliases")
-                for reference in re.findall(r"qlippy_engine::([\w:]+)", source):
+                for reference in re.findall(r"qlinty_engine::([\w:]+)", source):
                     require(reference.startswith("support::"), "Product import outside shared support: " + reference)
                     module = reference.split("::")[1]
                     require(module in set(SUPPORT) - {"adapter"}, "Non-syntax dependency: " + reference)
-            if name == "qlippy" and (path.stem in SUPPORT or path.parent.name == "support"):
-                require(not re.search(r"(?:crate|super)::(?:qlippy|rules|VERSION)\b", source),
+            if name == "qlinty" and (path.stem in SUPPORT or path.parent.name == "support"):
+                require(not re.search(r"(?:crate|super)::(?:qlinty|rules|VERSION)\b", source),
                         "Support depends on a product layer: " + str(path))
                 require(not re.search(r"crate::(?!support::)\w", source), "Support escaped its namespace")
                 require(not re.search(r"(?:use\s+crate\b(?!::support::)|crate::\s*\{|super::super)", source),
@@ -173,22 +175,22 @@ def audit(root, components=QRATES, bundle=True):
                 contained(path.parent / literal)
     if bundle:
         for name in QRATES:
-            aliases = "use qargo_tools as qlippy_engine;\n"
-            if name != "qlippy":
-                aliases += f"use qargo_tools::{name}_engine;\n"
+            aliases = "use qlirgo_tools as qlinty_engine;\n"
+            if name != "qlinty":
+                aliases += f"use qlirgo_tools::{name}_engine;\n"
             for label, inclusion in ((f"src/bin/{name}.rs", f"../../qrates/{name}/src/bin/{name}.rs"),
                                      (f"tests/{name}.rs", f"../qrates/{name}/tests/engine.rs")):
                 require((root / label).read_text() == aliases + f'include!("{inclusion}");\n',
                         "Bundle adapter must only alias and include canonical code: " + label)
         require((root / "tests/snapshot.rs").read_text()
-                == 'use qargo_tools as qlippy_engine;\ninclude!("../qrates/qlippy/tests/snapshot.rs");\n',
+                == 'use qlirgo_tools as qlinty_engine;\ninclude!("../qrates/qlinty/tests/snapshot.rs");\n',
                 "Snapshot adapter changed")
 
 
 def audit_metadata(metadata, root):
     require(Path(metadata["workspace_root"]).is_relative_to(root), "Workspace escaped extraction")
     for package in metadata["packages"]:
-        require(package["name"] not in ("qargo", "qargo_tools"), "Reverse dependency in resolved graph")
+        require(package["name"] not in ("qlirgo", "qlirgo_tools"), "Reverse dependency in resolved graph")
         # Vendoring puts registry, build and dev sources inside the project as well.
         require(Path(package["manifest_path"]).resolve().is_relative_to(root), "Dependency escaped extraction")
         for target in package["targets"]:

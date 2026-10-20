@@ -14,8 +14,8 @@ cargo clippy --frozen --all-targets -- -D warnings
 RUSTDOCFLAGS='-D warnings' cargo doc --frozen --no-deps
 ```
 
-Qlifmt and qlidoc have an exact local Rust dependency on qlippy's support. They
-import `qlippy_engine::support` without depending on lint rules, product defaults
+Qlifmt and qlidoc have an exact local Rust dependency on qlinty's support. They
+import `qlinty_engine::support` without depending on lint rules, product defaults
 or the ordinary checker. All three packages remain unpublished. The root bundle
 uses alias/include adapters for the same canonical CLI and test files.
 
@@ -31,9 +31,9 @@ python3 scripts/qrate_project.py --component qlifmt --destination /tmp/qlifmt-pr
 ```
 
 The destination must not exist. It receives the component's `qrates/` and `rust/`
-trees, the corresponding qlippy trees when required, all locked registry sources
+trees, the corresponding qlinty trees when required, all locked registry sources
 and checksums in `vendor/`, license notices, the boundary policy, these
-instructions, and the standalone verification scripts. There is no root qargo
+instructions, and the standalone verification scripts. There is no root qlirgo
 Cargo manifest. Relative source/dependency relationships are preserved. This
 does not create a repository or publish anything.
 
@@ -41,9 +41,9 @@ does not create a repository or publish anything.
 digests, sizes, executable modes, directories, and optional configuration
 presence. Its framed SHA-256 identity excludes its own record, checkout paths,
 timestamps, caches, Git state and build outputs. Qrate inputs and this complete
-Rust project are separate artifacts. No qargo result schema is extended.
+Rust project are separate artifacts. No qlirgo result schema is extended.
 
-The initial extraction supports the current explicit crates.io and local qlippy
+The initial extraction supports the current explicit crates.io and local qlinty
 dependency graph. Git dependencies and custom Cargo configuration fail until
 their capture contract is implemented. Supplied helpers/generated sources in
 the component's development or qrate trees enter the inventory. Project links,
@@ -53,7 +53,7 @@ special files, escaped local references, and inherited dependencies are rejected
 
 Supply a resolved Rust installation directory (the result of `rustc --print
 sysroot`, not a rustup shim directory), with Cargo, Clippy, Rustfmt and Rustdoc,
-and an installed four-executable qargo bundle. Also supply an explicitly selected,
+and an installed four-executable qlirgo bundle. Also supply an explicitly selected,
 already built native checker compatible with the actual captured Qleisli dependency.
 Provision it outside the original checkout before denying access to that checkout.
 These inputs must not require the original checkout. Then run the copied verifier:
@@ -73,7 +73,7 @@ environment and frozen vendored dependencies. It rejects ancestor Cargo
 configuration, custom compiler wrappers/configuration, and metadata paths outside
 the extracted closure. It builds the library/CLI, runs engine and snapshot tests,
 doctests, Clippy and Rustdoc, compares direct and embedded CLI behavior, and uses
-the supplied qargo to validate original/relocated qrate input and source IDs.
+the supplied qlirgo to validate original/relocated qrate input and source IDs.
 
 The selected checker is strictly resolved to one regular executable. Its exact
 file bytes/executable flag and canonical path are captured in the native inventory
@@ -84,7 +84,7 @@ The verifier neither builds/downloads a checker nor falls back to another one.
 
 Nonempty direct/embedded CLI comparison fixtures include real schema-2/edition-2026
 manifests. The unchanged identity and new one-qubit bare-H controls must pass actual
-qlippy source checking; syntax and absent-name faults must reach their compiler
+qlinty source checking; syntax and absent-name faults must reach their compiler
 diagnostics. The historical fixture label `type` remains an absent-name fault, not
 a claimed type-mismatch test. Empty fixtures keep their deliberate no-manifest
 control. Formatter/documentation comparisons remain syntax-only.
@@ -117,7 +117,9 @@ installation exercises compatibility without changing that project identity.
 For development in the original checkout, `python3 scripts/qrate_project.py`
 audits component dependency direction and checks that root CLI/test adapters
 remain wiring only. Release validation compares literal standard-qrate and Rust
-versions to root Cargo `[package].version`. Qargo commands do not run these
+versions to root Cargo `[package].version`: the full 0.2.0-beta for Rust packages
+and tools, the canonical 0.2.0 base for bundled qrates. It does not change qrate
+version syntax or relax full-version tool compatibility. Qlirgo commands do not run these
 developer scripts or Cargo.
 
 ## On-demand workflow

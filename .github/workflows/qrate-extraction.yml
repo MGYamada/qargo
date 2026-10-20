@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        component: ["qlippy", "qlifmt", "qlidoc"]
+        component: ["qlinty", "qlifmt", "qlidoc"]
         os: ["ubuntu-latest", "macos-latest"]
         toolchain: ["1.85.0", "stable"]
     steps:
@@ -35,7 +35,7 @@ jobs:
           printf 'QLEISLI_BUNDLE_SOURCE_ROOT=%s\n' "$qleisli_bundle_source_root" >> "$GITHUB_ENV"
           cargo +${{ matrix.toolchain }} build --frozen --bins
           mkdir -p "$RUNNER_TEMP/bundle/bin"
-          cp target/debug/qargo target/debug/qlippy target/debug/qlifmt target/debug/qlidoc "$RUNNER_TEMP/bundle/bin/"
+          cp target/debug/qlirgo target/debug/qlinty target/debug/qlifmt target/debug/qlidoc "$RUNNER_TEMP/bundle/bin/"
           python3 scripts/qrate_project.py --component '${{ matrix.component }}' --destination "$RUNNER_TEMP/extracted" --cargo "$(rustup which --toolchain '${{ matrix.toolchain }}' cargo)"
           component_dir="$RUNNER_TEMP/extracted/rust/${{ matrix.component }}"
           (cd "$component_dir"; cargo +${{ matrix.toolchain }} metadata --frozen --format-version=1 > "$RUNNER_TEMP/component-dependencies.json")
@@ -45,12 +45,12 @@ jobs:
       - name: Copy the bound Lean setup metadata outside captured sources
         shell: bash
         run: |
-          mkdir "$RUNNER_TEMP/qargo-lean-setup"
-          cp "$QLEISLI_SOURCE_ROOT/lean-kernel/lean-toolchain" "$QLEISLI_SOURCE_ROOT/lean-kernel/lakefile.toml" "$QLEISLI_SOURCE_ROOT/lean-kernel/lake-manifest.json" "$RUNNER_TEMP/qargo-lean-setup/"
+          mkdir "$RUNNER_TEMP/qlirgo-lean-setup"
+          cp "$QLEISLI_SOURCE_ROOT/lean-kernel/lean-toolchain" "$QLEISLI_SOURCE_ROOT/lean-kernel/lakefile.toml" "$QLEISLI_SOURCE_ROOT/lean-kernel/lake-manifest.json" "$RUNNER_TEMP/qlirgo-lean-setup/"
       - name: Prepare the actual dependency's pinned Lean toolchain
         uses: leanprover/lean-action@50fcf42d2e460296f1a34b402e990d1b24f8b596
         with:
-          lake-package-directory: ${{ runner.temp }}/qargo-lean-setup
+          lake-package-directory: ${{ runner.temp }}/qlirgo-lean-setup
           auto-config: 'false'
           build: 'false'
           test: 'false'
@@ -60,8 +60,8 @@ jobs:
       - name: Build and audit the explicitly associated native checker
         shell: bash
         run: |
-          python3 "$QLEISLI_SOURCE_ROOT/scripts/package_lean_kernel.py" --validation full --output "$RUNNER_TEMP/qargo-native-kernel"
-          printf 'QLEISLI_KERNEL=%s\n' "$RUNNER_TEMP/qargo-native-kernel/bin/qleisli-kernel" >> "$GITHUB_ENV"
+          python3 "$QLEISLI_SOURCE_ROOT/scripts/package_lean_kernel.py" --validation full --output "$RUNNER_TEMP/qlirgo-native-kernel"
+          printf 'QLEISLI_KERNEL=%s\n' "$RUNNER_TEMP/qlirgo-native-kernel/bin/qleisli-kernel" >> "$GITHUB_ENV"
       - name: Verify without access to the original repository
         shell: bash
         working-directory: ${{ runner.temp }}
@@ -84,7 +84,7 @@ jobs:
             ${{ runner.temp }}/verification/native-inputs.json
             ${{ runner.temp }}/bundle-dependencies.json
             ${{ runner.temp }}/component-dependencies.json
-            ${{ runner.temp }}/qargo-native-kernel/manifest.json
+            ${{ runner.temp }}/qlirgo-native-kernel/manifest.json
             ${{ runner.temp }}/verification/build-record.json
             ${{ runner.temp }}/verification/work/build-access-*.log
           if-no-files-found: error
